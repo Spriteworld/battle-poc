@@ -1,7 +1,7 @@
 import { BasePokemon } from "@spriteworld/pokemon-data";
 import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
 
-export default new BasePokemon({
+export default {
   game: GAMES.POKEMON_FIRE_RED,
   pid: 1,
   originalTrainer: 'Player',
@@ -12,7 +12,7 @@ export default new BasePokemon({
   ability: {
     name: 'none',
   },
-  currentHp: 10,
+  currentHp: 1,
   moves: [{
     name: 'Tackle',
     pp: {
@@ -44,4 +44,4 @@ export default new BasePokemon({
   },
   exp: 0,
   isShiny: false,
-});
+};

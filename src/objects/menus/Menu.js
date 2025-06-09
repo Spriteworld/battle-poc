@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import { MenuItem } from '@Objects';
 
 export default class extends Phaser.GameObjects.Container {
-  constructor(scene, x, y, children) {
-    super(scene, x, y, children);
+  constructor(scene, x, y) {
+    super(scene, x, y);
 
     this.config = {};
     this.config.scene = scene;
@@ -13,14 +13,20 @@ export default class extends Phaser.GameObjects.Container {
     this.config.y = y;
     this.config.selected = false;
 
+    if (!this.name) {
+      this.name = (Math.random() + 1).toString(36).substring(7);
+    }
+
     scene.add.existing(this);
+
+    return this;
   }
 
   addMenuItem(item) {
     let menuItem = new MenuItem(this.config.scene, 0, this.config.menuItems.length*20, item);
     this.config.menuItems.push(menuItem);
     this.add(menuItem);
-    return menuItem;
+    return this;
   }
 
   moveSelectionUp() {
@@ -56,6 +62,13 @@ export default class extends Phaser.GameObjects.Container {
   }
 
   confirm() {
+    let eventName = [this.name, 'select-option', this.config.menuItemIndex].join('-').toLowerCase();
+    console.log(`[Menu] ${this.name} option selected:`, this.config.menuItemIndex);
+    console.log('[Menu] triggering event', eventName);
+    this.config.scene.events.emit(
+      eventName,
+      this.config.menuItemIndex
+    );
   }
 
   clear() {

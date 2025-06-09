@@ -1,28 +1,28 @@
 import { BasePokemon } from "@spriteworld/pokemon-data";
 import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
 
-export default new BasePokemon({
+export default {
   game: GAMES.POKEMON_FIRE_RED,
   pid: 1,
-  originalTrainer: 'Wild',
-  nickname: 'Rattata',
-  species: 19,
+  originalTrainer: 'Player',
+  nickname: 'Charmander',
+  species: 4,
   level: 5,
   nature: NATURES.HARDY,
   ability: {
     name: 'none',
   },
   moves: [{
-    name: 'Tackle',
+    name: 'Scratch',
     pp: {
-      max: 10,
-      current: 10
+      max: 35,
+      current: 35
     },
   }, {
-    name: 'Double Kick',
+    name: 'Growl',
     pp: {
-      max: 10,
-      current: 10
+      max: 40,
+      current: 40
     },
   }],
   ivs: {
@@ -34,13 +34,13 @@ export default new BasePokemon({
     [STATS.SPEED]: 31,
   },
   evs: {
-    [STATS.HP]: 0,
-    [STATS.ATTACK]: 3,
-    [STATS.DEFENSE]: 0,
-    [STATS.SPECIAL_ATTACK]: 4,
-    [STATS.SPECIAL_DEFENSE]: 0,
+    [STATS.HP]: 4,
+    [STATS.ATTACK]: 0,
+    [STATS.DEFENSE]: 4,
+    [STATS.SPECIAL_ATTACK]: 5,
+    [STATS.SPECIAL_DEFENSE]: 6,
     [STATS.SPEED]: 0,
   },
   exp: 0,
   isShiny: false,
-});
+};

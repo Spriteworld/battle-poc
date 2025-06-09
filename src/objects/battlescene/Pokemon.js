@@ -1,38 +1,26 @@
-import { STATS, CalcDamage } from '@spriteworld/pokemon-data';
+import { STATS, CalcDamage, Pokedex, BasePokemon } from '@spriteworld/pokemon-data';
+import Move from './Move.js';
 
-export default class {
- 
-  constructor(config, trainer) {
-    this.pid = 0;
-    this.originalTrainer = null;
-    this.nickname = null;
-    this.species = 0;
-    this.level = 1;
-    this.exp = 0;
-    this.isShiny = false;
-    this.currentHp = 0;
-    this.moves = [];
-    this.ivs = {
-      [STATS.HP]: 0,
-      [STATS.ATTACK]: 0,
-      [STATS.DEFENSE]: 0,
-      [STATS.SPECIAL_ATTACK]: 0,
-      [STATS.SPECIAL_DEFENSE]: 0,
-      [STATS.SPEED]: 0,
-    };
-    this.evs = {
-      [STATS.HP]: 0,
-      [STATS.ATTACK]: 0,
-      [STATS.DEFENSE]: 0,
-      [STATS.SPECIAL_ATTACK]: 0,
-      [STATS.SPECIAL_DEFENSE]: 0,
-      [STATS.SPEED]: 0,
-    };
+export default class extends BasePokemon {
+  constructor(config, trainerName) {
+    super({
+      game: config.game,
+      pid: config.pid,
+      species: config.species,
+      originalTrainer: trainerName,
+      trainerId: config.trainerId, 
+      nickname: config.nickname,
+      nickname: config.nickname,
+      level: config.level,
+      nature: config.nature,
+      ability: config.ability,
+      ivs: config.ivs || {},
+      evs: config.evs || {},
+      moves: config.moves || [] 
+    });
 
-    if (config) {
-      Object.assign(this, config);
-    }
-    this.trainer = trainer;
+    this.currentHp = config.currentHp || this.currentHp;
+    this.moves = this.moves.map(move => new Move(move, config));
   }
 
   getName() {
@@ -40,26 +28,39 @@ export default class {
   }
 
   attack(target, move) {
-    let info = CalcDamage.calculate(this, target, move.move);
-    console.log('info', info);
+    if (typeof move === 'undefined') {
+      console.warn('BattlePokemon: attack called without a move');
+      return;
+    }
+
+    let info = CalcDamage.calculate(this, target, move);
     if (!('damage' in info) || info.damage < 0) {
       info.damage = 0;
     }
 
-    move.pp.current = move.pp.current-1;
+    move.pp.current -= 1;
 
-    console.log('BattlePokemon: '
-      + this.getName() + ' uses '
-      + move.move.name + ' against '
-      + target.getName() +' for '
-      + info.damage + ' damage'
-    );
+    let currentHP = target.currentHp;
     target.takeDamage(info.damage);
+    console.log([
+      'BattlePokemon: ',
+      this.getName(),
+      'uses',
+      move.name,
+      'against',
+      target.getName(),
+      'for',
+      currentHP,
+      '-',
+      info.damage,
+      '= ' + target.currentHp,
+      'damage',
+    ].join(' '));
 
     return {
       player: this.getName(),
       enemy: target.getName(),
-      move: move.move.name,
+      move: move.name,
       ...info
     };
   }
@@ -78,14 +79,12 @@ export default class {
     }
   }
 
-  getAttacks() {
-    return this.moves.map(move => {
-      return {
-        name: move.name,
-        damage: move.damage,
-        pp: move.pp
-      }
-    });
+  getMoves() {
+    return this.moves;
+  }
+
+  isAlive() {
+    return this.currentHp > 0;
   }
 
   debug() {

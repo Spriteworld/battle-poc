@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import * as Scenes from '@Scenes';
+import Scenes from '@Scenes';
 
 const config = {
   parent: 'app',
@@ -23,7 +23,7 @@ const config = {
   plugins: {
 
   },
-  scene: Object.values(Scenes)
+  scene: [Scenes.Preload],
 };
 
 export default config;
