@@ -2,7 +2,7 @@ import { BattleMenu } from '@Objects';
 
 export default class PlayerAction {
   onEnter() {
-    console.log('[PlayerAction] onEnter');
+    // console.log('[PlayerAction] onEnter');
     this.logger.addItem('[PlayerAction] ' + this.data.player.name + '\'s turn!');
     
     // show player action menu
@@ -18,15 +18,15 @@ export default class PlayerAction {
     this.activePokemonMenu.select(0);
 
     this.events.once('battlemenu-select-option-0', () => {
-      console.log('[PlayerAction] battlemenu option selected');
+      // console.log('[PlayerAction] battlemenu option selected');
       // if player selects attack, go to PLAYER_ATTACK state
       this.stateMachine.setState(this.stateDef.PLAYER_ATTACK);
     });
       
     this.events.once('battlemenu-select-option-1', () => {
       // if player selects bag, go to PLAYER_BAG state
-      this.logger.addItem('[PlayerAction] Bag selected...but not implemented yet!');
-      // this.stateMachine.setState(this.stateDef.PLAYER_BAG);
+      // this.logger.addItem('[PlayerAction] Bag selected...but not implemented yet!');
+      this.stateMachine.setState(this.stateDef.PLAYER_BAG);
     });
       
     this.events.once('battlemenu-select-option-2', () => {
@@ -40,12 +40,5 @@ export default class PlayerAction {
       this.stateMachine.setState(this.stateDef.BATTLE_END);
     });
   }
-  
-  // onUpdate() {
-  //   console.log('[PlayerAction] onUpdate');
-  // }
-  
-  // onExit() {
-  //   console.log('[PlayerAction] onExit');
-  // }
+
 }

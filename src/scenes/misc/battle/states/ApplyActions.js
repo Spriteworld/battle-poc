@@ -1,6 +1,8 @@
+import { ActionTypes } from '@Objects';
+
 export default class ApplyActions {
   onEnter() {
-    console.log('[ApplyActions] onEnter');
+    // // console.log('[ApplyActions] onEnter');
 
     let action = this.currentAction;
     if (!action) {
@@ -8,76 +10,7 @@ export default class ApplyActions {
       this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
       return;
     }
-    console.log('[ApplyActions] currentAction', action);
-
-    switch(action.type.toLowerCase()) {
-      case 'attack':
-      case 'npc_attack':
-        let info = {};
-        let activeMon = action.player.team.getActivePokemon();
-
-        switch (action.type.toLowerCase()) {
-          case 'attack':
-            info = activeMon.attack(action.target, action.move);
-          break;
-          case 'npc_attack':
-            info = activeMon.attackRandomMove(action.target);
-          break;
-        }
-
-        this.logger.addItem([
-          action.player.getName(),
-          'uses',
-          info.move,
-          'against',
-          info.enemy
-        ].join(' '));
-
-        if (info.accuracy === 0) {
-          this.logger.addItem('It totally missed!');
-          return;
-        }
-
-        if (info.damage === 0) {
-          this.logger.addItem('It has no effect!');
-          return;
-        } else {
-          this.logger.addItem([
-            '   for',
-            info.damage,
-            '('+ action.target.currentHp+')',
-            'damage!'
-          ].join(' '));          
-        }
-
-        if (info.critical === 2) {
-          this.logger.addItem('It was a critical hit!');
-        }
-
-        switch (info.typeEffectiveness) {
-          case 2:
-          case 4:
-            this.logger.addItem('It was super effective!');
-          break;
-          case 0.25:
-            this.logger.addItem('It wasnt very effective!');
-          break;
-          case 0:
-            this.logger.addItem('It has no effect!');
-          break;
-        }
-
-        this.currentAction = null;
-
-        this.remapActivePokemon();
-        this.time.addEvent({ 
-          delay: 1000, 
-          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
-          callbackScope: this 
-        });
-      break;
-    }
-
+    // // console.log('[ApplyActions] currentAction', action);
 
     // if player selects an item
       // is item a pokeball?
@@ -85,6 +18,32 @@ export default class ApplyActions {
         // if so, apply catch logic
         // if caught, go to BATTLE_END state else APPLY_ACTIONS state
       // is item a healing / pokedoll, apply item effects
+    if (action.type === ActionTypes.USE_ITEM) {
+      let { config, target } = action;
+      let item = config.item;
+      if (Object.keys(config).includes('item') === false || typeof item !== 'object') {
+        console.warn('[ApplyActions] No item found in action config, returning to BATTLE_IDLE state');
+        this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+        return;
+      }
+      // // console.log('[ApplyActions] Using item:', item);
+
+      // apply item effects, e.g. healing, status curing, etc
+      let result = target.useItem(item.item, action);
+      this.logger.addItem(result.message);
+
+      item.quantity -= 1;
+      // if (item.quantity <= 0) {
+      //   this.data.player.inventory.items.splice(itemIndex, 1);
+      // }
+
+      this.time.addEvent({ 
+        delay: 1000, 
+        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
+        callbackScope: this 
+      });
+      return;
+    }
 
     // if player selects a pokemon
       // check to see if enemy or field has an ability to stop (e.g. Arena Trap)
@@ -111,9 +70,81 @@ export default class ApplyActions {
       // check for priority moves
       // check for whos faster via pokemon speed stat
 
-    // if player is faster, apply player attack first
-    // if enemy is faster, apply enemy attack first
-    
+    if ([ActionTypes.ATTACK, ActionTypes.NPC_ATTACK].includes(action.type)) {
+      let { config, target, player, type } = action;
+      let info = {};
+      let activeMon = player.team.getActivePokemon();
+      let move = config.move;
+      if (Object.keys(config).includes('move') === false || typeof move !== 'object') {
+        console.warn('[ApplyActions] No move found in action config, returning to BATTLE_IDLE state');
+        this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+        return;
+      }
+      
+      switch (type) {
+        case ActionTypes.ATTACK:
+          info = activeMon.attack(target, config.move);
+        break;
+        case ActionTypes.NPC_ATTACK:
+          info = activeMon.attackRandomMove(target);
+        break;
+      }
+
+      this.logger.addItem([
+        activeMon.getName(),
+        'uses',
+        info.move,
+        'against',
+        info.enemy
+      ].join(' '));
+
+      if (info.accuracy === 0) {
+        this.logger.addItem('It totally missed!');
+        return;
+      }
+
+      if (info.damage === 0) {
+        this.logger.addItem('It has no effect!');
+        return;
+      } else {
+        this.logger.addItem([
+          '   for',
+          info.damage,
+          '('+ action.target.currentHp+')',
+          'damage!'
+        ].join(' '));          
+      }
+
+      if (info.critical === 2) {
+        this.logger.addItem('It was a critical hit!');
+      }
+
+      switch (info.typeEffectiveness) {
+        case 2:
+        case 4:
+          this.logger.addItem('It was super effective!');
+        break;
+        case 0.25:
+          this.logger.addItem('It wasnt very effective!');
+        break;
+        case 0:
+          this.logger.addItem('It has no effect!');
+        break;
+      }
+
+      this.currentAction = null;
+
+      this.remapActivePokemon();
+      this.time.addEvent({ 
+        delay: 1000, 
+        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
+        callbackScope: this 
+      });
+      return;
+    }
+
+
+
     // apply any damage calculations
 
     // apply any weather effects, e.g. hail, sandstorm, etc
@@ -135,12 +166,4 @@ export default class ApplyActions {
       // this.stateMachine.setState(this.stateDef.BATTLE_WIN);
 
   }
-  
-  // onUpdate() {
-  //   console.log('[ApplyActions] onUpdate');
-  // }
-  
-  // onExit() {
-  //   console.log('[ApplyActions] onExit');
-  // }
 }

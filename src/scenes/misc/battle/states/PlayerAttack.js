@@ -1,30 +1,23 @@
-import { AttackMenu } from '@Objects';
+import { AttackMenu, Action, ActionTypes } from '@Objects';
 
 export default class PlayerAttack {
   onEnter() {
     let activeMon = this.config.player.team.getActivePokemon();
     
-    // player selects an attack
     this.AttackMenu = new AttackMenu(this, 10, 200);
-    this.AttackMenu.deselect();
-
-    let moves = activeMon.getMoves();
-    this.AttackMenu.remap(moves.map(move => {
-      return `${move.name} (${move.pp.current}pp / ${move.pp.max}pp)`;
-    }));
-
-    this.activateMenu(this.AttackMenu);
 
     let attack = (move) => {
       this.AttackMenu.deselect();
       this.AttackMenu.clear();
-
-      this.actions.player = {
-        type: 'attack',
+      console.log('[PlayerAttack] attack selected:', move);
+      this.actions.player = new Action({
+        type: ActionTypes.ATTACK,
         player: this.config.player,
         target: this.config.enemy.team.getActivePokemon(),
-        move: move
-      };
+        config: {
+          move: move,
+        },
+      });
       this.logger.addItem([
         '[PlayerAttack]',
         this.config.player.getName(),
@@ -34,17 +27,22 @@ export default class PlayerAttack {
       this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
     };
 
-    this.events.once('attackmenu-select-option-0', (idx) => attack(moves[idx]));
-    this.events.once('attackmenu-select-option-1', (idx) => attack(moves[idx]));
-    this.events.once('attackmenu-select-option-2', (idx) => attack(moves[idx]));
-    this.events.once('attackmenu-select-option-3', (idx) => attack(moves[idx]));
+    let moves = activeMon.getMoves();
+    this.AttackMenu.clear();
+    Object.values(moves).forEach((move, idx) => {
+      this.AttackMenu.addMenuItem(`${move.name} (${move.pp.current}pp / ${move.pp.max}pp)`);
+      this.events.once('attackmenu-select-option-' + idx, () => attack(move));
+    });
+
+    this.AttackMenu.addMenuItem('Cancel');
+    this.events.once('attackmenu-select-option-' + (moves.length), () => {
+      this.AttackMenu.deselect();
+      this.AttackMenu.clear();
+      this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+    });
+
+    this.activateMenu(this.AttackMenu);
+    this.AttackMenu.select(0);
   }
-  
-  // onUpdate() {
-  //   console.log('[PlayerAttack] onUpdate');
-  // }
-  
-  // onExit() {
-  //   console.log('[PlayerAttack] onExit');
-  // }
+
 }

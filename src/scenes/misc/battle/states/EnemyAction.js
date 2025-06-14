@@ -1,3 +1,5 @@
+import { Action, ActionTypes } from '@Objects';
+
 export default class EnemyAction {
   onEnter() {
     let activeMon = this.config.enemy.team.getActivePokemon();
@@ -17,12 +19,14 @@ export default class EnemyAction {
     let move = moves[moveIndex];
 
     // for now we'll just attack
-    this.actions.enemy = {
-      type: 'attack',
+    this.actions.enemy = new Action({
+      type: ActionTypes.ATTACK,
       player: this.config.enemy,
       target: this.config.player.team.getActivePokemon(),
-      move: move,
-    };
+      config: {
+        move: move,
+      },
+    });
     this.logger.addItem([
       '[EnemyAction]',
       this.config.enemy.getName(),
@@ -37,12 +41,5 @@ export default class EnemyAction {
       callbackScope: this,
     });
   }
-  
-  // onUpdate() {
-  //   console.log('[EnemyAction] onUpdate');
-  // }
-  
-  // onExit() {
-  //   console.log('[EnemyAction] onExit');
-  // }
+
 }

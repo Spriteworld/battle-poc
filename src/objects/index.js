@@ -13,6 +13,8 @@ import ActivePokemonMenu from './menus/ActivePokemonMenu.js';
 import AttackMenu from './menus/AttackMenu.js';
 import BagMenu from './menus/BagMenu.js';
 
+import Action from './misc/Action.js';
+import * as ActionTypes from './enums/ActionTypes.js';
 
 export {
   Game,
@@ -28,5 +30,8 @@ export {
   PokemonTeamMenu,
   ActivePokemonMenu,
   AttackMenu,
-  BagMenu
+  BagMenu,
+
+  Action,
+  ActionTypes,
 }

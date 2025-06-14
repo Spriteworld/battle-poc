@@ -10,7 +10,6 @@ export default class extends BasePokemon {
       originalTrainer: trainerName,
       trainerId: config.trainerId, 
       nickname: config.nickname,
-      nickname: config.nickname,
       level: config.level,
       nature: config.nature,
       ability: config.ability,
@@ -21,10 +20,6 @@ export default class extends BasePokemon {
 
     this.currentHp = config.currentHp || this.currentHp;
     this.moves = this.moves.map(move => new Move(move, config));
-  }
-
-  getName() {
-    return this.nickname || this.pokemon.species;
   }
 
   attack(target, move) {
@@ -43,18 +38,10 @@ export default class extends BasePokemon {
     let currentHP = target.currentHp;
     target.takeDamage(info.damage);
     console.log([
-      'BattlePokemon: ',
-      this.getName(),
-      'uses',
-      move.name,
-      'against',
-      target.getName(),
-      'for',
-      currentHP,
-      '-',
-      info.damage,
-      '= ' + target.currentHp,
-      'damage',
+      'BattlePokemon: ', this.getName(), 'uses',
+      move.name, 'against', target.getName(),
+      'for', currentHP, '-', 
+      info.damage, '= ' + target.currentHp, 'damage',
     ].join(' '));
 
     return {
@@ -77,6 +64,15 @@ export default class extends BasePokemon {
     } else {
       this.currentHp -= damage;
     }
+  }
+
+  useItem(item, action) {
+    console.log('BattlePokemon: useItem', item);
+    if (typeof item.onUse !== 'function') {
+      console.warn('BattlePokemon: useItem called without a valid item.onUse function');
+      return;
+    }
+    return item.onUse(this, action);
   }
 
   getMoves() {

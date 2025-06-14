@@ -1,6 +1,6 @@
 export default class BattleWon {
   onEnter() {
-    console.log('[BattleWon] onEnter');
+    // console.log('[BattleWon] onEnter');
 
     // if wild pokemon
     if (!this.config.enemy.isTrainer) {
@@ -46,12 +46,5 @@ export default class BattleWon {
 
     this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
   }
-  
-  // onUpdate() {
-  //   console.log('[BattleWon] onUpdate');
-  // }
-  
-  // onExit() {
-  //   console.log('[BattleWon] onExit');
-  // }
+
 }

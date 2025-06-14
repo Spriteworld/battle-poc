@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import Scenes from '@Scenes';
 import * as pokemon from '@Data/pokemon/';
+import Items from '@Data/items/';
 
 export default class extends Phaser.Scene {
   constructor() {
@@ -75,6 +76,14 @@ export default class extends Phaser.Scene {
           pokemon['player_charmander'],
           pokemon['player_squirtle'],
         ],
+        inventory: {
+          items: [
+            { item: new Items.Potion(), quantity: 5 },
+            // { item: new Items.Potion(), quantity: 5 },
+          ],
+          pokeballs: [],
+          tms: [],
+        },
       },
       enemy: {
         isTrainer: true,

@@ -1,12 +1,13 @@
 import { STATS } from '@spriteworld/pokemon-data';
+import { ActionTypes } from '../../../../objects';
 
 export default class BeforeAction {
   onEnter() {
-    console.log('[BeforeAction] onEnter');
+    // console.log('[BeforeAction] onEnter');
     // apply any weather 
 
     if (this.config.field.weather) {
-      console.log('[BeforeAction] Weather is set to', this.config.field.weather);
+      // console.log('[BeforeAction] Weather is set to', this.config.field.weather);
     }
 
     let check = this.checkForDeadActivePokemon();
@@ -16,11 +17,13 @@ export default class BeforeAction {
       return;
     }
 
+    // TODO: figure out speed increases/decreases in this calculation
     let playerSpeed = this.config.player.team.getActivePokemon().stats[STATS.SPEED];
     let enemySpeed = this.config.enemy.team.getActivePokemon().stats[STATS.SPEED];
 
     let order = [];
-    // figure out the attack order
+    // if player is faster, apply player attack first
+    // if enemy is faster, apply enemy attack first
     if (playerSpeed > enemySpeed) { order = ['player', 'enemy']; }
     if (playerSpeed < enemySpeed) { order = ['enemy', 'player']; }
     if (playerSpeed == enemySpeed) {
@@ -38,7 +41,7 @@ export default class BeforeAction {
       return;
     }
 
-    // console.log('[BeforeAction] actions', this.actions, actionCount);
+    // // console.log('[BeforeAction] actions', this.actions, actionCount);
     // if theres only one action, use that
     if (actionCount === 1) {
       let keys = Object.keys(this.actions);
@@ -48,19 +51,25 @@ export default class BeforeAction {
 
     // if there are multiple actions, grab the first one according to the order
     if (actionCount > 1) {
-      this.currentAction = this.actions[order[0]];
-      delete this.actions[order[0]]; 
+      if (this.actions.player.type === ActionTypes.ATTACK 
+            && this.actions.enemy.type === ActionTypes.ATTACK) {
+        // if both players are attacking, we need to check the order
+        // based on speed, and then apply the first action
+        // console.log('[BeforeAction] Both players are attacking, checking speed order');
+        this.currentAction = this.actions[order[0]];
+        delete this.actions[order[0]]; 
+      }
+
+      if (this.actions.player.type !== ActionTypes.ATTACK) {
+        // if player is not attacking, we need to apply the player action first
+        // console.log('[BeforeAction] Player is not attacking, applying player action first');
+        this.currentAction = this.actions.player;
+        delete this.actions.player; 
+      }
     }
 
-    console.log('[BeforeAction] currentAction', this.currentAction);
+    // console.log('[BeforeAction] currentAction', this.currentAction);
     this.stateMachine.setState(this.stateDef.APPLY_ACTIONS);
   }
-  
-  // onUpdate() {
-  //   console.log('[BeforeAction] onUpdate');
-  // }
-  
-  // onExit() {
-  //   console.log('[BeforeAction] onExit');
-  // }
+
 }
