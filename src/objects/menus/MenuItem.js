@@ -13,5 +13,9 @@ export default class extends Phaser.GameObjects.Text {
   deselect() {
     this.setColor('#ffffff');
   }
+
+  text() {
+    return this._text;
+  }
 }
 

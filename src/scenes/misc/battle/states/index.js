@@ -4,6 +4,7 @@ import PlayerAction from './PlayerAction.js';
 import PlayerAttack from './PlayerAttack.js';
 import PlayerBag from './PlayerBag.js';
 import PlayerPokemon from './PlayerPokemon.js';
+import PlayerNewActivePokemon from './PlayerNewActivePokemon.js';
 import EnemyAction from './EnemyAction.js';
 import ApplyActions from './ApplyActions.js';
 import BattleEnd from './BattleEnd.js';
@@ -18,6 +19,7 @@ export {
   PlayerAttack,
   PlayerBag,
   PlayerPokemon,
+  PlayerNewActivePokemon,
   EnemyAction,
   ApplyActions,
   BattleEnd,

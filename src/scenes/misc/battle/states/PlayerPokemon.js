@@ -1,71 +1,80 @@
-import { PokemonTeamMenu } from '@Objects';
+import { PokemonTeamMenu, PokemonSwitchMenu, ActionTypes, Action } from '@Objects';
 
 export default class PlayerPokemon {
   onEnter() {
     this.logger.addItem('[PlayerPokemon] Select a Pokemon to switch to');
     // console.log(this.config.player.team.pokemon);
 
-    this.battleMenu.select(2);
+    // select pokemon option in battle menu
+    this.BattleMenu.select(2);
 
+    // set new menus up
     this.PokemonTeamMenu = new PokemonTeamMenu(this, 10, 200);
+    this.PokemonSwitchMenu = new PokemonSwitchMenu(this, 100, 100);
 
+    // map current players team into the PokemonTeamMenu
     let playerTeam = this.config.player.team;
-    // console.log('[PlayerPokemon] Player team:', playerTeam);
-    let alivePokemon = Object.values(playerTeam.pokemon).filter((pokemon, idx) => {
-      return pokemon.isAlive()
+    Object.values(playerTeam.pokemon).forEach((pokemon, idx) => {
+      this.PokemonTeamMenu.addMenuItem(pokemon.nameWithHP());
+      this.events.once('pokemonteammenu-select-option-' + idx, () => {
+        this.selectedPokemon = pokemon;
+
+        this.PokemonSwitchMenu.clear();
+        this.PokemonSwitchMenu.addMenuItem('Switch to ' + pokemon.getName());
+        this.PokemonSwitchMenu.addMenuItem('Details');
+        this.PokemonSwitchMenu.addMenuItem('Cancel');
+        this.PokemonSwitchMenu.select(0);
+        this.activateMenu(this.PokemonSwitchMenu);
+
+        this.events.once('pokemonswitchmenu-select-option-0', () => {
+          this.actions.player = new Action({
+            type: ActionTypes.SWITCH_POKEMON,
+            player: this.config.player,
+            target: this.config.enemy.team.getActivePokemon(),
+            config: {
+              pokemon: pokemon,
+            },
+          });
+
+          // if player selects switch, go to ENEMY_ACTION state
+          this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
+        });
+
+        this.events.once('pokemonswitchmenu-select-option-1', () => {
+          // if player selects details, show pokemon details scene
+          this.logger.addItem('[PlayerPokemon] Pokemon details not implemented yet');
+          // this.stateMachine.setState(this.stateDef.POKEMON_DETAILS);
+        });
+
+        this.events.once('pokemonswitchmenu-select-option-2', () => {
+          // if player selects cancel, go back to PLAYER_ACTION state
+          this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+        });
+      });
     });
 
-    this.PokemonTeamMenu.remap(
-      alivePokemon.map(pokemon => {
-        return `${pokemon.getName()} (${pokemon.currentHp}/${pokemon.maxHp})`;
-      })
-    );
+    this.PokemonTeamMenu.addMenuItem('Cancel');
+    this.events.once('pokemonteammenu-select-option-' + (Object.keys(playerTeam.pokemon).length), () => {
+      this.activateMenu(this.PokemonTeamMenu);
+      this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+    });
 
     this.PokemonTeamMenu.select(0);
     this.activateMenu(this.PokemonTeamMenu);
-
-    let menuAction = (pokemon) => {
-      // console.log(`[PlayerPokemon] PokemonTeamMenu option selected`);
-      // console.log('[PlayerPokemon] Selected Pokemon:', pokemon);
-      this.PokemonTeamMenu.deselect();
-      this.PokemonTeamMenu.clear();
-
-      let selectedPokemonIdx = Object.values(playerTeam.pokemon).findIndex(pkmn => pkmn.species === pokemon.species);
-      // console.log(`[PlayerPokemon] selectedPokemonIdx: ${selectedPokemonIdx}`);
-
-      // if player selects a pokemon, switch to that pokemon
-      this.config.player.team.setActivePokemon(selectedPokemonIdx);
-      this.remapActivePokemon();
-
-      // player action needs to be cleared
-      delete this.actions.player;
-
-      this.logger.addItem([
-        '[PlayerPokemon]',
-        this.config.player.getName(),
-        'switched to',
-        pokemon.getName()
-      ].join(' '));
-
-      // go back to BEFORE_ACTION state
-      this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
-    };
-
-
-    alivePokemon.forEach((pokemon, idx) => {
-      this.events.once('pokemonteammenu-select-option-' + idx, () => menuAction(pokemon));
-    });
-
-
-    // player can select a pokemon
-    // if a player selects switch, go to ENEMY_ACTION state
-    // this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
-
-    // if a player selects details, show pokemon details scene    
-    // this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
-
-    // if a player selects cancel, go back to PLAYER_ACTION state
-    // this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
   }
   
+  onExit() {
+    // console.log('[PlayerPokemon] onExit');
+    this.PokemonTeamMenu.clear();
+    this.PokemonSwitchMenu.clear();
+    this.PokemonTeamMenu.deselect();
+    this.PokemonSwitchMenu.deselect();
+
+    this.events.eventNames().forEach(eventName => {
+      if (eventName.startsWith('pokemonteammenu-') 
+        || eventName.startsWith('pokemonswitchmenu-')) {
+        this.events.off(eventName);
+      }
+    });
+  }
 }

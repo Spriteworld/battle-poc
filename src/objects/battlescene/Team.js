@@ -26,12 +26,38 @@ export default class {
     return this.pokemon[this.active];
   }
 
-  setActivePokemon(index) {
-    if (index < 0 || index >= this.pokemon.length) {
-      console.warn('Invalid index for active Pokemon:', index);
+  /**
+   * Set pokemon active in the team.
+   * If the pokemon is a number, it will set the active pokemon by index.
+   * If the pokemon is an object, it will find the pokemon in the team by its id.
+   * 
+   * @param {number|object} pokemon - Either an index of the pokemon in the team or a pokemon object. 
+   */
+  setActivePokemon(pokemon) {
+    if (typeof pokemon === 'number') {
+      if (index < 0 || index >= this.pokemon.length) {
+        console.warn('Invalid index for active Pokemon:', index);
+        return;
+      }
+      this.active = index;
       return;
     }
-    this.active = index;
+
+    if (typeof pokemon === 'object') {
+      let index = this.pokemon.findIndex(mon => {
+        return mon.id === pokemon.id;
+      });
+
+      if (index === -1) {
+        console.warn('Pokemon not found in team:', pokemon);
+        return;
+      }
+
+      this.active = index;
+      return;
+    }
+
+    console.warn('Invalid type for setting active Pokemon:', typeof pokemon, pokemon);
   }
 
   switchToNextLivingPokemon() {

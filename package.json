@@ -12,7 +12,8 @@
     "grid-engine": "^2.44.5",
     "phaser-animated-tiles-phaser3.5": "^2.0.5",
     "phaser-tiled-json-external-loader": "^0.1.1",
-    "phaser3-rex-plugins": "^1.80.15"
+    "phaser3-rex-plugins": "^1.80.15",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",

@@ -3,8 +3,13 @@ import { Action, ActionTypes } from '@Objects';
 export default class EnemyAction {
   onEnter() {
     let activeMon = this.config.enemy.team.getActivePokemon();
-    this.logger.addItem('[EnemyAction] ' + this.config.enemy.getName() +'\'s turn!');
-    this.activePokemonMenu.select(1);
+    this.logger.addItem([
+      '[Enemy]',
+      this.config.enemy.getName() + '\'s turn!',
+      'What will ' + this.config.enemy.team.getActivePokemon().getName() +' do?' 
+    ].join(' '));
+
+    this.ActivePokemonMenu.select(1);
 
     // do checks to see if we have items we can use
       // if we have items
@@ -28,7 +33,7 @@ export default class EnemyAction {
       },
     });
     this.logger.addItem([
-      '[EnemyAction]',
+      '[Enemy]',
       this.config.enemy.getName(),
       'selected attack',
       '('+ move.name + ')',

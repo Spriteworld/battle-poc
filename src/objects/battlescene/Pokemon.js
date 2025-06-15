@@ -1,5 +1,6 @@
-import { STATS, CalcDamage, Pokedex, BasePokemon } from '@spriteworld/pokemon-data';
+import { CalcDamage, BasePokemon } from '@spriteworld/pokemon-data';
 import Move from './Move.js';
+import { v4 as uuidv4 } from 'uuid';
 
 export default class extends BasePokemon {
   constructor(config, trainerName) {
@@ -20,6 +21,7 @@ export default class extends BasePokemon {
 
     this.currentHp = config.currentHp || this.currentHp;
     this.moves = this.moves.map(move => new Move(move, config));
+    this.id = config.id || uuidv4();
   }
 
   attack(target, move) {
@@ -37,12 +39,12 @@ export default class extends BasePokemon {
 
     let currentHP = target.currentHp;
     target.takeDamage(info.damage);
-    console.log([
-      'BattlePokemon: ', this.getName(), 'uses',
-      move.name, 'against', target.getName(),
-      'for', currentHP, '-', 
-      info.damage, '= ' + target.currentHp, 'damage',
-    ].join(' '));
+    // console.log([
+    //   'BattlePokemon: ', this.getName(), 'uses',
+    //   move.name, 'against', target.getName(),
+    //   'for', currentHP, '-', 
+    //   info.damage, '= ' + target.currentHp, 'damage',
+    // ].join(' '));
 
     return {
       player: this.getName(),
@@ -67,7 +69,7 @@ export default class extends BasePokemon {
   }
 
   useItem(item, action) {
-    console.log('BattlePokemon: useItem', item);
+    // console.log('BattlePokemon: useItem', item);
     if (typeof item.onUse !== 'function') {
       console.warn('BattlePokemon: useItem called without a valid item.onUse function');
       return;
@@ -81,6 +83,30 @@ export default class extends BasePokemon {
 
   isAlive() {
     return this.currentHp > 0;
+  }
+
+  nameWithHP() {
+    return `${this.getName()} (${this.currentHp}/${this.maxHp})`;
+  }
+
+  activePokemonMenuMap() {
+    let trainerName = this.originalTrainer;
+    let nickname = this.getName();
+    let hpCurr = this.currentHp;
+    let hpMax = this.maxHp;
+    let level = this.level;
+    return `${trainerName} - ${nickname} Lv${level} (${hpCurr} / ${hpMax})`;
+  }
+
+  hasAbility(abilityName) {
+    if (!this.ability || !this.ability.name) {
+      return false;
+    }
+    return this.ability.name.toLowerCase() === abilityName.toLowerCase();
+  }
+
+  getBaseStats() {
+    return this.pokemon?.base_stats;
   }
 
   debug() {

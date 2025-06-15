@@ -9,7 +9,7 @@ export default class PlayerAttack {
     let attack = (move) => {
       this.AttackMenu.deselect();
       this.AttackMenu.clear();
-      console.log('[PlayerAttack] attack selected:', move);
+
       this.actions.player = new Action({
         type: ActionTypes.ATTACK,
         player: this.config.player,
@@ -18,6 +18,7 @@ export default class PlayerAttack {
           move: move,
         },
       });
+      
       this.logger.addItem([
         '[PlayerAttack]',
         this.config.player.getName(),

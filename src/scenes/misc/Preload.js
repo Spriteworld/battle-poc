@@ -64,6 +64,9 @@ export default class extends Phaser.Scene {
     this.config.enemy.team = [];
     this.config.hasData = false;
 
+    // 50% chance to be wild pokemon
+    let isTrainer = (Math.random() < 0.5);
+
     let data = {
       field: {
         weather: 'clear',
@@ -86,7 +89,7 @@ export default class extends Phaser.Scene {
         },
       },
       enemy: {
-        isTrainer: true,
+        isTrainer: isTrainer,
         name: 'Trainer',
         team: [
           pokemon['trainer_pikachu'],

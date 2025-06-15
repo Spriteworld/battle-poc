@@ -22,6 +22,10 @@ export default class extends Phaser.GameObjects.Container {
     return this;
   }
 
+  getName() {
+    return this.name;
+  }
+
   addMenuItem(item) {
     let menuItem = new MenuItem(this.config.scene, 0, this.config.menuItems.length*20, item);
     this.config.menuItems.push(menuItem);
@@ -64,7 +68,7 @@ export default class extends Phaser.GameObjects.Container {
   confirm() {
     let eventName = [this.name, 'select-option', this.config.menuItemIndex].join('-').toLowerCase();
     console.log(`[Menu] ${this.name} option selected:`, this.config.menuItemIndex);
-    console.log('[Menu] triggering event', eventName);
+    // console.log('[Menu] triggering event', eventName);
     this.config.scene.events.emit(
       eventName,
       this.config.menuItemIndex

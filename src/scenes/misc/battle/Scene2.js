@@ -18,6 +18,7 @@ export default class extends Phaser.Scene {
       PLAYER_ATTACK: 'playerAttack',
       PLAYER_BAG: 'playerBag',
       PLAYER_POKEMON: 'playerPokemon',
+      PLAYER_NEW_ACTIVE_POKEMON: 'playerNewActivePokemon',
       ENEMY_ACTION: 'enemyAction',
       APPLY_ACTIONS: 'applyActions',
       BATTLE_END: 'battleEnd',
@@ -26,21 +27,31 @@ export default class extends Phaser.Scene {
     };
 
     this.stateMachine = new StateMachine(this)
-      .addState(this.stateDef.BATTLE_IDLE,    new State.BattleIdle)
-      .addState(this.stateDef.BATTLE_START,   new State.BattleStart)
-      .addState(this.stateDef.PLAYER_ACTION,  new State.PlayerAction)
-      .addState(this.stateDef.PLAYER_ATTACK,  new State.PlayerAttack)
-      .addState(this.stateDef.PLAYER_BAG,     new State.PlayerBag)
-      .addState(this.stateDef.PLAYER_POKEMON, new State.PlayerPokemon)
-      .addState(this.stateDef.BEFORE_ACTION,  new State.BeforeAction)
-      .addState(this.stateDef.ENEMY_ACTION,   new State.EnemyAction)
-      .addState(this.stateDef.APPLY_ACTIONS,  new State.ApplyActions)
-      .addState(this.stateDef.BATTLE_END,     new State.BattleEnd)
-      .addState(this.stateDef.BATTLE_WON,     new State.BattleWon)
-      .addState(this.stateDef.BATTLE_LOST,    new State.BattleLost)
+      .addState(this.stateDef.BATTLE_IDLE,                new State.BattleIdle)
+      .addState(this.stateDef.BATTLE_START,               new State.BattleStart)
+      
+      .addState(this.stateDef.PLAYER_ACTION,              new State.PlayerAction)
+      .addState(this.stateDef.PLAYER_ATTACK,              new State.PlayerAttack)
+      .addState(this.stateDef.PLAYER_BAG,                 new State.PlayerBag)
+      .addState(this.stateDef.PLAYER_POKEMON,             new State.PlayerPokemon)
+
+      .addState(this.stateDef.PLAYER_NEW_ACTIVE_POKEMON,  new State.PlayerNewActivePokemon)
+
+      .addState(this.stateDef.BEFORE_ACTION,              new State.BeforeAction)
+      .addState(this.stateDef.ENEMY_ACTION,               new State.EnemyAction)
+      .addState(this.stateDef.APPLY_ACTIONS,              new State.ApplyActions)
+
+      .addState(this.stateDef.BATTLE_END,                 new State.BattleEnd)
+      .addState(this.stateDef.BATTLE_WON,                 new State.BattleWon)
+      .addState(this.stateDef.BATTLE_LOST,                new State.BattleLost)
     ;
 
-    this.activePokemonMenu = {};
+    this.ActivePokemonMenu = {};
+    this.BattleMenu = {};
+    this.AttackMenu = {};
+    this.BagMenu = {};
+    this.PokemonTeamMenu = {};
+    this.PokemonSwitchMenu = {};
     this.currentMenu = {};
     
     this.actions = [];
@@ -49,14 +60,14 @@ export default class extends Phaser.Scene {
 
   init(data) {
     this.data = data;
-    console.log('[BattleScene2] init', data);
+    // console.log('[BattleScene2] init', data);
   }
   
   create() {
     this.logger = new Log(this, 370, 10);
     this.logger.addItem('Battle Initiated...');
 
-    this.activePokemonMenu = new ActivePokemonMenu(this, 10, 10);
+    this.ActivePokemonMenu = new ActivePokemonMenu(this, 10, 10);
 
     this.input.keyboard.on('keydown', this.onKeyInput, this);
     
@@ -73,7 +84,7 @@ export default class extends Phaser.Scene {
 
   activateMenu(menu) {
     // this.currentMenu;
-    console.log('[BattleScene2] activateMenu', menu.name, menu);
+    // console.log('[BattleScene2] activateMenu', menu.name, menu);
     this.currentMenu = menu;
     this.currentMenu.select(0);
   }
@@ -92,6 +103,12 @@ export default class extends Phaser.Scene {
     } else if (event.code === 'ArrowLeft') {
     } else if (event.code === 'Enter') {
       this.currentMenu.confirm();
+    } else if (event.code === 'Escape') {
+      let howManyItems = this.currentMenu.config.menuItems.length;
+      let lastItem = this.currentMenu.config.menuItems[howManyItems - 1];
+      if (lastItem.text().toLowerCase() === 'cancel') {
+        this.events.emit(this.currentMenu.getName().toLowerCase() + '-select-option-' + (howManyItems - 1));
+      }
     }
   }
 
@@ -104,7 +121,7 @@ export default class extends Phaser.Scene {
         this.logger.addItem('You have no more Pokémon left!');
         return (this.stateDef.BATTLE_LOST);
       } else {
-        return (this.stateDef.PLAYER_POKEMON);
+        return (this.stateDef.PLAYER_NEW_ACTIVE_POKEMON);
       }
     }
 
@@ -123,21 +140,14 @@ export default class extends Phaser.Scene {
   }
 
   remapActivePokemon() {
-    this.activePokemonMenu.remap(
+    this.ActivePokemonMenu.remap(
       [
         this.config.player.team.getActivePokemon(), 
         this.config.enemy.team.getActivePokemon(), 
-      ].map(pkmn => {
-        let trainerName = pkmn.originalTrainer;
-        let nickname = pkmn.getName();
-        let hpCurr = pkmn.currentHp;
-        let hpMax = pkmn.maxHp;
-        let level = pkmn.level;
-        return `${trainerName} - ${nickname} Lv${level} (${hpCurr} / ${hpMax})`;
-      })
+      ].map(pokemon => pokemon.activePokemonMenuMap())
     );
 
-    this.activePokemonMenu.select(this.data.playerTurn === 'player' ? 0 : 1);
+    this.ActivePokemonMenu.select(this.data.playerTurn === 'player' ? 0 : 1);
   }
 
 

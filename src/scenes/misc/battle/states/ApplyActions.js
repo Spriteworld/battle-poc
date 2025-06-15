@@ -1,4 +1,5 @@
 import { ActionTypes } from '@Objects';
+import { Abilities, calcEscape } from '@spriteworld/pokemon-data';
 
 export default class ApplyActions {
   onEnter() {
@@ -46,10 +47,56 @@ export default class ApplyActions {
     }
 
     // if player selects a pokemon
+    if (action.type === ActionTypes.SWITCH_POKEMON) {
+      let { config, player } = action;
+      let pokemon = config.pokemon;
+      if (Object.keys(config).includes('pokemon') === false || typeof pokemon !== 'object') {
+        console.warn('[ApplyActions] No item found in action config, returning to BATTLE_IDLE state');
+        this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+        return;
+      }
+
+      let enemyActivePokemon = this.config.enemy.team.getActivePokemon();
+      console.log('[ApplyActions] enemy pokemon:', enemyActivePokemon);
       // check to see if enemy or field has an ability to stop (e.g. Arena Trap)
       // if so, show message and go back to PLAYER_ACTION state
-      // this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+      let canStopSwitch = [
+        enemyActivePokemon.hasAbility(Abilities.ARENA_TRAP),
+        enemyActivePokemon.hasAbility(Abilities.SHADOW_TAG),
+        enemyActivePokemon.hasAbility(Abilities.MAGNET_PULL),
+      ].includes(true);
+      if (canStopSwitch) {
+
+        this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+
       // if not, switch pokemon
+      } else {
+
+        this.logger.addItem('[ApplyActions] Switching pokemon: ' + pokemon.getName());
+
+        // switch pokemon
+        player.team.setActivePokemon(pokemon);
+
+        let enemy = player.getName().toLowerCase() === 'player' ? 'enemy' : 'player';
+        console.log('[ApplyActions] Setting action target for', enemy, 'to', pokemon.getName());
+        this.actions[enemy].target = pokemon;
+
+        this.remapActivePokemon();
+        this.logger.addItem([
+          '[ApplyActions]',
+          player.getName(),
+          'switched to',
+          pokemon.getName()
+        ].join(' '));
+      }
+
+      this.time.addEvent({ 
+        delay: 1000, 
+        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
+        callbackScope: this 
+      });
+      return;
+    }
 
     // if enemy tries to switch pokemon
       // check to see if player has an ability to stop (e.g. Shadow Tag)
@@ -58,10 +105,29 @@ export default class ApplyActions {
       // if not, switch pokemon
 
     // if player tries to run
-      // check to see if wild battle
-        // if so, check speed of enemy pokemon
-        // if not, show message and go back to PLAYER_ACTION state
-        // this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+    if (action.type === ActionTypes.RUN) {
+      let { player, target } = action;
+
+      this.escapeAttempts += 1;
+      let canEscape = calcEscape(
+        player.team.getActivePokemon(),
+        target.team.getActivePokemon(),
+        this.escapeAttempts
+      );
+
+      if (canEscape) {
+        this.logger.addItem('[ApplyActions] You successfully ran away!');
+        this.stateMachine.setState(this.stateDef.BATTLE_END);
+      } else {
+        this.logger.addItem('[ApplyActions] You can\'t escape!');
+        this.time.addEvent({ 
+          delay: 1000, 
+          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
+          callbackScope: this 
+        });
+      }
+      return;
+    }
 
     // if either players selected an attack
       // is the user locked into a multi-turn move?
