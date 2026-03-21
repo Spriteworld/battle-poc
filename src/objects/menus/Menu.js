@@ -67,7 +67,7 @@ export default class extends Phaser.GameObjects.Container {
 
   confirm() {
     let eventName = [this.name, 'select-option', this.config.menuItemIndex].join('-').toLowerCase();
-    console.log(`[Menu] ${this.name} option selected:`, this.config.menuItemIndex);
+    // console.log(`[Menu] ${this.name} option selected:`, this.config.menuItemIndex);
     // console.log('[Menu] triggering event', eventName);
     this.config.scene.events.emit(
       eventName,

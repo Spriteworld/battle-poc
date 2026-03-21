@@ -185,12 +185,13 @@ export default class ApplyActions {
         this.logger.addItem('It was a critical hit!');
       }
 
+      console.log('[ApplyActions] info', info);
       switch (info.typeEffectiveness) {
         case 2:
         case 4:
           this.logger.addItem('It was super effective!');
         break;
-        case 0.25:
+        case 0.5:
           this.logger.addItem('It wasnt very effective!');
         break;
         case 0:

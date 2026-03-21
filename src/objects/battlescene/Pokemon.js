@@ -25,7 +25,7 @@ export default class extends BasePokemon {
   }
 
   attack(target, move) {
-    if (typeof move === 'undefined') {
+    if (typeof move === 'undefined' || !(move instanceof Move)) {
       console.warn('BattlePokemon: attack called without a move');
       return;
     }
