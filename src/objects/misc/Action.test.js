@@ -16,8 +16,8 @@ describe('Action', () => {
       expect(a.config.move).toBe(move);
     });
 
-    test('creates an NPC_ATTACK action with required move', () => {
-      const a = new Action({ type: ActionTypes.NPC_ATTACK, player, target, config: { move } });
+    test('creates an NPC_ATTACK action without a pre-selected move', () => {
+      const a = new Action({ type: ActionTypes.NPC_ATTACK, player, target });
       expect(a.type).toBe(ActionTypes.NPC_ATTACK);
     });
 
@@ -64,9 +64,9 @@ describe('Action', () => {
         .toThrow('move');
     });
 
-    test('throws when NPC_ATTACK has no move', () => {
+    test('does not throw when NPC_ATTACK has no move (move selected at resolve time)', () => {
       expect(() => new Action({ type: ActionTypes.NPC_ATTACK, player, target }))
-        .toThrow('move');
+        .not.toThrow();
     });
 
     test('throws when USE_ITEM has no item', () => {

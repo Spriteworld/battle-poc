@@ -47,6 +47,7 @@ export function makeMon(overrides = {}) {
     mustStruggle:     jest.fn(() => false),
     attack:           jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     attackRandomMove: jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
+    attackWithAI:     jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     useItem:          jest.fn(() => ({ message: 'HP restored!' })),
   };
   return { ...base, ...overrides };

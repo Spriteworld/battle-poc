@@ -153,7 +153,7 @@ export default class ApplyActions {
           break;
         }
         case ActionTypes.NPC_ATTACK:
-          info = activeMon.attackRandomMove(target, this.generation);
+          info = activeMon.attackWithAI(target, this.generation);
         break;
       }
 

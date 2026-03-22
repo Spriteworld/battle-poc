@@ -212,6 +212,48 @@ describe('attack', () => {
   });
 });
 
+describe('attack — onAttack override', () => {
+  test('uses onAttack instead of CalcDamage when present', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onAttack = jest.fn(() => ({ damage: 99, critical: 1, stab: 1, typeEffectiveness: 1, accuracy: 1 }));
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(move.onAttack).toHaveBeenCalledWith(bulbasaur, charmander, GEN_3);
+    expect(info.damage).toBe(99);
+    move.onAttack = null;
+  });
+
+  test('skips standard accuracy roll when onAttack is set', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onAttack = jest.fn(() => ({ damage: 40, critical: 1, stab: 1, typeEffectiveness: 1, accuracy: 1 }));
+    // Math.random 0.99 would normally cause a miss, but onAttack bypasses that check.
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(info.damage).toBe(40);
+    move.onAttack = null;
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('returns accuracy:0 and skips onEffect when onAttack signals a miss', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onAttack = jest.fn(() => ({ damage: 0, critical: 1, stab: 1, typeEffectiveness: 1, accuracy: 0 }));
+    move.onEffect = jest.fn();
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(info.accuracy).toBe(0);
+    expect(move.onEffect).not.toHaveBeenCalled();
+    move.onAttack = null;
+    move.onEffect = null;
+  });
+
+  test('does not damage target when onAttack signals a miss', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onAttack = jest.fn(() => ({ damage: 0, critical: 1, stab: 1, typeEffectiveness: 1, accuracy: 0 }));
+    const before = charmander.currentHp;
+    bulbasaur.attack(charmander, move, GEN_3);
+    expect(charmander.currentHp).toBe(before);
+    move.onAttack = null;
+  });
+});
+
 describe('attack — move effects', () => {
   test('includes effect:null when move has no onEffect', () => {
     const move = bulbasaur.getMoves()[0]; // Tackle — no registered effect
@@ -334,6 +376,59 @@ describe('attackRandomMove', () => {
     bulbasaur.getMoves().forEach(m => { m.pp.current = 0; });
     const info = bulbasaur.attackRandomMove(charmander, GEN_3);
     expect(info.move).toBe('Struggle');
+  });
+});
+
+describe('attackWithAI', () => {
+  test('returns a valid info object', () => {
+    const info = bulbasaur.attackWithAI(charmander, GEN_3);
+    expect(info).toMatchObject({
+      player: expect.any(String),
+      enemy:  expect.any(String),
+      move:   expect.any(String),
+    });
+  });
+
+  test('reduces target HP', () => {
+    // Mock random to always pick the AI path (not the 30% random deviation).
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const before = charmander.currentHp;
+    const info = bulbasaur.attackWithAI(charmander, GEN_3);
+    expect(charmander.currentHp).toBe(before - info.damage);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('uses Struggle when all moves are at 0 PP', () => {
+    bulbasaur.getMoves().forEach(m => { m.pp.current = 0; });
+    const info = bulbasaur.attackWithAI(charmander, GEN_3);
+    expect(info.move).toBe('Struggle');
+  });
+
+  test('only picks moves with PP > 0', () => {
+    // Deplete Tackle (index 0), leave Razor Leaf (index 1).
+    bulbasaur.getMoves()[0].pp.current = 0;
+    // Force AI path (>30% so never random deviation).
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    for (let i = 0; i < 20; i++) {
+      bulbasaur.attackWithAI(charmander, GEN_3);
+    }
+    expect(bulbasaur.getMoves()[0].pp.current).toBe(0);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('prefers super-effective moves over neutral ones', () => {
+    // Bulbasaur knows Tackle (Normal) and Razor Leaf (Grass).
+    // Charmander is Fire — Grass is not very effective (0.5×), Normal is neutral (1×).
+    // AI should always prefer Tackle (score 35) over Razor Leaf (score 55×0.5=27.5).
+    // Lock random to 0.5 so the 30% deviation check never fires.
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const counts = { tackle: 0, 'razor leaf': 0 };
+    for (let i = 0; i < 30; i++) {
+      const info = bulbasaur.attackWithAI(charmander, GEN_3);
+      if (info.move in counts) counts[info.move]++;
+    }
+    expect(counts['tackle']).toBeGreaterThan(counts['razor leaf']);
+    jest.spyOn(Math, 'random').mockRestore();
   });
 });
 

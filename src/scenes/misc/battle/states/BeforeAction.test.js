@@ -63,4 +63,36 @@ describe('BeforeAction', () => {
     new BeforeAction().onEnter.call(ctx);
     expect(ctx.currentAction).toBe(playerAction);
   });
+
+  test('priority: player Quick Attack (+1) goes before enemy normal move even if enemy is faster', () => {
+    const ctx = makeContext();
+    ctx.config.player.team.getActivePokemon().stats[STATS.SPEED] = 10;
+    ctx.config.enemy.team.getActivePokemon().stats[STATS.SPEED] = 200;
+    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'quick attack' } } };
+    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'tackle' } } };
+    ctx.actions = { player: playerAction, enemy: enemyAction };
+    new BeforeAction().onEnter.call(ctx);
+    expect(ctx.currentAction).toBe(playerAction);
+  });
+
+  test('priority: enemy Quick Attack (+1) goes before player normal move even if player is faster', () => {
+    const ctx = makeContext();
+    ctx.config.player.team.getActivePokemon().stats[STATS.SPEED] = 200;
+    ctx.config.enemy.team.getActivePokemon().stats[STATS.SPEED] = 10;
+    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'tackle' } } };
+    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'quick attack' } } };
+    ctx.actions = { player: playerAction, enemy: enemyAction };
+    new BeforeAction().onEnter.call(ctx);
+    expect(ctx.currentAction).toBe(enemyAction);
+  });
+
+  test('priority: same tier falls back to speed order', () => {
+    const ctx = makeContext();
+    // player speed 100 > enemy speed 80
+    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'quick attack' } } };
+    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'mach punch' } } };
+    ctx.actions = { player: playerAction, enemy: enemyAction };
+    new BeforeAction().onEnter.call(ctx);
+    expect(ctx.currentAction).toBe(playerAction); // player faster at same +1 priority
+  });
 });

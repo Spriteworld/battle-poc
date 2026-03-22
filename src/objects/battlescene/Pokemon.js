@@ -1,4 +1,4 @@
-import { CalcDamage, BasePokemon, TYPES, Moves } from '@spriteworld/pokemon-data';
+import { CalcDamage, BasePokemon, TYPES, Moves, calcTypeEffectiveness } from '@spriteworld/pokemon-data';
 import Move from './Move.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -53,23 +53,37 @@ export default class extends BasePokemon {
 
     move.pp.current = Math.max(0, move.pp.current - 1);
 
-    // Accuracy check — null means the move always hits (e.g. Swift, Aerial Ace).
-    if (move.accuracy !== null && !(Math.random() * 100 < move.accuracy)) {
+    let info;
+    if (typeof move.onAttack === 'function') {
+      // Custom damage calculation (fixed damage, OHKO, etc.).
+      // onAttack is responsible for its own accuracy logic; the standard roll is skipped.
+      info = move.onAttack(this, target, generation);
+    } else {
+      // Standard accuracy check — null means the move always hits (e.g. Swift, Aerial Ace).
+      if (move.accuracy !== null && !(Math.random() * 100 < move.accuracy)) {
+        return {
+          player: this.getName(),
+          enemy: target.getName(),
+          move: move.name,
+          accuracy: 0,
+          damage: 0,
+        };
+      }
+      info = CalcDamage.calculate(this, target, move, undefined, generation);
+      if (!('damage' in info) || info.damage < 0) info.damage = 0;
+    }
+
+    target.takeDamage(info.damage);
+
+    // A missed onAttack (accuracy: 0) returns without applying effects.
+    if (info.accuracy === 0) {
       return {
         player: this.getName(),
         enemy: target.getName(),
         move: move.name,
-        accuracy: 0,
-        damage: 0,
+        ...info,
       };
     }
-
-    let info = CalcDamage.calculate(this, target, move, undefined, generation);
-    if (!('damage' in info) || info.damage < 0) {
-      info.damage = 0;
-    }
-
-    target.takeDamage(info.damage);
 
     const effect = (typeof move.onEffect === 'function')
       ? move.onEffect(this, target, info) || null
@@ -134,6 +148,55 @@ export default class extends BasePokemon {
     const available = this.moves.filter(m => m.pp.current > 0);
     const move = available[Math.floor(Math.random() * available.length)];
     return this.attack(target, move, generation);
+  }
+
+  /**
+   * Selects and executes the best move against the target using basic trainer AI.
+   *
+   * Scoring:
+   *   - Immune moves (typeEffectiveness 0) are excluded.
+   *   - Damaging moves: score = power × typeEffectiveness.
+   *   - Status moves: score = 40 when the target has no status condition, else 0.
+   *   - Moves with equal top scores are chosen randomly among themselves.
+   *   - 30% chance to pick a random available move instead (Gen 3 AI imperfection).
+   *
+   * Falls back to Struggle when all moves are at 0 PP.
+   *
+   * @param {object} target
+   * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
+   * @return {object}
+   */
+  attackWithAI(target, generation) {
+    if (this.mustStruggle()) {
+      return this.struggle(target, generation);
+    }
+
+    const available = this.moves.filter(m => m.pp.current > 0);
+    const targetHasStatus = Object.values(target.status || {}).some(v => v > 0);
+
+    const scored = available.map(move => {
+      const category = generation.getCategory(move);
+      if (category === Moves.MOVE_CATEGORIES.STATUS) {
+        return { move, score: targetHasStatus ? 0 : 40 };
+      }
+      const typeEff = calcTypeEffectiveness(move.type, target.types, generation.typeChart);
+      if (typeEff === 0) return { move, score: 0 };
+      return { move, score: (move.power || 0) * typeEff };
+    });
+
+    const usable = scored.filter(s => s.score > 0);
+
+    // 30% chance to act randomly (Gen 3 AI imperfection)
+    if (usable.length === 0 || Math.random() < 0.3) {
+      const move = available[Math.floor(Math.random() * available.length)];
+      return this.attack(target, move, generation);
+    }
+
+    usable.sort((a, b) => b.score - a.score);
+    const topScore = usable[0].score;
+    const topMoves = usable.filter(s => s.score === topScore);
+    const chosen = topMoves[Math.floor(Math.random() * topMoves.length)];
+    return this.attack(target, chosen.move, generation);
   }
 
   takeDamage(damage) {
