@@ -22,6 +22,20 @@ const STATUS_BADGE = {
 const BADGE_W = 36;
 const BADGE_H = 16;
 
+/** Maps BattlePokemon stage keys to short display labels. */
+const STAGE_LABELS = {
+  ATTACK:          'ATK',
+  DEFENSE:         'DEF',
+  SPECIAL_ATTACK:  'SPA',
+  SPECIAL_DEFENSE: 'SPD',
+  SPEED:           'SPE',
+  ACCURACY:        'ACC',
+  EVASION:         'EVA',
+};
+
+const STAGE_BADGE_W = 30;
+const STAGE_BADGE_H = 12;
+
 /**
  * Gen 3-style status box displaying a Pokémon's name, level, and HP bar.
  *
@@ -126,6 +140,25 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._statusBadgeText.setOrigin(0.5, 0);
     this._statusBadgeText.setVisible(false);
     this.add(this._statusBadgeText);
+
+    // Stat stage badges — pre-allocate one slot per trackable stat (7 max).
+    this._stageBadges = Array.from({ length: 7 }, () => {
+      const bg = new Phaser.GameObjects.Graphics(this.scene);
+      bg.setVisible(false);
+      this.add(bg);
+
+      const text = this.scene.add.text(0, 0, '', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+      });
+      text.setOrigin(0.5, 0);
+      text.setVisible(false);
+      this.add(text);
+
+      return { bg, text };
+    });
   }
 
   /**
@@ -135,10 +168,11 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
    * @param {number} data.level
    * @param {number} data.currentHp
    * @param {number} data.maxHp
-   * @param {object} [data.status] - BattlePokemon status object (keys are STATUS values)
-   * @param {string} [data.gender] - GENDERS constant value
+   * @param {object} [data.status]  - BattlePokemon status object (keys are STATUS values)
+   * @param {object} [data.stages]  - BattlePokemon stages object (ATTACK, DEFENSE, …)
+   * @param {string} [data.gender]  - GENDERS constant value
    */
-  remap({ name, level, currentHp, maxHp, status, gender }) {
+  remap({ name, level, currentHp, maxHp, status, stages, gender }) {
     this._nameText.setText(name);
     this._levelText.setText(`Lv.${level}`);
     this._hpBar.update(currentHp, maxHp);
@@ -147,6 +181,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     }
     this._updateGenderSymbol(gender);
     this._updateStatusBadge(status);
+    this._updateStageBadges(stages);
   }
 
   /**
@@ -163,6 +198,40 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._genderText.setColor(cfg.color);
     this._genderText.setPosition(this._nameText.x + this._nameText.width + 3, 8);
     this._genderText.setVisible(true);
+  }
+
+  /**
+   * Renders one small badge per non-zero stat stage below the HP bar.
+   * Boosts are green, drops are red. Label format: "ATK+2", "DEF-1", etc.
+   * @param {object} [stages]
+   */
+  _updateStageBadges(stages = {}) {
+    // y position: below the HP bar (enemy) or below the HP numbers (player)
+    const badgeY = this._showHpNumbers ? 63 : 42;
+    const active = Object.entries(stages).filter(([, v]) => v !== 0);
+
+    this._stageBadges.forEach(({ bg, text }, i) => {
+      if (i >= active.length) {
+        bg.setVisible(false);
+        text.setVisible(false);
+        return;
+      }
+
+      const [stat, value] = active[i];
+      const label = STAGE_LABELS[stat] ?? stat.slice(0, 3);
+      const sign  = value > 0 ? '+' : '';
+      const color = value > 0 ? 0x2a7a2a : 0xb03030;
+      const x = 10 + i * (STAGE_BADGE_W + 2);
+
+      bg.clear();
+      bg.fillStyle(color);
+      bg.fillRoundedRect(x, badgeY, STAGE_BADGE_W, STAGE_BADGE_H, 2);
+      bg.setVisible(true);
+
+      text.setText(`${label}${sign}${value}`);
+      text.setPosition(x + STAGE_BADGE_W / 2, badgeY + 1);
+      text.setVisible(true);
+    });
   }
 
   /**
