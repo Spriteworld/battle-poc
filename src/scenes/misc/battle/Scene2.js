@@ -215,6 +215,8 @@ export default class extends Phaser.Scene {
   checkForDeadActivePokemon() {
     if (!this.config.player.team.getActivePokemon().isAlive()) {
       this.logger.addItem('Your active Pokémon fainted!');
+      // Clear any pending player action — the fainted Pokémon can't act.
+      delete this.actions.player;
       if (!this.config.player.team.hasLivingPokemon()) {
         this.logger.addItem('You have no more Pokémon left!');
         return this.stateDef.BATTLE_LOST;
@@ -224,11 +226,14 @@ export default class extends Phaser.Scene {
 
     if (!this.config.enemy.team.getActivePokemon().isAlive()) {
       this.logger.addItem("The enemy's active Pokémon fainted!");
+      // Clear any pending enemy action — the fainted Pokémon can't act.
+      delete this.actions.enemy;
       if (!this.config.enemy.team.switchToNextLivingPokemon()) {
         this.logger.addItem('The enemy has no more Pokémon left!');
         this.remapActivePokemon();
         return this.stateDef.BATTLE_WON;
       }
+      this.remapActivePokemon();
     }
 
     return null;
