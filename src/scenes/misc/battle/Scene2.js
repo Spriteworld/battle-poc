@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import StateMachine from '@Objects/StateMachine';
 import * as State from './states/index.js';
-import { STATUS } from '@spriteworld/pokemon-data';
+import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import DialogBox from '@Objects/ui/DialogBox.js';
 import {
   ActivePokemonMenu,
@@ -234,6 +234,8 @@ export default class extends Phaser.Scene {
         this.remapActivePokemon();
         return this.stateDef.BATTLE_WON;
       }
+      const newMon = this.config.enemy.team.getActivePokemon();
+      this.logger.addItem(`${this.config.enemy.getName()} sent out ${newMon.getName()}!`);
       this.remapActivePokemon();
     }
 
@@ -248,35 +250,7 @@ export default class extends Phaser.Scene {
    * Skips fainted Pokémon so log messages stay sensible.
    */
   applyEndOfTurnStatus() {
-    const mons = [
-      this.config.player.team.getActivePokemon(),
-      this.config.enemy.team.getActivePokemon(),
-    ];
-
-    for (const mon of mons) {
-      if (!mon.isAlive()) continue;
-
-      if (mon.status[STATUS.BURN] > 0) {
-        const dmg = Math.max(1, Math.floor(mon.maxHp / 8));
-        mon.takeDamage(dmg);
-        this.logger.addItem(`${mon.getName()} is hurt by its burn!`);
-      }
-
-      if (mon.status[STATUS.POISON] > 0) {
-        const dmg = Math.max(1, Math.floor(mon.maxHp / 8));
-        mon.takeDamage(dmg);
-        this.logger.addItem(`${mon.getName()} is hurt by poison!`);
-      }
-
-      if (mon.status[STATUS.TOXIC] > 0) {
-        mon.toxicCount = (mon.toxicCount || 0) + 1;
-        const dmg = Math.max(1, Math.floor(mon.maxHp * mon.toxicCount / 16));
-        mon.takeDamage(dmg);
-        this.logger.addItem(`${mon.getName()} is hurt by poison!`);
-      }
-    }
-
-    this.remapActivePokemon();
+    applyEndOfTurnStatus.call(this);
   }
 
   checkForEndOfBattle() {

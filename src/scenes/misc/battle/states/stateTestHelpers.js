@@ -50,6 +50,7 @@ export function makeMon(overrides = {}) {
     attackWithAI:     jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     attackLocked:     jest.fn(() => ({ move: 'Fly', enemy: 'Foe', damage: 15, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     attackMultiHit:   jest.fn(() => ({ move: 'Fury Attack', enemy: 'Foe', damage: 30, accuracy: 1, critical: 1, typeEffectiveness: 1, hits: 3 })),
+    takeDamage:       jest.fn(),
     useItem:          jest.fn(() => ({ message: 'HP restored!' })),
     lockedMove:  null,
     invulnerable: false,
