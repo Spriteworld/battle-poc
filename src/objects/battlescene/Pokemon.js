@@ -85,6 +85,14 @@ export default class extends BasePokemon {
      * not yet acted this turn. Cleared at the end of each round in applyEndOfTurnStatus.
      */
     this.flinched = false;
+
+    /**
+     * Volatile status conditions — cleared on switch-out.
+     * Unlike primary status, multiple volatile statuses can be active at once.
+     */
+    this.volatileStatus = {
+      leechSeed: false,
+    };
   }
 
   /**

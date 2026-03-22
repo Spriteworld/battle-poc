@@ -50,6 +50,8 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
         status: playerPokemon.status,
         stages: playerPokemon.stages,
         gender: playerPokemon.gender,
+        volatileStatus: playerPokemon.volatileStatus,
+        pokerus: playerPokemon.pokerus,
       });
     }
     if (enemyPokemon) {
@@ -61,6 +63,8 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
         status: enemyPokemon.status,
         stages: enemyPokemon.stages,
         gender: enemyPokemon.gender,
+        volatileStatus: enemyPokemon.volatileStatus,
+        pokerus: enemyPokemon.pokerus,
       });
     }
   }

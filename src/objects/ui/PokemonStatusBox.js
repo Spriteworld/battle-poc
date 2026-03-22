@@ -19,6 +19,15 @@ const STATUS_BADGE = {
   'TOXIC':     { label: 'TOX', bg: 0x5828a0, text: '#ffffff' },
 };
 
+/** Badge configs for volatile / Pokérus conditions. */
+const VOLATILE_BADGE = {
+  leechSeed: { label: 'LSE', bg: 0x70b000, text: '#ffffff' },
+};
+const POKERUS_BADGE = { label: 'PKR', bg: 0x9040c0, text: '#ffffff' };
+
+/** Maximum number of simultaneous condition badges (primary + volatile + pokerus). */
+const MAX_STATUS_BADGES = 3;
+
 const BADGE_W = 36;
 const BADGE_H = 16;
 
@@ -126,20 +135,24 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       this.add(this._hpNumText);
     }
 
-    // Status badge (hidden until a condition is active)
-    this._statusBadgeBg = new Phaser.GameObjects.Graphics(this.scene);
-    this._statusBadgeBg.setVisible(false);
-    this.add(this._statusBadgeBg);
+    // Status badge slots — pre-allocate slots for primary + volatile + pokerus.
+    this._statusBadges = Array.from({ length: MAX_STATUS_BADGES }, () => {
+      const bg = new Phaser.GameObjects.Graphics(this.scene);
+      bg.setVisible(false);
+      this.add(bg);
 
-    this._statusBadgeText = this.scene.add.text(0, 0, '', {
-      fontFamily: 'monospace',
-      fontSize: '10px',
-      fontStyle: 'bold',
-      color: '#ffffff',
+      const text = this.scene.add.text(0, 0, '', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+      });
+      text.setOrigin(0.5, 0);
+      text.setVisible(false);
+      this.add(text);
+
+      return { bg, text };
     });
-    this._statusBadgeText.setOrigin(0.5, 0);
-    this._statusBadgeText.setVisible(false);
-    this.add(this._statusBadgeText);
 
     // Stat stage badges — pre-allocate one slot per trackable stat (7 max).
     this._stageBadges = Array.from({ length: 7 }, () => {
@@ -168,11 +181,13 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
    * @param {number} data.level
    * @param {number} data.currentHp
    * @param {number} data.maxHp
-   * @param {object} [data.status]  - BattlePokemon status object (keys are STATUS values)
-   * @param {object} [data.stages]  - BattlePokemon stages object (ATTACK, DEFENSE, …)
-   * @param {string} [data.gender]  - GENDERS constant value
+   * @param {object} [data.status]         - BattlePokemon status object (keys are STATUS values)
+   * @param {object} [data.stages]         - BattlePokemon stages object (ATTACK, DEFENSE, …)
+   * @param {string} [data.gender]         - GENDERS constant value
+   * @param {object} [data.volatileStatus] - BattlePokemon volatile status (leechSeed, etc.)
+   * @param {number} [data.pokerus]        - Pokérus value (>0 means infected)
    */
-  remap({ name, level, currentHp, maxHp, status, stages, gender }) {
+  remap({ name, level, currentHp, maxHp, status, stages, gender, volatileStatus, pokerus }) {
     this._nameText.setText(name);
     this._levelText.setText(`Lv.${level}`);
     this._hpBar.update(currentHp, maxHp);
@@ -180,7 +195,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       this._hpNumText.setText(`${currentHp}/${maxHp}`);
     }
     this._updateGenderSymbol(gender);
-    this._updateStatusBadge(status);
+    this._updateStatusBadge(status, volatileStatus, pokerus);
     this._updateStageBadges(stages);
   }
 
@@ -235,40 +250,57 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Shows or hides the status condition badge next to the pokemon name.
+   * Shows condition badges (primary status, volatile status, Pokérus) next to the name.
+   * Up to MAX_STATUS_BADGES are shown, laid out left-to-right after the name/gender.
    * @param {object} [status]
+   * @param {object} [volatileStatus]
+   * @param {number} [pokerus]
    */
-  _updateStatusBadge(status) {
+  _updateStatusBadge(status, volatileStatus, pokerus) {
+    const badges = [];
+
+    // Primary status (at most one can be active)
     const active = Object.entries(status || {}).find(([, v]) => v > 0);
-    if (!active) {
-      this._statusBadgeBg.setVisible(false);
-      this._statusBadgeText.setVisible(false);
-      return;
+    if (active) {
+      const badge = STATUS_BADGE[active[0]];
+      if (badge) badges.push(badge);
     }
 
-    const badge = STATUS_BADGE[active[0]];
-    if (!badge) {
-      this._statusBadgeBg.setVisible(false);
-      this._statusBadgeText.setVisible(false);
-      return;
+    // Volatile statuses
+    for (const [key, cfg] of Object.entries(VOLATILE_BADGE)) {
+      if (volatileStatus?.[key]) badges.push(cfg);
     }
 
-    // Position badge after name (and gender symbol if visible)
+    // Pokérus
+    if (pokerus > 0) badges.push(POKERUS_BADGE);
+
+    // Position starting after name (and gender symbol if visible)
     const nameRight = this._nameText.x + this._nameText.width;
     const genderRight = this._genderText.visible
       ? this._genderText.x + this._genderText.width + 2
       : nameRight;
-    const bx = Math.max(nameRight, genderRight) + 4;
+    let bx = Math.max(nameRight, genderRight) + 4;
     const by = 8;
 
-    this._statusBadgeBg.clear();
-    this._statusBadgeBg.fillStyle(badge.bg);
-    this._statusBadgeBg.fillRoundedRect(bx, by, BADGE_W, BADGE_H, 3);
-    this._statusBadgeBg.setVisible(true);
+    this._statusBadges.forEach(({ bg, text }, i) => {
+      if (i >= badges.length) {
+        bg.setVisible(false);
+        text.setVisible(false);
+        return;
+      }
 
-    this._statusBadgeText.setText(badge.label);
-    this._statusBadgeText.setColor(badge.text);
-    this._statusBadgeText.setPosition(bx + BADGE_W / 2, by + 2);
-    this._statusBadgeText.setVisible(true);
+      const badge = badges[i];
+      bg.clear();
+      bg.fillStyle(badge.bg);
+      bg.fillRoundedRect(bx, by, BADGE_W, BADGE_H, 3);
+      bg.setVisible(true);
+
+      text.setText(badge.label);
+      text.setColor(badge.text);
+      text.setPosition(bx + BADGE_W / 2, by + 2);
+      text.setVisible(true);
+
+      bx += BADGE_W + 2;
+    });
   }
 }

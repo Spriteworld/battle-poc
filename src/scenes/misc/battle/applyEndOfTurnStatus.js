@@ -38,6 +38,19 @@ export default function applyEndOfTurnStatus() {
     }
   }
 
+  // Leech Seed — seeded Pokémon lose 1/8 max HP; opponent gains that amount.
+  const [playerMon, enemyMon] = mons;
+  for (const [seeded, healer] of [[playerMon, enemyMon], [enemyMon, playerMon]]) {
+    if (!seeded.isAlive()) continue;
+    if (!seeded.volatileStatus?.leechSeed) continue;
+    const dmg = Math.max(1, Math.floor(seeded.maxHp / 8));
+    seeded.takeDamage(dmg);
+    if (healer.isAlive()) {
+      healer.currentHp = Math.min(healer.maxHp, healer.currentHp + dmg);
+    }
+    this.logger.addItem(`${seeded.getName()}'s health is sapped by Leech Seed!`);
+  }
+
   // Reset per-round flags for both active Pokémon.
   for (const mon of mons) {
     mon.flinched = false;
