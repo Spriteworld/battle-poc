@@ -1,6 +1,6 @@
 jest.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
 
-import { STATS } from '@spriteworld/pokemon-data';
+import { STATS, STATUS } from '@spriteworld/pokemon-data';
 import * as ActionTypes from '../../../../objects/enums/ActionTypes.js';
 import { makeContext } from './stateTestHelpers.js';
 import BeforeAction from './BeforeAction.js';
@@ -94,5 +94,23 @@ describe('BeforeAction', () => {
     ctx.actions = { player: playerAction, enemy: enemyAction };
     new BeforeAction().onEnter.call(ctx);
     expect(ctx.currentAction).toBe(playerAction); // player faster at same +1 priority
+  });
+
+  test('calls applyEndOfTurnStatus when all actions are consumed', () => {
+    const ctx = makeContext();
+    ctx.actions = {};
+    new BeforeAction().onEnter.call(ctx);
+    expect(ctx.applyEndOfTurnStatus).toHaveBeenCalled();
+  });
+
+  test('paralysis halves player speed for turn-order purposes', () => {
+    const ctx = makeContext();
+    // player speed 100 → paralyzed → effective 50 < enemy 80
+    ctx.config.player.team.getActivePokemon().status[STATUS.PARALYZE] = 1;
+    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: {} } };
+    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: {} } };
+    ctx.actions = { player: playerAction, enemy: enemyAction };
+    new BeforeAction().onEnter.call(ctx);
+    expect(ctx.currentAction).toBe(enemyAction); // enemy goes first because player speed is halved
   });
 });

@@ -379,3 +379,96 @@ describe('ApplyActions — multi-hit moves', () => {
     jest.spyOn(Math, 'random').mockRestore();
   });
 });
+
+// ─── Pre-attack status conditions ─────────────────────────────────────────────
+
+import { STATUS } from '@spriteworld/pokemon-data';
+
+function makeStatusAttackCtx(statusKey, statusValue = 1) {
+  const ctx = makeContext();
+  const playerMon = ctx.config.player.team.getActivePokemon();
+  playerMon.status[statusKey] = statusValue;
+  const move = { name: 'Tackle', pp: { current: 35, max: 35 } };
+  ctx.currentAction = {
+    type:   ActionTypes.ATTACK,
+    player: ctx.config.player,
+    target: ctx.config.enemy.team.getActivePokemon(),
+    config: { move },
+  };
+  return { ctx, playerMon };
+}
+
+describe('ApplyActions — sleep', () => {
+  test('prevents the attack and logs "fast asleep" when turns remain', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.SLEEP, 3);
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.attack).not.toHaveBeenCalled();
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('fast asleep'));
+  });
+
+  test('decrements the sleep counter each turn', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.SLEEP, 3);
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.status[STATUS.SLEEP]).toBe(2);
+  });
+
+  test('logs "woke up" and allows the attack on the turn sleep reaches 0', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.SLEEP, 1);
+    new ApplyActions().onEnter.call(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('woke up'));
+    expect(playerMon.attack).toHaveBeenCalled();
+  });
+
+  test('schedules BEFORE_ACTION after a sleeping turn', () => {
+    const { ctx } = makeStatusAttackCtx(STATUS.SLEEP, 2);
+    new ApplyActions().onEnter.call(ctx);
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('beforeAction');
+  });
+});
+
+describe('ApplyActions — paralysis', () => {
+  test('prevents the attack 25% of the time', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.PARALYZE, 1);
+    jest.spyOn(Math, 'random').mockReturnValue(0); // < 0.25 → can't move
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.attack).not.toHaveBeenCalled();
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('paralyzed'));
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('allows the attack 75% of the time', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.PARALYZE, 1);
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.25 → can move
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.attack).toHaveBeenCalled();
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});
+
+describe('ApplyActions — freeze', () => {
+  test('prevents the attack when the thaw roll fails', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.FROZEN, 1);
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.20 → stays frozen
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.attack).not.toHaveBeenCalled();
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('frozen solid'));
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('logs "thawed out" and allows attack on a successful 20% thaw', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.FROZEN, 1);
+    jest.spyOn(Math, 'random').mockReturnValue(0); // < 0.20 → thaws
+    new ApplyActions().onEnter.call(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('thawed out'));
+    expect(playerMon.attack).toHaveBeenCalled();
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('clears the frozen status after thawing', () => {
+    const { ctx, playerMon } = makeStatusAttackCtx(STATUS.FROZEN, 1);
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.status[STATUS.FROZEN]).toBe(0);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});
