@@ -115,3 +115,87 @@ describe('applyEndOfTurnStatus — skips fainted Pokémon', () => {
     expect(playerMon.takeDamage).not.toHaveBeenCalled();
   });
 });
+
+// ─── Leech Seed ────────────────────────────────────────────────────────────────
+
+describe('applyEndOfTurnStatus — leech seed', () => {
+  test('seeded Pokémon takes floor(maxHp / 8) damage', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.maxHp = 160;
+    playerMon.volatileStatus.leechSeed = true;
+    call(ctx);
+    expect(playerMon.takeDamage).toHaveBeenCalledWith(20); // floor(160/8)
+  });
+
+  test('opponent gains the drained HP', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+    playerMon.maxHp = 160;
+    playerMon.volatileStatus.leechSeed = true;
+    enemyMon.currentHp = 50;
+    enemyMon.maxHp = 160;
+    call(ctx);
+    expect(enemyMon.currentHp).toBe(70); // 50 + floor(160/8)
+  });
+
+  test('opponent HP does not exceed maxHp', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+    playerMon.maxHp = 160;
+    playerMon.volatileStatus.leechSeed = true;
+    enemyMon.currentHp = 155;
+    enemyMon.maxHp = 160;
+    call(ctx);
+    expect(enemyMon.currentHp).toBe(160);
+  });
+
+  test('logs a Leech Seed sap message', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.volatileStatus.leechSeed = true;
+    call(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('Leech Seed'));
+  });
+
+  test('non-seeded Pokémon is unaffected', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    // volatileStatus.leechSeed defaults to false in stateTestHelpers
+    call(ctx);
+    expect(playerMon.takeDamage).not.toHaveBeenCalled();
+  });
+
+  test('fainted seeded Pokémon is skipped', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.isAlive.mockReturnValue(false);
+    playerMon.volatileStatus.leechSeed = true;
+    call(ctx);
+    expect(playerMon.takeDamage).not.toHaveBeenCalled();
+  });
+
+  test('does not heal a fainted opponent', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+    playerMon.maxHp = 160;
+    playerMon.volatileStatus.leechSeed = true;
+    enemyMon.isAlive.mockReturnValue(false);
+    enemyMon.currentHp = 0;
+    enemyMon.maxHp = 160;
+    call(ctx);
+    expect(enemyMon.currentHp).toBe(0);
+  });
+
+  test('deals at least 1 damage for tiny max HP', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.maxHp = 1;
+    playerMon.volatileStatus.leechSeed = true;
+    call(ctx);
+    expect(playerMon.takeDamage).toHaveBeenCalledWith(1);
+  });
+});

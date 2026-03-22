@@ -612,3 +612,105 @@ describe('Metronome', () => {
     expect(pool.find(m => m.name.toLowerCase() === 'metronome')).toBeUndefined();
   });
 });
+
+// ─── lastUsedMove ──────────────────────────────────────────────────────────────
+
+describe('lastUsedMove', () => {
+  test('is null on construction', () => {
+    expect(bulbasaur.lastUsedMove).toBeNull();
+  });
+
+  test('is set to the move after a successful attack', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // guaranteed hit
+    bulbasaur.attack(charmander, move, GEN_3);
+    expect(bulbasaur.lastUsedMove).toBe(move);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('is set even when the move misses (PP still spent)', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle (accuracy 95)
+    jest.spyOn(Math, 'random').mockReturnValue(0.99); // guaranteed miss
+    bulbasaur.attack(charmander, move, GEN_3);
+    expect(bulbasaur.lastUsedMove).toBe(move);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('is not set when using Struggle', () => {
+    bulbasaur.getMoves().forEach(m => { m.pp.current = 0; });
+    bulbasaur.attack(charmander, bulbasaur.getMoves()[0], GEN_3);
+    expect(bulbasaur.lastUsedMove).toBeNull();
+  });
+
+  test('is updated to the new move on subsequent attacks', () => {
+    const tackle    = bulbasaur.getMoves()[0];
+    const razorLeaf = bulbasaur.getMoves()[1];
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    bulbasaur.attack(charmander, tackle, GEN_3);
+    bulbasaur.attack(charmander, razorLeaf, GEN_3);
+    expect(bulbasaur.lastUsedMove).toBe(razorLeaf);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});
+
+// ─── Encore (volatileStatus.encored) ──────────────────────────────────────────
+
+describe('Encore', () => {
+  test('volatileStatus.encored is null on construction', () => {
+    expect(bulbasaur.volatileStatus.encored).toBeNull();
+  });
+
+  test('forces the encored move regardless of the move passed to attack()', () => {
+    const tackle    = bulbasaur.getMoves()[0];
+    const razorLeaf = bulbasaur.getMoves()[1];
+    bulbasaur.volatileStatus.encored = { move: tackle, turnsLeft: 3 };
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const info = bulbasaur.attack(charmander, razorLeaf, GEN_3);
+    expect(info.move.toLowerCase()).toContain('tackle');
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('decrements turnsLeft each time attack() is called', () => {
+    const tackle = bulbasaur.getMoves()[0];
+    bulbasaur.volatileStatus.encored = { move: tackle, turnsLeft: 3 };
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    bulbasaur.attack(charmander, bulbasaur.getMoves()[1], GEN_3);
+    expect(bulbasaur.volatileStatus.encored.turnsLeft).toBe(2);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('clears encored when turnsLeft reaches 0', () => {
+    const tackle = bulbasaur.getMoves()[0];
+    bulbasaur.volatileStatus.encored = { move: tackle, turnsLeft: 1 };
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    bulbasaur.attack(charmander, bulbasaur.getMoves()[1], GEN_3);
+    expect(bulbasaur.volatileStatus.encored).toBeNull();
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('clears encored and uses the fallback move when the encored move has 0 PP', () => {
+    const tackle    = bulbasaur.getMoves()[0];
+    const razorLeaf = bulbasaur.getMoves()[1];
+    tackle.pp.current = 0;
+    bulbasaur.volatileStatus.encored = { move: tackle, turnsLeft: 3 };
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const info = bulbasaur.attack(charmander, razorLeaf, GEN_3);
+    expect(bulbasaur.volatileStatus.encored).toBeNull();
+    // Falls through to the passed move (Razor Leaf)
+    expect(info.move.toLowerCase()).toContain('razor leaf');
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('encored move PP is decremented (not the passed move)', () => {
+    const tackle    = bulbasaur.getMoves()[0]; // will be forced
+    const razorLeaf = bulbasaur.getMoves()[1]; // passed but ignored
+    const tacklePP  = tackle.pp.current;
+    const leafPP    = razorLeaf.pp.current;
+    bulbasaur.volatileStatus.encored = { move: tackle, turnsLeft: 3 };
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    bulbasaur.attack(charmander, razorLeaf, GEN_3);
+    expect(tackle.pp.current).toBe(tacklePP - 1);
+    expect(razorLeaf.pp.current).toBe(leafPP); // untouched
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});

@@ -92,7 +92,16 @@ export default class extends BasePokemon {
      */
     this.volatileStatus = {
       leechSeed: false,
+      /** null | { move: Move, turnsLeft: number } */
+      encored: null,
     };
+
+    /**
+     * The last move successfully used by this Pokémon — used by Encore.
+     * Set after PP is decremented. Not set for Struggle.
+     * @type {Move|null}
+     */
+    this.lastUsedMove = null;
   }
 
   /**
@@ -106,7 +115,22 @@ export default class extends BasePokemon {
       return this.struggle(target, generation);
     }
 
+    // Encore — force the encored move if it still has PP; otherwise clear and continue.
+    if (this.volatileStatus.encored) {
+      const enc = this.volatileStatus.encored;
+      if (enc.move.pp.current === 0) {
+        this.volatileStatus.encored = null;
+      } else {
+        move = enc.move;
+        enc.turnsLeft -= 1;
+        if (enc.turnsLeft <= 0) {
+          this.volatileStatus.encored = null;
+        }
+      }
+    }
+
     if (move?.name?.toLowerCase() === 'metronome') {
+      this.lastUsedMove = move;
       return this.useMetronome(target, move, generation);
     }
 
@@ -116,6 +140,7 @@ export default class extends BasePokemon {
     }
 
     move.pp.current = Math.max(0, move.pp.current - 1);
+    this.lastUsedMove = move;
 
     let info;
     if (typeof move.onAttack === 'function') {

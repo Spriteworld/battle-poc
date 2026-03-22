@@ -22,11 +22,12 @@ const STATUS_BADGE = {
 /** Badge configs for volatile / Pokérus conditions. */
 const VOLATILE_BADGE = {
   leechSeed: { label: 'LSE', bg: 0x70b000, text: '#ffffff' },
+  encored:   { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
 };
 const POKERUS_BADGE = { label: 'PKR', bg: 0x9040c0, text: '#ffffff' };
 
 /** Maximum number of simultaneous condition badges (primary + volatile + pokerus). */
-const MAX_STATUS_BADGES = 3;
+const MAX_STATUS_BADGES = 4;
 
 const BADGE_W = 36;
 const BADGE_H = 16;
