@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import StateMachine from '@Objects/StateMachine';
 import * as State from './states/index.js';
+import { STATUS } from '@spriteworld/pokemon-data';
 import DialogBox from '@Objects/ui/DialogBox.js';
 import {
   ActivePokemonMenu,
@@ -237,6 +238,45 @@ export default class extends Phaser.Scene {
     }
 
     return null;
+  }
+
+  /**
+   * Applies end-of-turn status damage to both active Pokémon.
+   * Called by BeforeAction when all queued actions have been resolved.
+   *
+   * Ticks: burn (−1/8 max HP), poison (−1/8 max HP), toxic (escalating).
+   * Skips fainted Pokémon so log messages stay sensible.
+   */
+  applyEndOfTurnStatus() {
+    const mons = [
+      this.config.player.team.getActivePokemon(),
+      this.config.enemy.team.getActivePokemon(),
+    ];
+
+    for (const mon of mons) {
+      if (!mon.isAlive()) continue;
+
+      if (mon.status[STATUS.BURN] > 0) {
+        const dmg = Math.max(1, Math.floor(mon.maxHp / 8));
+        mon.takeDamage(dmg);
+        this.logger.addItem(`${mon.getName()} is hurt by its burn!`);
+      }
+
+      if (mon.status[STATUS.POISON] > 0) {
+        const dmg = Math.max(1, Math.floor(mon.maxHp / 8));
+        mon.takeDamage(dmg);
+        this.logger.addItem(`${mon.getName()} is hurt by poison!`);
+      }
+
+      if (mon.status[STATUS.TOXIC] > 0) {
+        mon.toxicCount = (mon.toxicCount || 0) + 1;
+        const dmg = Math.max(1, Math.floor(mon.maxHp * mon.toxicCount / 16));
+        mon.takeDamage(dmg);
+        this.logger.addItem(`${mon.getName()} is hurt by poison!`);
+      }
+    }
+
+    this.remapActivePokemon();
   }
 
   checkForEndOfBattle() {

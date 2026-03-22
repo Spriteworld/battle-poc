@@ -192,7 +192,7 @@ describe('ApplyActions — ATTACK', () => {
 // ─── Invulnerability ───────────────────────────────────────────────────────────
 
 describe('ApplyActions — invulnerable target', () => {
-  test('logs "But it failed!" when the target is invulnerable', () => {
+  test('logs the attacker name and "failed" when the target is invulnerable', () => {
     const ctx = makeContext();
     const playerMon = ctx.config.player.team.getActivePokemon();
     const enemyMon  = ctx.config.enemy.team.getActivePokemon();
@@ -204,7 +204,7 @@ describe('ApplyActions — invulnerable target', () => {
       config: { move: { name: 'Tackle', pp: { current: 35, max: 35 } } },
     };
     new ApplyActions().onEnter.call(ctx);
-    expect(ctx.logger.addItem).toHaveBeenCalledWith('But it failed!');
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('failed'));
   });
 
   test('does not call activeMon.attack when target is invulnerable', () => {

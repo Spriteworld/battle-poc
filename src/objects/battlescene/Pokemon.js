@@ -1,4 +1,6 @@
-import { CalcDamage, BasePokemon, TYPES, Moves, calcTypeEffectiveness } from '@spriteworld/pokemon-data';
+import { CalcDamage, BasePokemon, TYPES, Moves, STATS, calcTypeEffectiveness } from '@spriteworld/pokemon-data';
+
+const { STAT_STAGE_MULTIPLIERS, ACC_STAGE_MULTIPLIERS, STAT_DISPLAY_NAMES } = Moves;
 import Move from './Move.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -39,6 +41,33 @@ export default class extends BasePokemon {
     this.lockedMove = null;
     /** True during the charge turn of moves like Fly/Dig/Bounce/Dive. */
     this.invulnerable = false;
+
+    /**
+     * Baseline stats at stage 0 — used to recalculate stats after stage changes.
+     * Captured once after BasePokemon computes stats.
+     */
+    this._baseStats = { ...this.stats };
+
+    /**
+     * In-battle stat stages, clamped to −6/+6.
+     * Combat stages (Attack…Speed) scale this.stats[stat] via STAT_STAGE_MULTIPLIERS.
+     * Accuracy / Evasion stages are applied to the accuracy roll in attack().
+     */
+    this.stages = {
+      [STATS.ATTACK]:          0,
+      [STATS.DEFENSE]:         0,
+      [STATS.SPECIAL_ATTACK]:  0,
+      [STATS.SPECIAL_DEFENSE]: 0,
+      [STATS.SPEED]:           0,
+      ACCURACY: 0,
+      EVASION:  0,
+    };
+
+    /**
+     * Bad-poison (Toxic) escalation counter — increments each end-of-turn tick.
+     * Damage dealt = floor(maxHp * toxicCount / 16).
+     */
+    this.toxicCount = 0;
   }
 
   /**
@@ -66,14 +95,20 @@ export default class extends BasePokemon {
       info = move.onAttack(this, target, generation);
     } else {
       // Standard accuracy check — null means the move always hits (e.g. Swift, Aerial Ace).
-      if (move.accuracy !== null && !(Math.random() * 100 < move.accuracy)) {
-        return {
-          player: this.getName(),
-          enemy: target.getName(),
-          move: move.name,
-          accuracy: 0,
-          damage: 0,
-        };
+      if (move.accuracy !== null) {
+        const accStageDelta = Math.max(-6, Math.min(6,
+          (this.stages?.ACCURACY ?? 0) - (target.stages?.EVASION ?? 0)
+        ));
+        const effectiveAcc = move.accuracy * ACC_STAGE_MULTIPLIERS[accStageDelta + 6];
+        if (!(Math.random() * 100 < effectiveAcc)) {
+          return {
+            player: this.getName(),
+            enemy: target.getName(),
+            move: move.name,
+            accuracy: 0,
+            damage: 0,
+          };
+        }
       }
       info = CalcDamage.calculate(this, target, move, undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
@@ -338,6 +373,40 @@ export default class extends BasePokemon {
     let hpMax = this.maxHp;
     let level = this.level;
     return `${trainerName} - ${nickname} Lv${level} (${hpCurr} / ${hpMax})`;
+  }
+
+  /**
+   * Applies a stat stage change, clamped to ±6.
+   * For combat stats (Attack…Speed), updates this.stats[stat] via the multiplier table.
+   * For ACCURACY / EVASION, only updates this.stages — the accuracy check uses it directly.
+   *
+   * @param {string} stat - STATS constant key (e.g. STATS.ATTACK) or 'ACCURACY'/'EVASION'
+   * @param {number} delta - Positive = boost, negative = drop
+   * @return {{ message: string }}
+   */
+  applyStageChange(stat, delta) {
+    const current = this.stages[stat] ?? 0;
+    const next = Math.max(-6, Math.min(6, current + delta));
+    const displayName = STAT_DISPLAY_NAMES[stat] || stat;
+
+    if (next === current) {
+      const dir = delta > 0 ? 'higher' : 'lower';
+      return { message: `${this.getName()}'s ${displayName} won't go any ${dir}!` };
+    }
+
+    this.stages[stat] = next;
+
+    // Update live stat for combat stats (acc/evasion don't live in this.stats).
+    if (this._baseStats[stat] !== undefined) {
+      this.stats[stat] = Math.max(1,
+        Math.floor(this._baseStats[stat] * STAT_STAGE_MULTIPLIERS[next + 6])
+      );
+    }
+
+    const change = next - current;
+    const dir = change > 0 ? 'rose' : 'fell';
+    const sharpAdj = Math.abs(change) >= 2 ? ' sharply' : '';
+    return { message: `${this.getName()}'s ${displayName}${sharpAdj} ${dir}!` };
   }
 
   hasAbility(abilityName) {

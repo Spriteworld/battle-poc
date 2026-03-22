@@ -1,4 +1,4 @@
-import { STATS, Moves } from '@spriteworld/pokemon-data';
+import { STATS, STATUS, Moves } from '@spriteworld/pokemon-data';
 import { ActionTypes } from '../../../../objects';
 
 const { getActionPriority } = Moves;
@@ -22,8 +22,12 @@ export default class BeforeAction {
     const ATTACK_TYPES = [ActionTypes.ATTACK, ActionTypes.NPC_ATTACK];
 
     // Speed order as a tiebreaker (higher speed goes first; equal speed is random).
-    let playerSpeed = this.config.player.team.getActivePokemon().stats[STATS.SPEED];
-    let enemySpeed  = this.config.enemy.team.getActivePokemon().stats[STATS.SPEED];
+    // Paralysis halves effective speed for turn-order purposes (Gen 3).
+    const playerActiveMon = this.config.player.team.getActivePokemon();
+    const enemyActiveMon  = this.config.enemy.team.getActivePokemon();
+    const paralyzed = mon => (mon.status?.[STATUS.PARALYZE] ?? 0) > 0;
+    let playerSpeed = playerActiveMon.stats[STATS.SPEED] * (paralyzed(playerActiveMon) ? 0.5 : 1);
+    let enemySpeed  = enemyActiveMon.stats[STATS.SPEED]  * (paralyzed(enemyActiveMon)  ? 0.5 : 1);
     let speedOrder;
     if (playerSpeed > enemySpeed)       { speedOrder = ['player', 'enemy']; }
     else if (playerSpeed < enemySpeed)  { speedOrder = ['enemy',  'player']; }
@@ -32,7 +36,13 @@ export default class BeforeAction {
     let actionCount = Object.keys(this.actions).length;
 
     if (actionCount === 0) {
-      console.warn('[Before] No actions found, returning to PLAYER_ACTION state');
+      // End of round — apply burn/poison/toxic damage then start next round.
+      this.applyEndOfTurnStatus();
+      let eotCheck = this.checkForDeadActivePokemon();
+      if (eotCheck !== null) {
+        this.stateMachine.setState(eotCheck);
+        return;
+      }
       this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
       return;
     }

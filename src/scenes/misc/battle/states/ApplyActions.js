@@ -1,5 +1,5 @@
 import { ActionTypes } from '@Objects';
-import { Abilities, calcEscape, Moves } from '@spriteworld/pokemon-data';
+import { Abilities, calcEscape, Moves, STATUS } from '@spriteworld/pokemon-data';
 
 const { MULTI_TURN_MOVES, MULTI_HIT_MOVES, rollHitCount } = Moves;
 
@@ -143,9 +143,63 @@ export default class ApplyActions {
       let info = {};
       let activeMon = player.team.getActivePokemon();
 
+      // ── Pre-attack status checks ────────────────────────────────────────────
+
+      // Paralysis: 25% chance to be unable to move this turn.
+      if (activeMon.status?.[STATUS.PARALYZE] > 0 && Math.random() < 0.25) {
+        this.logger.addItem(`${activeMon.getName()} is paralyzed! It can't move!`);
+        this.currentAction = null;
+        this.time.addEvent({
+          delay: 1000,
+          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+          callbackScope: this,
+        });
+        return;
+      }
+
+      // Sleep: can't move while asleep; decrement counter and check for wake-up.
+      if (activeMon.status?.[STATUS.SLEEP] > 0) {
+        activeMon.status[STATUS.SLEEP]--;
+        if (activeMon.status[STATUS.SLEEP] === 0) {
+          this.logger.addItem(`${activeMon.getName()} woke up!`);
+          // Falls through — Pokémon acts normally on the wake-up turn.
+        } else {
+          this.logger.addItem(`${activeMon.getName()} is fast asleep!`);
+          this.currentAction = null;
+          this.time.addEvent({
+            delay: 1000,
+            callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+            callbackScope: this,
+          });
+          return;
+        }
+      }
+
+      // Freeze: 20% thaw chance per turn; still frozen → can't move.
+      if (activeMon.status?.[STATUS.FROZEN] > 0) {
+        if (Math.random() < 0.20) {
+          activeMon.status[STATUS.FROZEN] = 0;
+          this.logger.addItem(`${activeMon.getName()} thawed out!`);
+          // Falls through — Pokémon acts normally on the thaw turn.
+        } else {
+          this.logger.addItem(`${activeMon.getName()} is frozen solid!`);
+          this.currentAction = null;
+          this.time.addEvent({
+            delay: 1000,
+            callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+            callbackScope: this,
+          });
+          return;
+        }
+      }
+
       // If the target is invulnerable on their charge turn, the attack fails.
+      // Log the attacker's name so the player can distinguish this from their own move failing.
       if (target.invulnerable) {
-        this.logger.addItem('But it failed!');
+        const moveLabel = (type === ActionTypes.ATTACK && config?.move)
+          ? ` used ${config.move.name} but`
+          : ' attacked, but';
+        this.logger.addItem(`${activeMon.getName()}${moveLabel} it failed!`);
         this.currentAction = null;
         this.time.addEvent({
           delay: 1000,

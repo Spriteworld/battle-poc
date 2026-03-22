@@ -1,4 +1,4 @@
-import { STATS, GEN_3 } from '@spriteworld/pokemon-data';
+import { STATS, STATUS, GEN_3 } from '@spriteworld/pokemon-data';
 
 export function makeEvents() {
   const handlers = {};
@@ -53,6 +53,25 @@ export function makeMon(overrides = {}) {
     useItem:          jest.fn(() => ({ message: 'HP restored!' })),
     lockedMove:  null,
     invulnerable: false,
+    status: {
+      [STATUS.SLEEP]: 0,
+      [STATUS.POISON]: 0,
+      [STATUS.BURN]: 0,
+      [STATUS.FROZEN]: 0,
+      [STATUS.PARALYZE]: 0,
+      [STATUS.TOXIC]: 0,
+    },
+    stages: {
+      [STATS.ATTACK]: 0,
+      [STATS.DEFENSE]: 0,
+      [STATS.SPECIAL_ATTACK]: 0,
+      [STATS.SPECIAL_DEFENSE]: 0,
+      [STATS.SPEED]: 0,
+      ACCURACY: 0,
+      EVASION: 0,
+    },
+    toxicCount: 0,
+    applyStageChange: jest.fn((stat, delta) => ({ message: `MockMon's ${stat} changed by ${delta}!` })),
   };
   return { ...base, ...overrides };
 }
@@ -119,6 +138,7 @@ export function makeContext(overrides = {}) {
     },
     remapActivePokemon:        jest.fn(),
     checkForDeadActivePokemon: jest.fn(() => null),
+    applyEndOfTurnStatus:      jest.fn(),
     activateMenu:              jest.fn(),
     BattleMenu:        makeMenu('battlemenu'),
     AttackMenu:        makeMenu('attackmenu'),
