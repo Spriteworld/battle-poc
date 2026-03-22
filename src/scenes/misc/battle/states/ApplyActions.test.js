@@ -512,3 +512,51 @@ describe('ApplyActions — flinch', () => {
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('beforeAction');
   });
 });
+
+describe('ApplyActions — infatuation (Attract)', () => {
+  function makeInfatuatedCtx() {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.volatileStatus.infatuated = true;
+    const move = { name: 'Tackle', pp: { current: 35, max: 35 } };
+    ctx.currentAction = {
+      type:   ActionTypes.ATTACK,
+      player: ctx.config.player,
+      target: ctx.config.enemy.team.getActivePokemon(),
+      config: { move },
+    };
+    return { ctx, playerMon };
+  }
+
+  test('prevents the attack when roll fails (< 0.5)', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.3); // 0.3 < 0.5 → immobilised
+    const { ctx, playerMon } = makeInfatuatedCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.attack).not.toHaveBeenCalled();
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('logs an "immobilized by love" message when blocked', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.3);
+    const { ctx } = makeInfatuatedCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('immobilized by love'));
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('schedules BEFORE_ACTION after being immobilised', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.3);
+    const { ctx } = makeInfatuatedCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('beforeAction');
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('allows the attack when roll succeeds (>= 0.5)', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.7); // 0.7 >= 0.5 → acts normally
+    const { ctx, playerMon } = makeInfatuatedCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.attack).toHaveBeenCalled();
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});

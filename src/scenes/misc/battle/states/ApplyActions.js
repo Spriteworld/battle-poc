@@ -76,6 +76,14 @@ export default class ApplyActions {
 
         this.logger.addItem('[ApplyActions] Switching pokemon: ' + pokemon.getName());
 
+        // Clear volatile status on the outgoing Pokémon before switching.
+        const outgoing = player.team.getActivePokemon();
+        if (outgoing?.volatileStatus) {
+          outgoing.volatileStatus.leechSeed  = false;
+          outgoing.volatileStatus.infatuated = false;
+          outgoing.volatileStatus.encored    = null;
+        }
+
         // switch pokemon
         player.team.setActivePokemon(pokemon);
 
@@ -183,6 +191,20 @@ export default class ApplyActions {
           // Falls through — Pokémon acts normally on the thaw turn.
         } else {
           this.logger.addItem(`${activeMon.getName()} is frozen solid!`);
+          this.currentAction = null;
+          this.time.addEvent({
+            delay: 1000,
+            callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+            callbackScope: this,
+          });
+          return;
+        }
+      }
+
+      // Infatuation (Attract): 50% chance to be immobilised by love.
+      if (activeMon.volatileStatus?.infatuated) {
+        if (Math.random() < 0.50) {
+          this.logger.addItem(`${activeMon.getName()} is immobilized by love!`);
           this.currentAction = null;
           this.time.addEvent({
             delay: 1000,

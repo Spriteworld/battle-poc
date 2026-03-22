@@ -92,6 +92,7 @@ export default class extends BasePokemon {
      */
     this.volatileStatus = {
       leechSeed: false,
+      infatuated: false,
       /** null | { move: Move, turnsLeft: number } */
       encored: null,
     };
