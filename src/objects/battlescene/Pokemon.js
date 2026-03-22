@@ -20,14 +20,15 @@ export default class extends BasePokemon {
       pid: config.pid,
       species: config.species,
       originalTrainer: trainerName,
-      trainerId: config.trainerId, 
+      trainerId: config.trainerId,
       nickname: config.nickname,
       level: config.level,
       nature: config.nature,
       ability: config.ability,
+      gender: config.gender,
       ivs: config.ivs || {},
       evs: config.evs || {},
-      moves: config.moves || [] 
+      moves: config.moves || [],
     });
 
     this.currentHp = config.currentHp || this.currentHp;

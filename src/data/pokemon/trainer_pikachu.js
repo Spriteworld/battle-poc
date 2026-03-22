@@ -1,4 +1,4 @@
-import { BasePokemon } from "@spriteworld/pokemon-data";
+import { BasePokemon, GENDERS } from "@spriteworld/pokemon-data";
 import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
 
 export default {
@@ -8,6 +8,7 @@ export default {
   nickname: 'Sparky',
   species: 25,
   level: 5,
+  gender: GENDERS.FEMALE,
   nature: NATURES.HARDY,
   ability: {
     name: 'none',

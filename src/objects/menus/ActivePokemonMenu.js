@@ -47,6 +47,8 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
         level: playerPokemon.level,
         currentHp: playerPokemon.currentHp,
         maxHp: playerPokemon.maxHp,
+        status: playerPokemon.status,
+        gender: playerPokemon.gender,
       });
     }
     if (enemyPokemon) {
@@ -55,6 +57,8 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
         level: enemyPokemon.level,
         currentHp: enemyPokemon.currentHp,
         maxHp: enemyPokemon.maxHp,
+        status: enemyPokemon.status,
+        gender: enemyPokemon.gender,
       });
     }
   }
