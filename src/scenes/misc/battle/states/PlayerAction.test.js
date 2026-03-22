@@ -72,3 +72,24 @@ describe('PlayerAction', () => {
     expect(ctx.stateMachine.setState).not.toHaveBeenCalled();
   });
 });
+
+// ─── Locked move (charge turn auto-continue) ──────────────────────────────────
+
+describe('PlayerAction — lockedMove', () => {
+  test('auto-queues the locked move as an ATTACK action', () => {
+    const ctx = makeContext();
+    const lockedMove = { name: 'Fly', pp: { current: 14, max: 15 } };
+    ctx.config.player.team.getActivePokemon().lockedMove = { move: lockedMove, invulnerable: true };
+    new PlayerAction().onEnter.call(ctx);
+    expect(ctx.actions.player.type).toBe(ActionTypes.ATTACK);
+    expect(ctx.actions.player.config.move).toBe(lockedMove);
+  });
+
+  test('transitions to ENEMY_ACTION without showing the battle menu', () => {
+    const ctx = makeContext();
+    ctx.config.player.team.getActivePokemon().lockedMove = { move: {}, invulnerable: false };
+    new PlayerAction().onEnter.call(ctx);
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('enemyAction');
+    expect(ctx.BattleMenu.remap).not.toHaveBeenCalled();
+  });
+});

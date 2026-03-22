@@ -432,6 +432,116 @@ describe('attackWithAI', () => {
   });
 });
 
+describe('multi-turn state', () => {
+  test('lockedMove is null on construction', () => {
+    expect(bulbasaur.lockedMove).toBeNull();
+  });
+
+  test('invulnerable is false on construction', () => {
+    expect(bulbasaur.invulnerable).toBe(false);
+  });
+});
+
+describe('attackLocked', () => {
+  test('deals damage to the target', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle
+    move.pp.current = 10;
+    const before = charmander.currentHp;
+    const info = bulbasaur.attackLocked(charmander, move, GEN_3);
+    expect(charmander.currentHp).toBeLessThan(before);
+    expect(info.damage).toBeGreaterThan(0);
+  });
+
+  test('does NOT decrement PP', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle at 35pp
+    move.pp.current = 10;
+    bulbasaur.attackLocked(charmander, move, GEN_3);
+    expect(move.pp.current).toBe(10);
+  });
+
+  test('returns accuracy:0 and damage:0 on a miss', () => {
+    const move = bulbasaur.getMoves()[0];
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const info = bulbasaur.attackLocked(charmander, move, GEN_3);
+    expect(info.accuracy).toBe(0);
+    expect(info.damage).toBe(0);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('does not damage the target on a miss', () => {
+    const move = bulbasaur.getMoves()[0];
+    const before = charmander.currentHp;
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    bulbasaur.attackLocked(charmander, move, GEN_3);
+    expect(charmander.currentHp).toBe(before);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('calls onEffect when present', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onEffect = jest.fn(() => ({ message: 'effect!' }));
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // guaranteed hit
+    const info = bulbasaur.attackLocked(charmander, move, GEN_3);
+    expect(move.onEffect).toHaveBeenCalled();
+    expect(info.effect).toEqual({ message: 'effect!' });
+    move.onEffect = null;
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});
+
+describe('attackMultiHit', () => {
+  test('decrements PP exactly once regardless of hit count', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle at 35pp
+    bulbasaur.attackMultiHit(charmander, move, GEN_3, 4);
+    expect(move.pp.current).toBe(34);
+  });
+
+  test('returns info.hits equal to the hitCount argument', () => {
+    const move = bulbasaur.getMoves()[0];
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // guaranteed hit each call
+    const info = bulbasaur.attackMultiHit(charmander, move, GEN_3, 3);
+    expect(info.hits).toBe(3);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('total damage is positive for a hit', () => {
+    const move = bulbasaur.getMoves()[0];
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const info = bulbasaur.attackMultiHit(charmander, move, GEN_3, 3);
+    expect(info.damage).toBeGreaterThan(0);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('target HP is reduced by total damage dealt', () => {
+    const move = bulbasaur.getMoves()[0];
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const before = charmander.currentHp;
+    const info = bulbasaur.attackMultiHit(charmander, move, GEN_3, 3);
+    expect(charmander.currentHp).toBe(before - info.damage);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('on a miss returns accuracy:0, damage:0 and hits:0', () => {
+    const move = bulbasaur.getMoves()[0];
+    jest.spyOn(Math, 'random').mockReturnValue(0.99); // accuracy miss
+    const info = bulbasaur.attackMultiHit(charmander, move, GEN_3, 3);
+    expect(info.accuracy).toBe(0);
+    expect(info.damage).toBe(0);
+    expect(info.hits).toBe(0);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('calls onEffect once after all hits', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onEffect = jest.fn(() => null);
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    bulbasaur.attackMultiHit(charmander, move, GEN_3, 3);
+    expect(move.onEffect).toHaveBeenCalledTimes(1);
+    move.onEffect = null;
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});
+
 describe('nameWithHP', () => {
   test('returns formatted name with hp fraction', () => {
     bulbasaur.currentHp = 30;

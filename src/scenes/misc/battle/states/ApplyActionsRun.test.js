@@ -8,12 +8,18 @@
 jest.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
 
 // Full mock — calcEscape is a jest.fn(), Abilities is provided for SWITCH_POKEMON guard.
+// Moves is provided as empty registries so ApplyActions.js can destructure without error.
 jest.mock('@spriteworld/pokemon-data', () => ({
   calcEscape: jest.fn(),
   Abilities: {
     ARENA_TRAP:  'Arena Trap',
     SHADOW_TAG:  'Shadow Tag',
     MAGNET_PULL: 'Magnet Pull',
+  },
+  Moves: {
+    MULTI_TURN_MOVES: {},
+    MULTI_HIT_MOVES:  {},
+    rollHitCount:     jest.fn(() => 2),
   },
 }));
 
