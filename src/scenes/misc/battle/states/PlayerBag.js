@@ -1,51 +1,44 @@
-import { BagMenu, PokemonTeamMenu, Action, ActionTypes } from '@Objects';
+import { Action, ActionTypes } from '@Objects';
 
 export default class PlayerBag {
   onEnter() {
-    // console.log('[PlayerBag] onEnter');
-    
-    this.BagMenu = new BagMenu(this, 10, 200);
-    this.PokemonTeamMenu = new PokemonTeamMenu(this, 10, 200);
-
     if (typeof this.selectedItem === 'undefined') { this.selectedItem = null; }
 
-    let playerTeam = this.config.player.team;
-    // console.log('[PlayerBag] Player team:', playerTeam);
-    let alivePokemon = Object.values(playerTeam.pokemon).filter((pokemon, idx) => {
-      return pokemon.isAlive()
-    });
+    const playerTeam = this.config.player.team;
+    const alivePokemon = Object.values(playerTeam.pokemon).filter(p => p.isAlive());
 
-    let selectItem = (itemIndex, item) => {
-      // console.log('[PlayerBag] selectItem', itemIndex, item);
+    const selectItem = (itemIndex, item) => {
       this.BagMenu.deselect();
       this.BagMenu.clear();
-
+      this.BagMenu.setVisible(false);
       this.selectedItem = itemIndex;
 
       this.PokemonTeamMenu.clear();
       Object.values(alivePokemon).forEach((pokemon, idx) => {
-        this.PokemonTeamMenu.addMenuItem(`${pokemon.getName()} (${pokemon.currentHp}/${pokemon.maxHp})`);
-        this.events.once('pokemonteammenu-select-option-' + idx, () => selectPokemon(pokemon));
+        this.PokemonTeamMenu.addMenuItem(
+          `${pokemon.getName()} (${pokemon.currentHp}/${pokemon.maxHp})`
+        );
+        this.events.once('pokemonteammenu-select-option-' + idx, () =>
+          selectPokemon(pokemon)
+        );
       });
-
-      // add a cancel option to pokemon team menu
       this.PokemonTeamMenu.addMenuItem('Cancel');
-      this.events.once('pokemonteammenu-select-option-' + (alivePokemon.length), () => {
-        this.PokemonTeamMenu.deselect();
-        this.PokemonTeamMenu.clear();
-        // console.log('[PlayerBag] Cancel selected');
-        this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
-      });
-
-      this.PokemonTeamMenu.select(0);
+      this.events.once(
+        'pokemonteammenu-select-option-' + alivePokemon.length,
+        () => {
+          this.PokemonTeamMenu.deselect();
+          this.PokemonTeamMenu.clear();
+          this.PokemonTeamMenu.setVisible(false);
+          this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+        }
+      );
       this.activateMenu(this.PokemonTeamMenu);
     };
 
-    let selectPokemon = (pokemon) => {
-      // console.log('[PlayerBag] Selected Pokemon:', pokemon);
-      this.BagMenu.clear();
+    const selectPokemon = (pokemon) => {
       this.PokemonTeamMenu.deselect();
       this.PokemonTeamMenu.clear();
+      this.PokemonTeamMenu.setVisible(false);
 
       this.actions.player = new Action({
         type: ActionTypes.USE_ITEM,
@@ -55,29 +48,33 @@ export default class PlayerBag {
           item: this.data.player.inventory.items[this.selectedItem],
         },
       });
-
       this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
     };
 
-    // Add items to the bag menu
-    let bagItems = this.data.player.inventory.items;
+    const bagItems = this.data.player.inventory.items;
     this.BagMenu.clear();
     Object.values(bagItems).forEach((item, idx) => {
-      this.BagMenu.addMenuItem(`${item.item.getName()} x ${item.quantity}`);
-      this.events.once('bagmenu-select-option-' + idx, (idx) => selectItem(idx, item));
+      this.BagMenu.addMenuItem(`${item.item.getName()} x${item.quantity}`);
+      this.events.once('bagmenu-select-option-' + idx, () =>
+        selectItem(idx, item)
+      );
     });
-
-    // add a cancel option to bag menu
     this.BagMenu.addMenuItem('Cancel');
-    this.events.once('bagmenu-select-option-' + (bagItems.length), () => {
+    this.events.once('bagmenu-select-option-' + bagItems.length, () => {
       this.BagMenu.deselect();
       this.BagMenu.clear();
-      // console.log('[PlayerBag] Cancel selected');
+      this.BagMenu.setVisible(false);
       this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
     });
 
     this.activateMenu(this.BagMenu);
-    this.BagMenu.select(0);
   }
 
+  onExit() {
+    this.events.eventNames().forEach(name => {
+      if (name.startsWith('bagmenu-') || name.startsWith('pokemonteammenu-')) {
+        this.events.off(name);
+      }
+    });
+  }
 }

@@ -20,10 +20,6 @@ export default class {
     return this.name || 'Trainer';
   }
 
-  isWild() {
-    return this.isWild;
-  }
-
   debug() {
     console.log('BATTLETRAINER');
     console.log(this);

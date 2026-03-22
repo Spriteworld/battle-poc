@@ -1,9 +1,31 @@
 import Phaser from 'phaser';
 import StateMachine from '@Objects/StateMachine';
 import * as State from './states/index.js';
-import Log from '@Objects/Log';
-import { ActivePokemonMenu } from '@Objects';
+import DialogBox from '@Objects/ui/DialogBox.js';
+import {
+  ActivePokemonMenu,
+  BattleMenu,
+  AttackMenu,
+  BagMenu,
+  PokemonTeamMenu,
+  PokemonSwitchMenu,
+} from '@Objects';
 
+// ─── Layout ────────────────────────────────────────────────────────────────
+// Canvas: 800 × 600
+const UI_Y      = 370;   // y-start of the bottom strip
+const UI_H      = 230;   // height of the bottom strip
+const DIALOG_W  = 490;   // width of the dialog box
+const ACTION_X  = 490;   // x-start of the action panel
+
+const ENEMY_BOX  = { x: 20,  y: 15  };
+const PLAYER_BOX = { x: 430, y: 288 };
+
+/**
+ * Main battle scene.  Owns the state machine and all UI objects.
+ * All battle state classes are bound to this scene instance.
+ * @extends Phaser.Scene
+ */
 export default class extends Phaser.Scene {
   constructor() {
     super({ key: 'BattleScene2' });
@@ -11,156 +33,216 @@ export default class extends Phaser.Scene {
     this.logger = {};
 
     this.stateDef = {
-      BATTLE_IDLE: 'battleIdle',
-      BATTLE_START: 'battleStart',
-      BEFORE_ACTION: 'beforeAction',
-      PLAYER_ACTION: 'playerAction',
-      PLAYER_ATTACK: 'playerAttack',
-      PLAYER_BAG: 'playerBag',
-      PLAYER_POKEMON: 'playerPokemon',
+      BATTLE_IDLE:               'battleIdle',
+      BATTLE_START:              'battleStart',
+      BEFORE_ACTION:             'beforeAction',
+      PLAYER_ACTION:             'playerAction',
+      PLAYER_ATTACK:             'playerAttack',
+      PLAYER_BAG:                'playerBag',
+      PLAYER_POKEMON:            'playerPokemon',
       PLAYER_NEW_ACTIVE_POKEMON: 'playerNewActivePokemon',
-      ENEMY_ACTION: 'enemyAction',
-      APPLY_ACTIONS: 'applyActions',
-      BATTLE_END: 'battleEnd',
-      BATTLE_WON: 'battleWon',
-      BATTLE_LOST: 'battleLost',
+      ENEMY_ACTION:              'enemyAction',
+      APPLY_ACTIONS:             'applyActions',
+      BATTLE_END:                'battleEnd',
+      BATTLE_WON:                'battleWon',
+      BATTLE_LOST:               'battleLost',
     };
 
     this.stateMachine = new StateMachine(this)
       .addState(this.stateDef.BATTLE_IDLE,                new State.BattleIdle)
       .addState(this.stateDef.BATTLE_START,               new State.BattleStart)
-      
       .addState(this.stateDef.PLAYER_ACTION,              new State.PlayerAction)
       .addState(this.stateDef.PLAYER_ATTACK,              new State.PlayerAttack)
       .addState(this.stateDef.PLAYER_BAG,                 new State.PlayerBag)
       .addState(this.stateDef.PLAYER_POKEMON,             new State.PlayerPokemon)
-
       .addState(this.stateDef.PLAYER_NEW_ACTIVE_POKEMON,  new State.PlayerNewActivePokemon)
-
       .addState(this.stateDef.BEFORE_ACTION,              new State.BeforeAction)
       .addState(this.stateDef.ENEMY_ACTION,               new State.EnemyAction)
       .addState(this.stateDef.APPLY_ACTIONS,              new State.ApplyActions)
-
       .addState(this.stateDef.BATTLE_END,                 new State.BattleEnd)
       .addState(this.stateDef.BATTLE_WON,                 new State.BattleWon)
       .addState(this.stateDef.BATTLE_LOST,                new State.BattleLost)
     ;
 
-    this.ActivePokemonMenu = {};
-    this.BattleMenu = {};
-    this.AttackMenu = {};
-    this.BagMenu = {};
-    this.PokemonTeamMenu = {};
-    this.PokemonSwitchMenu = {};
-    this.currentMenu = {};
-    
-    this.actions = [];
+    this.currentMenu = null;
+    this.actions = {};
     this.currentAction = null;
+    this.escapeAttempts = 0;
   }
 
   init(data) {
     this.data = data;
-    // console.log('[BattleScene2] init', data);
   }
-  
-  create() {
-    this.logger = new Log(this, 370, 10);
-    this.logger.addItem('Battle Initiated...');
 
-    this.ActivePokemonMenu = new ActivePokemonMenu(this, 10, 10);
+  create() {
+    this._drawBackground();
+
+    // Dialog box (bottom-left)
+    this.logger = new DialogBox(this, 0, UI_Y, DIALOG_W, UI_H, 9);
+
+    // Status boxes (enemy top-left, player bottom-right)
+    this.ActivePokemonMenu = new ActivePokemonMenu(
+      this,
+      ENEMY_BOX.x,  ENEMY_BOX.y,
+      PLAYER_BOX.x, PLAYER_BOX.y
+    );
+
+    // All menus pre-created at the action panel position, hidden until needed
+    this.BattleMenu        = new BattleMenu(this,        ACTION_X, UI_Y);
+    this.AttackMenu        = new AttackMenu(this,        ACTION_X, UI_Y);
+    this.BagMenu           = new BagMenu(this,           ACTION_X, UI_Y);
+    this.PokemonTeamMenu   = new PokemonTeamMenu(this,   ACTION_X, UI_Y);
+    this.PokemonSwitchMenu = new PokemonSwitchMenu(this, ACTION_X, UI_Y);
+    [
+      this.BattleMenu,
+      this.AttackMenu,
+      this.BagMenu,
+      this.PokemonTeamMenu,
+      this.PokemonSwitchMenu,
+    ].forEach(m => m.setVisible(false));
 
     this.input.keyboard.on('keydown', this.onKeyInput, this);
-    
     this.stateMachine.setState(this.stateDef.BATTLE_START);
   }
 
-  update(time, delta) {
+  update(time) {
     this.stateMachine.update(time);
   }
 
-  addLogger(log) {
-    this.logger = log;
+  // ─── Background ────────────────────────────────────────────────────────────
+
+  _drawBackground() {
+    // Sky
+    const sky = this.add.graphics();
+    sky.fillGradientStyle(0x78b8f0, 0x78b8f0, 0xb8dff8, 0xb8dff8, 1);
+    sky.fillRect(0, 0, 800, UI_Y);
+
+    // Ground
+    const ground = this.add.graphics();
+    ground.fillGradientStyle(0x68a838, 0x68a838, 0x48882a, 0x48882a, 1);
+    ground.fillRect(0, UI_Y - 90, 800, 90);
+
+    // Battle area / UI strip divider
+    const border = this.add.graphics();
+    border.lineStyle(4, 0x181818);
+    border.lineBetween(0, UI_Y, 800, UI_Y);
+    border.lineBetween(ACTION_X, UI_Y, ACTION_X, 600);
+
+    // Platforms (ellipses under where sprites will stand)
+    const platforms = this.add.graphics();
+    platforms.fillStyle(0x80b848, 0.5);
+    platforms.fillEllipse(190, UI_Y - 28, 210, 40);   // player side
+    platforms.fillEllipse(610, UI_Y - 168, 170, 32);  // enemy side
+
+    // Placeholder silhouettes until sprites are loaded
+    this._silhouette(190, UI_Y - 90,  88, 0x282848, true);
+    this._silhouette(610, UI_Y - 198, 62, 0x203820, false);
   }
 
+  /**
+   * Draws a rough oval silhouette where a Pokémon sprite will go.
+   * @param {number} x
+   * @param {number} y
+   * @param {number} size
+   * @param {number} color
+   * @param {boolean} isPlayer
+   */
+  _silhouette(x, y, size, color, isPlayer) {
+    const g = this.add.graphics();
+    g.fillStyle(color, 0.45);
+    g.fillEllipse(x, y, size * (isPlayer ? 1.5 : 1), size * 0.75);
+    g.fillEllipse(x, y - size * 0.55, size * 0.85, size * 0.85);
+  }
+
+  // ─── Menu management ───────────────────────────────────────────────────────
+
+  /**
+   * Switches the visible/active menu.  Hides the previous menu and shows the
+   * new one at index 0.
+   * @param {Menu} menu
+   */
   activateMenu(menu) {
-    // this.currentMenu;
-    // console.log('[BattleScene2] activateMenu', menu.name, menu);
+    if (this.currentMenu && this.currentMenu !== menu) {
+      this.currentMenu.setVisible(false);
+    }
     this.currentMenu = menu;
+    this.currentMenu.setVisible(true);
     this.currentMenu.select(0);
   }
 
-  onKeyInput(event) {
-    if (!this.currentMenu) {
-      console.warn('[BattleScene2] No current menu to handle input');
-      return;
-    }
+  // ─── Input ─────────────────────────────────────────────────────────────────
 
-    if (event.code === 'ArrowUp') {
-      this.currentMenu.moveSelectionUp();
-    } else if (event.code === 'ArrowDown') {
-      this.currentMenu.moveSelectionDown();
-    } else if (event.code === 'ArrowRight') {
-    } else if (event.code === 'ArrowLeft') {
-    } else if (event.code === 'Enter') {
-      this.currentMenu.confirm();
-    } else if (event.code === 'Escape') {
-      let howManyItems = this.currentMenu.config.menuItems.length;
-      let lastItem = this.currentMenu.config.menuItems[howManyItems - 1];
-      if (lastItem.text().toLowerCase() === 'cancel') {
-        this.events.emit(this.currentMenu.getName().toLowerCase() + '-select-option-' + (howManyItems - 1));
+  onKeyInput(event) {
+    if (!this.currentMenu || !this.currentMenu.config?.selected) return;
+
+    switch (event.code) {
+      case 'ArrowUp':    this.currentMenu.moveSelectionUp();     break;
+      case 'ArrowDown':  this.currentMenu.moveSelectionDown();   break;
+      case 'ArrowLeft':  this.currentMenu.moveSelectionLeft?.(); break;
+      case 'ArrowRight': this.currentMenu.moveSelectionRight?.(); break;
+      case 'Enter':
+      case 'KeyZ':
+        this.currentMenu.confirm();
+        break;
+      case 'Escape':
+      case 'KeyX': {
+        const items = this.currentMenu.config.menuItems;
+        const last  = items[items.length - 1];
+        if (last?.text().toLowerCase() === 'cancel') {
+          this.events.emit(
+            this.currentMenu.getName().toLowerCase() +
+            '-select-option-' +
+            (items.length - 1)
+          );
+        }
+        break;
       }
     }
   }
 
+  // ─── Battle helpers ────────────────────────────────────────────────────────
+
+  remapActivePokemon() {
+    this.ActivePokemonMenu.remap([
+      this.config.player.team.getActivePokemon(),
+      this.config.enemy.team.getActivePokemon(),
+    ]);
+  }
+
+  /**
+   * @return {string|null} Next state key if a side has fainted, otherwise null.
+   */
   checkForDeadActivePokemon() {
-    // check if the active pokemon of the player is dead
     if (!this.config.player.team.getActivePokemon().isAlive()) {
       this.logger.addItem('Your active Pokémon fainted!');
-
       if (!this.config.player.team.hasLivingPokemon()) {
         this.logger.addItem('You have no more Pokémon left!');
-        return (this.stateDef.BATTLE_LOST);
-      } else {
-        return (this.stateDef.PLAYER_NEW_ACTIVE_POKEMON);
+        return this.stateDef.BATTLE_LOST;
       }
+      return this.stateDef.PLAYER_NEW_ACTIVE_POKEMON;
     }
 
-    // check if the active pokemon of the enemy is dead
     if (!this.config.enemy.team.getActivePokemon().isAlive()) {
-      this.logger.addItem('The enemy\'s active Pokémon fainted!');
-
+      this.logger.addItem("The enemy's active Pokémon fainted!");
       if (!this.config.enemy.team.switchToNextLivingPokemon()) {
         this.logger.addItem('The enemy has no more Pokémon left!');
         this.remapActivePokemon();
-        return (this.stateDef.BATTLE_WON);
+        return this.stateDef.BATTLE_WON;
       }
     }
 
     return null;
   }
 
-  remapActivePokemon() {
-    this.ActivePokemonMenu.remap(
-      [
-        this.config.player.team.getActivePokemon(), 
-        this.config.enemy.team.getActivePokemon(), 
-      ].map(pokemon => pokemon.activePokemonMenuMap())
+  checkForEndOfBattle() {
+    return (
+      !this.config.player.team.hasLivingPokemon() ||
+      !this.config.enemy.team.hasLivingPokemon()
     );
-
-    this.ActivePokemonMenu.select(this.data.playerTurn === 'player' ? 0 : 1);
   }
 
-
-  checkForEndOfBattle() {
-    // do we have living pokemon on the players team?
-    if (!this.config.player.team.hasLivingPokemon()) {
-      return true;
-    }
-    // or on the enemies team?
-    if (!this.config.enemy.team.hasLivingPokemon()) {
-      return true;
-    }
-
-    return false;
+  /** Legacy support — states that call this.addLogger() won't break. */
+  addLogger(log) {
+    this.logger = log;
   }
 }

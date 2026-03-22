@@ -149,10 +149,10 @@ export default class ApplyActions {
       
       switch (type) {
         case ActionTypes.ATTACK:
-          info = activeMon.attack(target, config.move);
+          info = activeMon.attack(target, config.move, this.generation);
         break;
         case ActionTypes.NPC_ATTACK:
-          info = activeMon.attackRandomMove(target);
+          info = activeMon.attackRandomMove(target, this.generation);
         break;
       }
 
@@ -166,11 +166,23 @@ export default class ApplyActions {
 
       if (info.accuracy === 0) {
         this.logger.addItem('It totally missed!');
+        this.currentAction = null;
+        this.time.addEvent({
+          delay: 1000,
+          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+          callbackScope: this,
+        });
         return;
       }
 
       if (info.damage === 0) {
         this.logger.addItem('It has no effect!');
+        this.currentAction = null;
+        this.time.addEvent({
+          delay: 1000,
+          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+          callbackScope: this,
+        });
         return;
       } else {
         this.logger.addItem([
@@ -181,7 +193,7 @@ export default class ApplyActions {
         ].join(' '));          
       }
 
-      if (info.critical === 2) {
+      if (info.critical > 1) {
         this.logger.addItem('It was a critical hit!');
       }
 

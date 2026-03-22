@@ -81,8 +81,13 @@ export default class extends Phaser.Scene {
         ],
         inventory: {
           items: [
-            { item: new Items.Potion(), quantity: 5 },
-            // { item: new Items.Potion(), quantity: 5 },
+            { item: new Items.Potion(),      quantity: 5 },
+            { item: new Items.SuperPotion(), quantity: 3 },
+            { item: new Items.HyperPotion(), quantity: 2 },
+            { item: new Items.MaxPotion(),   quantity: 1 },
+            { item: new Items.FullRestore(), quantity: 1 },
+            { item: new Items.Ether(),       quantity: 2 },
+            { item: new Items.Revive(),      quantity: 2 },
           ],
           pokeballs: [],
           tms: [],

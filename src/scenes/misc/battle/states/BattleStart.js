@@ -1,4 +1,5 @@
 import { BattleTrainer, WildTrainer, BattleTeam } from '@Objects';
+import { GENERATIONS, GEN_3 } from '@spriteworld/pokemon-data';
 
 export default class BattleStart {
   onEnter() {
@@ -43,6 +44,17 @@ export default class BattleStart {
 
     this.config.hasData = true;
     this.escapeAttempts = 0;
+
+    // Resolve active generation. Callers can pass e.g. { generation: 'GEN_3' } or a GenerationConfig object.
+    if (this.data.generation && typeof this.data.generation === 'object') {
+      this.generation = this.data.generation;
+    } else if (this.data.generation && GENERATIONS[this.data.generation]) {
+      this.generation = GENERATIONS[this.data.generation];
+    } else {
+      this.generation = GEN_3;
+    }
+
+    this.logger.addItem(`Battle rules: ${this.generation.name}`);
 
     this.events.emit('battle-start', this.data);
     this.remapActivePokemon();

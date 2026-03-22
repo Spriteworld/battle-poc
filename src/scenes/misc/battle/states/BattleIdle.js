@@ -2,35 +2,20 @@ import { Menu } from '@Objects';
 
 export default class BattleIdle {
   onEnter() {
-    // if (this.ActivePokemonMenu instanceof Menu) {
-    //   this.ActivePokemonMenu.deselect();
-    //   this.ActivePokemonMenu.clear();
-    // }
+    const menus = [
+      this.BattleMenu,
+      this.AttackMenu,
+      this.BagMenu,
+      this.PokemonTeamMenu,
+      this.PokemonSwitchMenu,
+    ];
 
-    if (this.BattleMenu instanceof Menu) {
-      this.BattleMenu.deselect();
-      this.BattleMenu.clear();
-    }
-
-    if (this.AttackMenu instanceof Menu) {
-      this.AttackMenu.deselect();
-      this.AttackMenu.clear();
-    }
-
-    if (this.BagMenu instanceof Menu) {
-      this.BagMenu.deselect();
-      this.BagMenu.clear();
-    }
-
-    if (this.PokemonTeamMenu instanceof Menu) {
-      this.PokemonTeamMenu.deselect();
-      this.PokemonTeamMenu.clear();
-    }
-
-    if (this.PokemonSwitchMenu instanceof Menu) {
-      this.PokemonSwitchMenu.deselect();
-      this.PokemonSwitchMenu.clear();
-    }
-
+    menus.forEach(menu => {
+      if (menu instanceof Menu) {
+        menu.deselect();
+        menu.clear();
+        menu.setVisible(false);
+      }
+    });
   }
 }

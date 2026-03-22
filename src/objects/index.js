@@ -15,6 +15,10 @@ import ActivePokemonMenu from './menus/ActivePokemonMenu.js';
 import AttackMenu from './menus/AttackMenu.js';
 import BagMenu from './menus/BagMenu.js';
 
+import HpBar from './ui/HpBar.js';
+import PokemonStatusBox from './ui/PokemonStatusBox.js';
+import DialogBox from './ui/DialogBox.js';
+
 import Action from './misc/Action.js';
 import * as ActionTypes from './enums/ActionTypes.js';
 
@@ -36,6 +40,10 @@ export {
   AttackMenu,
   BagMenu,
 
+  HpBar,
+  PokemonStatusBox,
+  DialogBox,
+
   Action,
   ActionTypes,
-}
+};

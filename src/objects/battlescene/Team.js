@@ -35,11 +35,11 @@ export default class {
    */
   setActivePokemon(pokemon) {
     if (typeof pokemon === 'number') {
-      if (index < 0 || index >= this.pokemon.length) {
-        console.warn('Invalid index for active Pokemon:', index);
+      if (pokemon < 0 || pokemon >= this.pokemon.length) {
+        console.warn('Invalid index for active Pokemon:', pokemon);
         return;
       }
-      this.active = index;
+      this.active = pokemon;
       return;
     }
 

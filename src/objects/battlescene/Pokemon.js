@@ -24,13 +24,19 @@ export default class extends BasePokemon {
     this.id = config.id || uuidv4();
   }
 
-  attack(target, move) {
+  /**
+   * @param {object} target - Defending BattlePokemon
+   * @param {Move} move
+   * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation] - Active generation rules
+   * @return {object}
+   */
+  attack(target, move, generation) {
     if (typeof move === 'undefined' || !(move instanceof Move)) {
       console.warn('BattlePokemon: attack called without a move');
       return;
     }
 
-    let info = CalcDamage.calculate(this, target, move);
+    let info = CalcDamage.calculate(this, target, move, undefined, generation);
     if (!('damage' in info) || info.damage < 0) {
       info.damage = 0;
     }
@@ -54,10 +60,15 @@ export default class extends BasePokemon {
     };
   }
 
-  attackRandomMove(target) {
+  /**
+   * @param {object} target
+   * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
+   * @return {object}
+   */
+  attackRandomMove(target, generation) {
     let move = this.moves[Math.floor(Math.random()*this.moves.length)];
     console.log('BattlePokemon: random pokemon move!', move);
-    return this.attack(target, move);
+    return this.attack(target, move, generation);
   }
 
   takeDamage(damage) {

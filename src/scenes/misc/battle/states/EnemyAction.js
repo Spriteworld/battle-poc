@@ -20,7 +20,7 @@ export default class EnemyAction {
     let moves = activeMon.getMoves();
 
     // select a random move
-    let moveIndex = Phaser.Math.Between(0, moves.length - 1);
+    let moveIndex = Math.floor(Math.random() * moves.length);
     let move = moves[moveIndex];
 
     // for now we'll just attack

@@ -1,49 +1,51 @@
-import { AttackMenu, Action, ActionTypes } from '@Objects';
+import { Action, ActionTypes } from '@Objects';
 
 export default class PlayerAttack {
   onEnter() {
-    let activeMon = this.config.player.team.getActivePokemon();
-    
-    this.AttackMenu = new AttackMenu(this, 10, 200);
+    const activeMon = this.config.player.team.getActivePokemon();
 
-    let attack = (move) => {
+    const attack = (move) => {
       this.AttackMenu.deselect();
       this.AttackMenu.clear();
+      this.AttackMenu.setVisible(false);
 
       this.actions.player = new Action({
         type: ActionTypes.ATTACK,
         player: this.config.player,
         target: this.config.enemy.team.getActivePokemon(),
-        config: {
-          move: move,
-        },
+        config: { move },
       });
-      
-      this.logger.addItem([
-        '[PlayerAttack]',
-        this.config.player.getName(),
-        'selected attack',
-        '(' + move.name + ')',
-      ].join(' '));
+
+      this.logger.addItem(
+        `${this.config.player.getName()} selected ${move.name}!`
+      );
       this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
     };
 
-    let moves = activeMon.getMoves();
+    // Populate the pre-created AttackMenu and show it
+    const moves = activeMon.getMoves();
     this.AttackMenu.clear();
     Object.values(moves).forEach((move, idx) => {
-      this.AttackMenu.addMenuItem(`${move.name} (${move.pp.current}pp / ${move.pp.max}pp)`);
+      this.AttackMenu.addMenuItem(
+        `${move.name} (${move.pp.current}/${move.pp.max}pp)`
+      );
       this.events.once('attackmenu-select-option-' + idx, () => attack(move));
     });
 
     this.AttackMenu.addMenuItem('Cancel');
-    this.events.once('attackmenu-select-option-' + (moves.length), () => {
+    this.events.once('attackmenu-select-option-' + moves.length, () => {
       this.AttackMenu.deselect();
       this.AttackMenu.clear();
+      this.AttackMenu.setVisible(false);
       this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
     });
 
     this.activateMenu(this.AttackMenu);
-    this.AttackMenu.select(0);
   }
 
+  onExit() {
+    this.events.eventNames().forEach(name => {
+      if (name.startsWith('attackmenu-')) this.events.off(name);
+    });
+  }
 }
