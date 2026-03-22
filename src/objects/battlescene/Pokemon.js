@@ -69,20 +69,18 @@ export default class extends BasePokemon {
       info.damage = 0;
     }
 
-    let currentHP = target.currentHp;
     target.takeDamage(info.damage);
-    // console.log([
-    //   'BattlePokemon: ', this.getName(), 'uses',
-    //   move.name, 'against', target.getName(),
-    //   'for', currentHP, '-', 
-    //   info.damage, '= ' + target.currentHp, 'damage',
-    // ].join(' '));
+
+    const effect = (typeof move.onEffect === 'function')
+      ? move.onEffect(this, target, info) || null
+      : null;
 
     return {
       player: this.getName(),
       enemy: target.getName(),
       move: move.name,
-      ...info
+      ...info,
+      effect,
     };
   }
 

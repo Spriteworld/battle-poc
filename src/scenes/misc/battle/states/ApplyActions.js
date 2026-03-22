@@ -175,22 +175,13 @@ export default class ApplyActions {
         return;
       }
 
-      if (info.damage === 0) {
-        this.logger.addItem('It has no effect!');
-        this.currentAction = null;
-        this.time.addEvent({
-          delay: 1000,
-          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-          callbackScope: this,
-        });
-        return;
-      } else {
+      if (info.damage > 0) {
         this.logger.addItem([
           '   for',
           info.damage,
           '('+ action.target.currentHp+')',
           'damage!'
-        ].join(' '));          
+        ].join(' '));
       }
 
       if (info.critical > 1) {
@@ -211,13 +202,21 @@ export default class ApplyActions {
         break;
       }
 
+      if (info.effect?.message) {
+        this.logger.addItem(info.effect.message);
+      }
+
+      if (info.damage === 0 && !info.effect && info.typeEffectiveness !== 0) {
+        this.logger.addItem('It had no effect!');
+      }
+
       this.currentAction = null;
 
       this.remapActivePokemon();
-      this.time.addEvent({ 
-        delay: 1000, 
-        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
-        callbackScope: this 
+      this.time.addEvent({
+        delay: 1000,
+        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+        callbackScope: this
       });
       return;
     }

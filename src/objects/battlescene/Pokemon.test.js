@@ -212,6 +212,37 @@ describe('attack', () => {
   });
 });
 
+describe('attack — move effects', () => {
+  test('includes effect:null when move has no onEffect', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle — no registered effect
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // guaranteed hit
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(info.effect).toBeNull();
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('includes effect result when move has onEffect', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onEffect = jest.fn(() => ({ message: 'A test effect!' }));
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // guaranteed hit
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(info.effect).toEqual({ message: 'A test effect!' });
+    expect(move.onEffect).toHaveBeenCalledWith(bulbasaur, charmander, expect.any(Object));
+    move.onEffect = null;
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('effect:null when onEffect returns null (roll failed)', () => {
+    const move = bulbasaur.getMoves()[0];
+    move.onEffect = jest.fn(() => null);
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // guaranteed hit
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(info.effect).toBeNull();
+    move.onEffect = null;
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+});
+
 describe('attack — generation differences', () => {
   test('Gen 3 uses 2× crit multiplier (category by type)', () => {
     // Tackle is Normal-type → Physical in Gen 3 (by-type rule)
