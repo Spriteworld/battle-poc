@@ -2,9 +2,21 @@ import { Action, ActionTypes } from '@Objects';
 
 export default class PlayerAction {
   onEnter() {
-    this.logger.addItem(
-      `What will ${this.config.player.team.getActivePokemon().getName()} do?`
-    );
+    const activeMon = this.config.player.team.getActivePokemon();
+
+    // Locked into a charge move — skip the menu and auto-continue.
+    if (activeMon.lockedMove) {
+      this.actions.player = new Action({
+        type: ActionTypes.ATTACK,
+        player: this.config.player,
+        target: this.config.enemy.team.getActivePokemon(),
+        config: { move: activeMon.lockedMove.move },
+      });
+      this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
+      return;
+    }
+
+    this.logger.addItem(`What will ${activeMon.getName()} do?`);
 
     // Populate the pre-created BattleMenu and show it
     this.BattleMenu.remap(['Attack', 'Bag', 'Pokemon', 'Run']);

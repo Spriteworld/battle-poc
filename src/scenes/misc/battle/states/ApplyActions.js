@@ -1,5 +1,7 @@
 import { ActionTypes } from '@Objects';
-import { Abilities, calcEscape } from '@spriteworld/pokemon-data';
+import { Abilities, calcEscape, Moves } from '@spriteworld/pokemon-data';
+
+const { MULTI_TURN_MOVES, MULTI_HIT_MOVES, rollHitCount } = Moves;
 
 export default class ApplyActions {
   onEnter() {
@@ -141,6 +143,18 @@ export default class ApplyActions {
       let info = {};
       let activeMon = player.team.getActivePokemon();
 
+      // If the target is invulnerable on their charge turn, the attack fails.
+      if (target.invulnerable) {
+        this.logger.addItem('But it failed!');
+        this.currentAction = null;
+        this.time.addEvent({
+          delay: 1000,
+          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+          callbackScope: this,
+        });
+        return;
+      }
+
       switch (type) {
         case ActionTypes.ATTACK: {
           let move = config.move;
@@ -149,7 +163,40 @@ export default class ApplyActions {
             this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
             return;
           }
-          info = activeMon.attack(target, move, this.generation);
+
+          // Check if this is the charge turn of a two-turn move.
+          const multiTurnDef = MULTI_TURN_MOVES[move.name?.toLowerCase()];
+          if (multiTurnDef && !activeMon.lockedMove) {
+            // Charge turn: decrement PP, show the wind-up message, lock in.
+            move.pp.current = Math.max(0, move.pp.current - 1);
+            this.logger.addItem(multiTurnDef.chargeMessage.replace('{name}', activeMon.getName()));
+            activeMon.lockedMove = { move, invulnerable: multiTurnDef.invulnerable };
+            activeMon.invulnerable = multiTurnDef.invulnerable;
+            this.currentAction = null;
+            this.remapActivePokemon();
+            this.time.addEvent({
+              delay: 1000,
+              callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+              callbackScope: this,
+            });
+            return;
+          }
+
+          // Strike turn (or a regular move): clear locked state then attack.
+          if (activeMon.lockedMove) {
+            activeMon.lockedMove = null;
+            activeMon.invulnerable = false;
+            info = activeMon.attackLocked(target, move, this.generation);
+          } else {
+            // Multi-hit move — roll hit count and deal damage per-hit.
+            const multiHitDef = MULTI_HIT_MOVES[move.name?.toLowerCase()];
+            if (multiHitDef) {
+              const hitCount = rollHitCount(multiHitDef.minHits, multiHitDef.maxHits);
+              info = activeMon.attackMultiHit(target, move, this.generation, hitCount);
+            } else {
+              info = activeMon.attack(target, move, this.generation);
+            }
+          }
           break;
         }
         case ActionTypes.NPC_ATTACK:
@@ -183,6 +230,10 @@ export default class ApplyActions {
           '('+ action.target.currentHp+')',
           'damage!'
         ].join(' '));
+      }
+
+      if (info.hits > 1) {
+        this.logger.addItem(`Hit ${info.hits} time${info.hits === 1 ? '' : 's'}!`);
       }
 
       if (info.critical > 1) {

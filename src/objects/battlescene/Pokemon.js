@@ -34,6 +34,11 @@ export default class extends BasePokemon {
     this.currentHp = config.currentHp || this.currentHp;
     this.moves = this.moves.map(move => new Move(move, config));
     this.id = config.id || uuidv4();
+
+    /** Set when locked into a two-turn charge move. `{ move: Move, invulnerable: boolean }` */
+    this.lockedMove = null;
+    /** True during the charge turn of moves like Fly/Dig/Bounce/Dive. */
+    this.invulnerable = false;
   }
 
   /**
@@ -134,6 +139,103 @@ export default class extends BasePokemon {
       typeEffectiveness: 1,
       accuracy: 1,
       recoil,
+    };
+  }
+
+  /**
+   * Executes the strike turn of a two-turn charge move without decrementing PP.
+   * PP was already decremented on the charge turn; re-using attack() would subtract it again.
+   *
+   * @param {object} target - Defending BattlePokemon
+   * @param {Move} move
+   * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
+   * @return {object}
+   */
+  attackLocked(target, move, generation) {
+    let info;
+    if (typeof move.onAttack === 'function') {
+      info = move.onAttack(this, target, generation);
+    } else {
+      if (move.accuracy !== null && !(Math.random() * 100 < move.accuracy)) {
+        return {
+          player: this.getName(),
+          enemy: target.getName(),
+          move: move.name,
+          accuracy: 0,
+          damage: 0,
+        };
+      }
+      info = CalcDamage.calculate(this, target, move, undefined, generation);
+      if (!('damage' in info) || info.damage < 0) info.damage = 0;
+    }
+
+    target.takeDamage(info.damage);
+
+    if (info.accuracy === 0) {
+      return { player: this.getName(), enemy: target.getName(), move: move.name, ...info };
+    }
+
+    const effect = (typeof move.onEffect === 'function')
+      ? move.onEffect(this, target, info) || null
+      : null;
+
+    return { player: this.getName(), enemy: target.getName(), move: move.name, ...info, effect };
+  }
+
+  /**
+   * Executes a multi-hit move, rolling damage independently for each hit.
+   *
+   * Accuracy is checked once (Gen 3+ behaviour). Each hit gets its own crit and
+   * damage-variance roll. PP is decremented once regardless of hit count.
+   * The move's onEffect (if any) fires once after the final hit.
+   *
+   * @param {object} target - Defending BattlePokemon
+   * @param {Move} move
+   * @param {import('@spriteworld/pokemon-data').GenerationConfig} generation
+   * @param {number} hitCount - number of times to hit
+   * @return {object}
+   */
+  attackMultiHit(target, move, generation, hitCount) {
+    move.pp.current = Math.max(0, move.pp.current - 1);
+
+    // Single accuracy check for all hits (Gen 3+).
+    if (move.accuracy !== null && !(Math.random() * 100 < move.accuracy)) {
+      return {
+        player: this.getName(),
+        enemy: target.getName(),
+        move: move.name,
+        accuracy: 0,
+        damage: 0,
+        hits: 0,
+      };
+    }
+
+    let totalDamage = 0;
+    let lastInfo = {};
+
+    for (let i = 0; i < hitCount; i++) {
+      const info = CalcDamage.calculate(this, target, move, undefined, generation);
+      const dmg = Math.max(0, info.damage || 0);
+      totalDamage += dmg;
+      target.takeDamage(dmg);
+      lastInfo = info;
+    }
+
+    // Apply effect once after all hits (e.g. Twineedle's 20% poison).
+    const effect = (typeof move.onEffect === 'function')
+      ? move.onEffect(this, target, { ...lastInfo, damage: totalDamage }) || null
+      : null;
+
+    return {
+      player: this.getName(),
+      enemy: target.getName(),
+      move: move.name,
+      accuracy: 1,
+      damage: totalDamage,
+      hits: hitCount,
+      critical: lastInfo.critical,
+      typeEffectiveness: lastInfo.typeEffectiveness,
+      effect,
     };
   }
 
