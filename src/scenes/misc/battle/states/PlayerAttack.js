@@ -17,14 +17,21 @@ export default class PlayerAttack {
       });
 
       this.logger.addItem(
-        `${this.config.player.getName()} selected ${move.name}!`
+        `${this.config.player.getName()} selected ${move ? move.name : 'Struggle'}!`
       );
       this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
     };
 
+    // When all PP is depleted, skip the menu and queue Struggle immediately.
+    if (activeMon.mustStruggle()) {
+      attack(null);
+      return;
+    }
+
     // Populate the pre-created AttackMenu and show it
     const moves = activeMon.getMoves();
     this.AttackMenu.clear();
+
     Object.values(moves).forEach((move, idx) => {
       this.AttackMenu.addMenuItem(
         `${move.name} (${move.pp.current}/${move.pp.max}pp)`

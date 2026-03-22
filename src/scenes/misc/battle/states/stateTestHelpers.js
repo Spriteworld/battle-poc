@@ -44,6 +44,7 @@ export function makeMon(overrides = {}) {
       { name: 'Growl',  pp: { current: 40, max: 40 } },
     ]),
     hasAbility:       jest.fn(() => false),
+    mustStruggle:     jest.fn(() => false),
     attack:           jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     attackRandomMove: jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     useItem:          jest.fn(() => ({ message: 'HP restored!' })),

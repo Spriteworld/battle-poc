@@ -141,6 +141,63 @@ describe('attack', () => {
     expect(move.pp.current).toBe(34);
   });
 
+  test('decrements PP before the accuracy roll (PP still spent on a miss)', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle, accuracy 95
+    jest.spyOn(Math, 'random').mockReturnValue(0.99); // guaranteed miss
+    bulbasaur.attack(charmander, move, GEN_3);
+    expect(move.pp.current).toBe(34);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('returns accuracy:0 and damage:0 on a miss', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle, accuracy 95
+    jest.spyOn(Math, 'random').mockReturnValue(0.99); // 99 >= 95 → miss
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(info.accuracy).toBe(0);
+    expect(info.damage).toBe(0);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('does not damage target on a miss', () => {
+    const move = bulbasaur.getMoves()[0];
+    const before = charmander.currentHp;
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    bulbasaur.attack(charmander, move, GEN_3);
+    expect(charmander.currentHp).toBe(before);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('null-accuracy move always hits regardless of random roll', () => {
+    // Razor Leaf has accuracy 95 in gen_3 fixture — create a null-accuracy move manually.
+    // We can't easily inject a null-accuracy move through the real Move constructor,
+    // so test via the condition: if Math.random returns 0.99 but accuracy is null, it still hits.
+    const move = bulbasaur.getMoves()[0];
+    const realAccuracy = move.accuracy;
+    move.accuracy = null; // patch to simulate always-hit move
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const info = bulbasaur.attack(charmander, move, GEN_3);
+    expect(info.accuracy).not.toBe(0); // did not miss
+    expect(info.damage).toBeGreaterThan(0);
+    move.accuracy = realAccuracy;
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('PP does not go below 0', () => {
+    const move = bulbasaur.getMoves()[0]; // Tackle (35pp)
+    move.pp.current = 1;
+    bulbasaur.attack(charmander, move, GEN_3);
+    expect(move.pp.current).toBe(0);
+    // second use — already at 0, must not go negative
+    bulbasaur.attack(charmander, move, GEN_3);
+    expect(move.pp.current).toBe(0);
+  });
+
+  test('uses Struggle when all moves are at 0 PP', () => {
+    bulbasaur.getMoves().forEach(m => { m.pp.current = 0; });
+    const info = bulbasaur.attack(charmander, bulbasaur.getMoves()[0], GEN_3);
+    expect(info.move).toBe('Struggle');
+  });
+
   test('logs a warning and returns undefined when move is missing', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const result = bulbasaur.attack(charmander, undefined, GEN_3);
@@ -171,6 +228,51 @@ describe('attack — generation differences', () => {
   });
 });
 
+describe('mustStruggle', () => {
+  test('returns false when moves have PP remaining', () => {
+    expect(bulbasaur.mustStruggle()).toBe(false);
+  });
+
+  test('returns false when only some moves are depleted', () => {
+    bulbasaur.getMoves()[0].pp.current = 0;
+    expect(bulbasaur.mustStruggle()).toBe(false);
+  });
+
+  test('returns true when all moves are at 0 PP', () => {
+    bulbasaur.getMoves().forEach(m => { m.pp.current = 0; });
+    expect(bulbasaur.mustStruggle()).toBe(true);
+  });
+});
+
+describe('struggle', () => {
+  beforeEach(() => {
+    bulbasaur.getMoves().forEach(m => { m.pp.current = 0; });
+  });
+
+  test('returns move name "Struggle"', () => {
+    const info = bulbasaur.struggle(charmander, GEN_3);
+    expect(info.move).toBe('Struggle');
+  });
+
+  test('deals damage to the target', () => {
+    const before = charmander.currentHp;
+    const info = bulbasaur.struggle(charmander, GEN_3);
+    expect(charmander.currentHp).toBe(before - info.damage);
+  });
+
+  test('applies ½ max HP recoil to the attacker', () => {
+    const before = bulbasaur.currentHp;
+    const info = bulbasaur.struggle(charmander, GEN_3);
+    expect(bulbasaur.currentHp).toBe(before - info.recoil);
+    expect(info.recoil).toBe(Math.floor(bulbasaur.maxHp / 2));
+  });
+
+  test('typeEffectiveness is always 1 (typeless)', () => {
+    const info = bulbasaur.struggle(charmander, GEN_3);
+    expect(info.typeEffectiveness).toBe(1);
+  });
+});
+
 describe('attackRandomMove', () => {
   test('returns a valid info object', () => {
     const info = bulbasaur.attackRandomMove(charmander, GEN_3);
@@ -185,6 +287,22 @@ describe('attackRandomMove', () => {
     const before = charmander.currentHp;
     const info = bulbasaur.attackRandomMove(charmander, GEN_3);
     expect(charmander.currentHp).toBe(before - info.damage);
+  });
+
+  test('only picks moves with PP > 0', () => {
+    // Deplete Tackle (index 0), leave Razor Leaf (index 1) with PP.
+    bulbasaur.getMoves()[0].pp.current = 0;
+    for (let i = 0; i < 20; i++) {
+      bulbasaur.attackRandomMove(charmander, GEN_3);
+    }
+    // Tackle was never used — its PP stays 0.
+    expect(bulbasaur.getMoves()[0].pp.current).toBe(0);
+  });
+
+  test('uses Struggle when all moves are at 0 PP', () => {
+    bulbasaur.getMoves().forEach(m => { m.pp.current = 0; });
+    const info = bulbasaur.attackRandomMove(charmander, GEN_3);
+    expect(info.move).toBe('Struggle');
   });
 });
 

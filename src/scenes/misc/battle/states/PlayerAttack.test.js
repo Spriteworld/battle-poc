@@ -49,6 +49,23 @@ describe('PlayerAttack', () => {
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('playerAction');
   });
 
+  describe('when mustStruggle is true', () => {
+    function makeStruggleCtx() {
+      const ctx = makeContext();
+      ctx.config.player.team.getActivePokemon().mustStruggle.mockReturnValue(true);
+      return ctx;
+    }
+
+    test('queues Struggle immediately without showing the menu', () => {
+      const ctx = makeStruggleCtx();
+      new PlayerAttack().onEnter.call(ctx);
+      expect(ctx.AttackMenu.addMenuItem).not.toHaveBeenCalled();
+      expect(ctx.actions.player.type).toBe(ActionTypes.ATTACK);
+      expect(ctx.actions.player.config.move).toBeNull();
+      expect(ctx.stateMachine.setState).toHaveBeenCalledWith('enemyAction');
+    });
+  });
+
   test('onExit removes all attackmenu event listeners', () => {
     const ctx = makeContext();
     const state = new PlayerAttack();
