@@ -5,11 +5,11 @@ import { makeContext } from './stateTestHelpers.js';
 import EnemyAction from './EnemyAction.js';
 
 describe('EnemyAction', () => {
-  test('creates an ATTACK action for the enemy', () => {
+  test('creates an NPC_ATTACK action for the enemy', () => {
     const ctx = makeContext();
     new EnemyAction().onEnter.call(ctx);
     expect(ctx.actions.enemy).toBeDefined();
-    expect(ctx.actions.enemy.type).toBe(ActionTypes.ATTACK);
+    expect(ctx.actions.enemy.type).toBe(ActionTypes.NPC_ATTACK);
   });
 
   test('enemy action targets the player active pokemon', () => {
@@ -17,12 +17,6 @@ describe('EnemyAction', () => {
     const playerMon = ctx.config.player.team.getActivePokemon();
     new EnemyAction().onEnter.call(ctx);
     expect(ctx.actions.enemy.target).toBe(playerMon);
-  });
-
-  test('enemy action includes a randomly selected move', () => {
-    const ctx = makeContext();
-    new EnemyAction().onEnter.call(ctx);
-    expect(ctx.actions.enemy.config.move).toBeDefined();
   });
 
   test('schedules transition to BEFORE_ACTION', () => {

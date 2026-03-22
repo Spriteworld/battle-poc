@@ -22,9 +22,6 @@ export default class {
     if (this.type === ActionTypes.ATTACK && typeof this.config.move === 'undefined') {
       throw new Error('Action '+ this.type +' must have a move defined in config.');
     }
-    if (this.type === ActionTypes.NPC_ATTACK && typeof this.config.move === 'undefined') {
-      throw new Error('Action '+ this.type +' must have a move defined in config.');
-    }
 
     if (this.type === ActionTypes.USE_ITEM && typeof this.config.item === 'undefined') {
       throw new Error('Action '+ this.type +' must have an item defined in config.');

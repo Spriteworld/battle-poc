@@ -51,7 +51,7 @@ export default class ApplyActions {
       let { config, player } = action;
       let pokemon = config.pokemon;
       if (Object.keys(config).includes('pokemon') === false || typeof pokemon !== 'object') {
-        console.warn('[ApplyActions] No item found in action config, returning to BATTLE_IDLE state');
+        console.warn('[ApplyActions] No pokemon found in action config, returning to BATTLE_IDLE state');
         this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
         return;
       }
@@ -140,17 +140,18 @@ export default class ApplyActions {
       let { config, target, player, type } = action;
       let info = {};
       let activeMon = player.team.getActivePokemon();
-      let move = config.move;
-      if (Object.keys(config).includes('move') === false || typeof move !== 'object') {
-        console.warn('[ApplyActions] No move found in action config, returning to BATTLE_IDLE state');
-        this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
-        return;
-      }
-      
+
       switch (type) {
-        case ActionTypes.ATTACK:
-          info = activeMon.attack(target, config.move, this.generation);
-        break;
+        case ActionTypes.ATTACK: {
+          let move = config.move;
+          if (!move || typeof move !== 'object') {
+            console.warn('[ApplyActions] No move found in action config, returning to BATTLE_IDLE state');
+            this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+            return;
+          }
+          info = activeMon.attack(target, move, this.generation);
+          break;
+        }
         case ActionTypes.NPC_ATTACK:
           info = activeMon.attackRandomMove(target, this.generation);
         break;

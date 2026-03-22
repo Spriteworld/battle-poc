@@ -16,27 +16,15 @@ export default class EnemyAction {
       // does it make sense to use em?
 
     
-    // grab the moves
-    let moves = activeMon.getMoves();
-
-    // select a random move
-    let moveIndex = Math.floor(Math.random() * moves.length);
-    let move = moves[moveIndex];
-
-    // for now we'll just attack
     this.actions.enemy = new Action({
-      type: ActionTypes.ATTACK,
+      type: ActionTypes.NPC_ATTACK,
       player: this.config.enemy,
       target: this.config.player.team.getActivePokemon(),
-      config: {
-        move: move,
-      },
     });
     this.logger.addItem([
       '[Enemy]',
       this.config.enemy.getName(),
-      'selected attack',
-      '('+ move.name + ')',
+      'is preparing to attack!',
     ].join(' '));
 
     // if enemy selects attack, go to APPLY_ACTIONS state
