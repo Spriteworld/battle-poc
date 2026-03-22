@@ -193,6 +193,19 @@ export default class ApplyActions {
         }
       }
 
+      // Flinch: set by a faster move that hit this Pokémon earlier this round.
+      if (activeMon.flinched) {
+        activeMon.flinched = false;
+        this.logger.addItem(`${activeMon.getName()} flinched and couldn't move!`);
+        this.currentAction = null;
+        this.time.addEvent({
+          delay: 1000,
+          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+          callbackScope: this,
+        });
+        return;
+      }
+
       // If the target is invulnerable on their charge turn, the attack fails.
       // Log the attacker's name so the player can distinguish this from their own move failing.
       if (target.invulnerable) {

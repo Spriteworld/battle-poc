@@ -1,6 +1,17 @@
 import { CalcDamage, BasePokemon, TYPES, Moves, STATS, calcTypeEffectiveness } from '@spriteworld/pokemon-data';
 
-const { STAT_STAGE_MULTIPLIERS, ACC_STAGE_MULTIPLIERS, STAT_DISPLAY_NAMES } = Moves;
+const {
+  STAT_STAGE_MULTIPLIERS, ACC_STAGE_MULTIPLIERS, STAT_DISPLAY_NAMES,
+  MOVE_EFFECTS, MOVE_OVERRIDES, getMovesByGen,
+} = Moves;
+
+// Moves that cannot be called by Metronome (Gen 3).
+const METRONOME_BANNED = new Set([
+  'counter', 'covet', 'destiny bond', 'detect', 'endure', 'focus punch',
+  'follow me', 'helping hand', 'metronome', 'mimic', 'mirror coat',
+  'mirror move', 'protect', 'sketch', 'sleep talk', 'snatch', 'struggle',
+  'thief', 'transform',
+]);
 import Move from './Move.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -68,6 +79,12 @@ export default class extends BasePokemon {
      * Damage dealt = floor(maxHp * toxicCount / 16).
      */
     this.toxicCount = 0;
+
+    /**
+     * Set to true when a move with a flinch effect hits this Pokémon while it has
+     * not yet acted this turn. Cleared at the end of each round in applyEndOfTurnStatus.
+     */
+    this.flinched = false;
   }
 
   /**
@@ -79,6 +96,10 @@ export default class extends BasePokemon {
   attack(target, move, generation) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
+    }
+
+    if (move?.name?.toLowerCase() === 'metronome') {
+      return this.useMetronome(target, move, generation);
     }
 
     if (typeof move === 'undefined' || !(move instanceof Move)) {
@@ -335,6 +356,38 @@ export default class extends BasePokemon {
     const topMoves = usable.filter(s => s.score === topScore);
     const chosen = topMoves[Math.floor(Math.random() * topMoves.length)];
     return this.attack(target, chosen.move, generation);
+  }
+
+  /**
+   * Picks a random move from the generation's movelist (excluding banned moves),
+   * then executes it via attackLocked (no PP decrement for the called move).
+   * Metronome's own PP is decremented here before the call.
+   *
+   * @param {object} target
+   * @param {Move} metronomeMove - the Metronome move instance (for PP tracking)
+   * @param {import('@spriteworld/pokemon-data').GenerationConfig} generation
+   * @return {object}
+   */
+  useMetronome(target, metronomeMove, generation) {
+    metronomeMove.pp.current = Math.max(0, metronomeMove.pp.current - 1);
+
+    const allMoves = getMovesByGen(generation.gen);
+    const pool = allMoves.filter(m => !METRONOME_BANNED.has(m.name.toLowerCase()));
+    const data  = pool[Math.floor(Math.random() * pool.length)];
+
+    // Build a lightweight move object the attack pipeline understands.
+    const calledMove = {
+      name:     data.name,
+      type:     data.type,
+      category: data.category,
+      power:    data.power,
+      accuracy: data.accuracy ?? null,
+      onAttack: MOVE_OVERRIDES[data.name.toLowerCase()] || null,
+      onEffect: MOVE_EFFECTS[data.name.toLowerCase()] || null,
+    };
+
+    const info = this.attackLocked(target, calledMove, generation);
+    return { ...info, move: `Metronome → ${data.name}` };
   }
 
   takeDamage(damage) {

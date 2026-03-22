@@ -54,6 +54,7 @@ export function makeMon(overrides = {}) {
     useItem:          jest.fn(() => ({ message: 'HP restored!' })),
     lockedMove:  null,
     invulnerable: false,
+    flinched:    false,
     status: {
       [STATUS.SLEEP]: 0,
       [STATUS.POISON]: 0,

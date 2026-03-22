@@ -38,5 +38,10 @@ export default function applyEndOfTurnStatus() {
     }
   }
 
+  // Reset per-round flags for both active Pokémon.
+  for (const mon of mons) {
+    mon.flinched = false;
+  }
+
   this.remapActivePokemon();
 }

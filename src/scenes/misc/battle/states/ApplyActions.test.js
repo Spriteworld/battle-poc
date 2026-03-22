@@ -472,3 +472,43 @@ describe('ApplyActions — freeze', () => {
     jest.spyOn(Math, 'random').mockRestore();
   });
 });
+
+describe('ApplyActions — flinch', () => {
+  function makeFlinchCtx() {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.flinched = true;
+    const move = { name: 'Tackle', pp: { current: 35, max: 35 } };
+    ctx.currentAction = {
+      type:   ActionTypes.ATTACK,
+      player: ctx.config.player,
+      target: ctx.config.enemy.team.getActivePokemon(),
+      config: { move },
+    };
+    return { ctx, playerMon };
+  }
+
+  test('prevents the attack when flinched', () => {
+    const { ctx, playerMon } = makeFlinchCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.attack).not.toHaveBeenCalled();
+  });
+
+  test('logs a flinch message', () => {
+    const { ctx } = makeFlinchCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('flinched'));
+  });
+
+  test('clears the flinched flag after triggering', () => {
+    const { ctx, playerMon } = makeFlinchCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(playerMon.flinched).toBe(false);
+  });
+
+  test('schedules BEFORE_ACTION after flinching', () => {
+    const { ctx } = makeFlinchCtx();
+    new ApplyActions().onEnter.call(ctx);
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('beforeAction');
+  });
+});

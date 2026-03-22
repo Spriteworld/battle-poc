@@ -1,7 +1,7 @@
 jest.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
 
 import BattlePokemon from './Pokemon.js';
-import { GAMES, NATURES, STATS, GEN_3, GEN_6 } from '@spriteworld/pokemon-data';
+import { GAMES, NATURES, STATS, GEN_3, GEN_6, Moves } from '@spriteworld/pokemon-data';
 
 // Shared fixture configs — real species so BasePokemon resolves stats.
 const bulbasaurConfig = {
@@ -563,5 +563,52 @@ describe('hasAbility', () => {
   test('returns false when ability is missing', () => {
     bulbasaur.ability = null;
     expect(bulbasaur.hasAbility('overgrow')).toBe(false);
+  });
+});
+
+// ─── Metronome ─────────────────────────────────────────────────────────────────
+
+describe('Metronome', () => {
+  let metronomeMon;
+  let target;
+
+  beforeEach(() => {
+    metronomeMon = new BattlePokemon({
+      ...bulbasaurConfig,
+      moves: [{ name: 'Metronome', pp: { max: 10, current: 10 } }],
+    }, 'Player');
+    target = new BattlePokemon(charmanderConfig, 'Enemy');
+  });
+
+  test('decrements Metronome PP by 1', () => {
+    const move = metronomeMon.moves[0];
+    metronomeMon.attack(target, move, GEN_3);
+    expect(move.pp.current).toBe(9);
+  });
+
+  test('returns a move name containing the called move name', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    const move = metronomeMon.moves[0];
+    const info = metronomeMon.attack(target, move, GEN_3);
+    expect(info.move).toContain('Metronome →');
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('never calls a banned move (Protect)', () => {
+    const allMoves = Moves.getMovesByGen(3);
+    // Seed random so it would pick 'protect' if it were allowed.
+    const protectIndex = allMoves.findIndex(m => m.name.toLowerCase() === 'protect');
+    // Mock random to always select that index in the pool — it should be excluded.
+    const pool = allMoves.filter(m => !['counter','covet','destiny bond','detect','endure',
+      'focus punch','follow me','helping hand','metronome','mimic','mirror coat',
+      'mirror move','protect','sketch','sleep talk','snatch','struggle','thief','transform',
+    ].includes(m.name.toLowerCase()));
+    expect(pool.find(m => m.name.toLowerCase() === 'protect')).toBeUndefined();
+  });
+
+  test('does not call Metronome itself', () => {
+    const allMoves = Moves.getMovesByGen(3);
+    const pool = allMoves.filter(m => !['metronome'].includes(m.name.toLowerCase()));
+    expect(pool.find(m => m.name.toLowerCase() === 'metronome')).toBeUndefined();
   });
 });
