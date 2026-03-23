@@ -10,7 +10,7 @@ import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves } from '@spriteworld/pok
  * Each reload picks new species and movesets from the FireRed/LeafGreen Pokédex
  * and the Generation 3 move pool.
  */
-const USE_RANDOM_TEAMS = false;
+const USE_RANDOM_TEAMS = !false;
 
 // ─── Random team helpers ──────────────────────────────────────────────────────
 
@@ -132,8 +132,11 @@ export default class extends Phaser.Scene {
     console.log('[Preload] Random battle — enemy team:',
       enemyTeam.map(p => `#${p.species} (${p.moves.map(m => m.name).join(', ')})`));
 
+    const RANDOM_WEATHERS = [null, null, 'rain', 'sun', 'sandstorm', 'hail'];
+    const randomWeather = RANDOM_WEATHERS[Math.floor(Math.random() * RANDOM_WEATHERS.length)];
+
     const data = {
-      field: { weather: 'clear', terrain: 'normal' },
+      field: { weather: randomWeather, terrain: 'normal' },
       player: {
         name: 'Player',
         team: playerTeam,
