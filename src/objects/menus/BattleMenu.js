@@ -35,13 +35,13 @@ export default class BattleMenu extends Menu {
   _drawPanel() {
     // Dark navy panel — drawn into the container so it sits behind text items.
     const bg = new Phaser.GameObjects.Graphics(this.scene);
-    bg.fillStyle(0x2030a0);
+    bg.fillStyle(0x101878);
     bg.fillRect(0, 0, PANEL_W, PANEL_H);
     bg.lineStyle(4, 0x181818);
     bg.strokeRect(0, 0, PANEL_W, PANEL_H);
 
     // Thin divider lines between cells
-    bg.lineStyle(1, 0x3848b8);
+    bg.lineStyle(1, 0x2030a0);
     bg.lineBetween(PANEL_W / 2, 8, PANEL_W / 2, PANEL_H - 8);     // vertical
     bg.lineBetween(8, PANEL_H / 2, PANEL_W - 8, PANEL_H / 2);      // horizontal
 

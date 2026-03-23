@@ -51,8 +51,8 @@ const STAGE_BADGE_H = 12;
 /**
  * Gen 3-style status box displaying a Pokémon's name, level, and HP bar.
  *
- * Enemy variant: name + level + HP bar (no numbers).
- * Player variant: name + level + HP bar + current/max HP numbers.
+ * Enemy variant: name + level + HP bar (no numbers).  Has a diagonal cut on the bottom-right corner.
+ * Player variant: name + level + HP bar + current/max HP numbers.  Has a diagonal cut on the top-left corner.
  *
  * @extends Phaser.GameObjects.Container
  */
@@ -63,31 +63,63 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
    * @param {number} y
    * @param {object} [config]
    * @param {boolean} [config.showHpNumbers=false] - Show numeric HP (player side)
+   * @param {boolean} [config.isEnemy=false]       - Slant bottom-right corner (enemy) vs top-left (player)
    * @param {number}  [config.width=220]
    */
   constructor(scene, x, y, config = {}) {
     super(scene, x, y);
     this._showHpNumbers = config.showHpNumbers ?? false;
+    this._isEnemy = config.isEnemy ?? false;
     this._width = config.width ?? 220;
     this._height = this._showHpNumbers ? 80 : 56;
     scene.add.existing(this);
     this._build();
   }
 
+  /**
+   * Draws the box outline polygon into a Graphics object.
+   * Enemy: bottom-right diagonal cut.  Player: top-left diagonal cut.
+   * @param {Phaser.GameObjects.Graphics} g
+   */
+  _tracePath(g) {
+    const w = this._width;
+    const h = this._height;
+    const CUT = 20; // diagonal cut size in px
+    g.beginPath();
+    if (this._isEnemy) {
+      // bottom-right slant: (0,0) → (w,0) → (w,h-CUT) → (w-CUT,h) → (0,h)
+      g.moveTo(0, 0);
+      g.lineTo(w, 0);
+      g.lineTo(w, h - CUT);
+      g.lineTo(w - CUT, h);
+      g.lineTo(0, h);
+    } else {
+      // top-left slant: (CUT,0) → (w,0) → (w,h) → (0,h) → (0,CUT)
+      g.moveTo(CUT, 0);
+      g.lineTo(w, 0);
+      g.lineTo(w, h);
+      g.lineTo(0, h);
+      g.lineTo(0, CUT);
+    }
+    g.closePath();
+  }
+
   _build() {
     const w = this._width;
     const h = this._height;
 
-    // Background
+    // Background — near-white cream fill using polygon path
     const bg = new Phaser.GameObjects.Graphics(this.scene);
-    bg.fillStyle(0xf0ece4, 0.92);
-    bg.fillRoundedRect(0, 0, w, h, 5);
+    bg.fillStyle(0xf8f8ec, 1);
+    this._tracePath(bg);
+    bg.fillPath();
     this.add(bg);
 
-    // Border
+    // Border — dark outline stroked over the same path
     const border = new Phaser.GameObjects.Graphics(this.scene);
     border.lineStyle(3, 0x181818);
-    border.strokeRoundedRect(0, 0, w, h, 5);
+    this._tracePath(border);
+    border.strokePath();
     this.add(border);
 
     // Name (bold)

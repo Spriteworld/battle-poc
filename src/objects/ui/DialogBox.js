@@ -31,24 +31,19 @@ export default class DialogBox extends Phaser.GameObjects.Container {
   _build() {
     const w = this._width;
     const h = this._height;
+    const R = 8; // corner radius
 
-    // Background
+    // Background — white rounded rect
     const bg = new Phaser.GameObjects.Graphics(this.scene);
-    bg.fillStyle(0xf0ece4);
-    bg.fillRect(0, 0, w, h);
+    bg.fillStyle(0xffffff);
+    bg.fillRoundedRect(0, 0, w, h, R);
     this.add(bg);
 
-    // Outer border
-    const outer = new Phaser.GameObjects.Graphics(this.scene);
-    outer.lineStyle(4, 0x181818);
-    outer.strokeRect(0, 0, w, h);
-    this.add(outer);
-
-    // Inner border (inset by 5px)
-    const inner = new Phaser.GameObjects.Graphics(this.scene);
-    inner.lineStyle(2, 0x787878);
-    inner.strokeRect(5, 5, w - 10, h - 10);
-    this.add(inner);
+    // Single dark border
+    const border = new Phaser.GameObjects.Graphics(this.scene);
+    border.lineStyle(3, 0x181818);
+    border.strokeRoundedRect(0, 0, w, h, R);
+    this.add(border);
 
     // Text lines
     const LINE_H = 22;
@@ -57,7 +52,7 @@ export default class DialogBox extends Phaser.GameObjects.Container {
     for (let i = 0; i < this._maxVisible; i++) {
       const t = this.scene.add.text(18, TOP_PAD + i * LINE_H, '', {
         fontFamily: 'monospace',
-        fontSize: '12px',
+        fontSize: '14px',
         color: '#181818',
         wordWrap: { width: w - 36 },
       });

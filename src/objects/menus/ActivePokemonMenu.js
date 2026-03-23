@@ -25,11 +25,13 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
 
     this._enemyBox = new PokemonStatusBox(scene, enemyX, enemyY, {
       showHpNumbers: false,
+      isEnemy: true,
       width: 220,
     });
 
     this._playerBox = new PokemonStatusBox(scene, playerX, playerY, {
       showHpNumbers: true,
+      isEnemy: false,
       width: 340,
     });
 

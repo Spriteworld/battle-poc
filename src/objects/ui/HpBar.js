@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 /**
  * Gen 3-style HP bar rendered with Phaser graphics.
  * Colors shift green → yellow → red as HP drops.
+ * A thin dark outline surrounds the track for the Emerald-style look.
  * @extends Phaser.GameObjects.Container
  */
 export default class HpBar extends Phaser.GameObjects.Container {
@@ -38,25 +39,29 @@ export default class HpBar extends Phaser.GameObjects.Container {
     this.removeAll(true);
 
     const W = this._width;
-    const H = 7;
+    const H = 6;
     const ratio = this._maxHp > 0
       ? Math.max(0, Math.min(1, this._currentHp / this._maxHp))
       : 0;
 
-    // Track (grey background)
-    const track = new Phaser.GameObjects.Graphics(this.scene);
-    track.fillStyle(0x707070);
-    track.fillRect(0, 0, W, H);
-    this.add(track);
+    const g = new Phaser.GameObjects.Graphics(this.scene);
+
+    // Dark outline around the entire bar
+    g.fillStyle(0x303038);
+    g.fillRect(-1, -1, W + 2, H + 2);
+
+    // Grey track
+    g.fillStyle(0xa8a8a8);
+    g.fillRect(0, 0, W, H);
 
     // Colored fill
     const fillW = Math.max(0, Math.floor(W * ratio));
     if (fillW > 0) {
-      const fill = new Phaser.GameObjects.Graphics(this.scene);
-      fill.fillStyle(this._hpColor(ratio));
-      fill.fillRect(0, 0, fillW, H);
-      this.add(fill);
+      g.fillStyle(this._hpColor(ratio));
+      g.fillRect(0, 0, fillW, H);
     }
+
+    this.add(g);
   }
 
   /**
