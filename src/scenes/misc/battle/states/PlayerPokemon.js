@@ -20,6 +20,17 @@ export default class PlayerPokemon {
         this.activateMenu(this.PokemonSwitchMenu);
 
         this.events.once('pokemonswitchmenu-select-option-0', () => {
+          const active = playerTeam.getActivePokemon();
+          if (pokemon.id === active.id) {
+            this.logger.addItem(`${pokemon.getName()} is already in battle!`);
+            this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+            return;
+          }
+          if (pokemon.currentHp <= 0) {
+            this.logger.addItem(`${pokemon.getName()} has no energy to battle!`);
+            this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+            return;
+          }
           this.actions.player = new Action({
             type: ActionTypes.SWITCH_POKEMON,
             player: this.config.player,

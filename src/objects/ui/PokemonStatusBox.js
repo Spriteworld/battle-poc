@@ -16,7 +16,7 @@ const STATUS_BADGE = {
   'PARALYZED': { label: 'PAR', bg: 0xf8d030, text: '#181818' },
   'SLEEP':     { label: 'SLP', bg: 0x909090, text: '#ffffff' },
   'FROZEN':    { label: 'FRZ', bg: 0x98d8d8, text: '#181818' },
-  'TOXIC':     { label: 'TOX', bg: 0x5828a0, text: '#ffffff' },
+  'TOXIC':     { label: 'PSN', bg: 0x5828a0, text: '#ffffff' },
 };
 
 /** Badge configs for volatile / Pokérus conditions. */
@@ -27,7 +27,7 @@ const VOLATILE_BADGE = {
   encored:      { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
   confusedTurns: { label: 'CNF', bg: 0xc030c0, text: '#ffffff' },
 };
-const POKERUS_BADGE = { label: 'PKR', bg: 0x9040c0, text: '#ffffff' };
+const POKERUS_BADGE = { label: 'PkRs', bg: 0x9040c0, text: '#ffffff' };
 
 /** Maximum number of simultaneous condition badges (primary + volatile + pokerus). */
 const MAX_STATUS_BADGES = 6;

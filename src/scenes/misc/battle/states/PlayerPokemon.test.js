@@ -30,11 +30,26 @@ describe('PlayerPokemon', () => {
 
   test('Switch option creates SWITCH_POKEMON action and goes to ENEMY_ACTION', () => {
     const ctx = makeContext();
+    // Add a second, different Pokémon to the bench so the switch is valid.
+    const { makeMon } = require('./stateTestHelpers.js');
+    const benchMon = makeMon({ id: 'bench-mon', getName: jest.fn(() => 'Charmander') });
+    ctx.config.player.team.pokemon.push(benchMon);
     new PlayerPokemon().onEnter.call(ctx);
-    ctx.events.emit('pokemonteammenu-select-option-0');
+    // Select bench Pokémon (option-1) and confirm the switch.
+    ctx.events.emit('pokemonteammenu-select-option-1');
     ctx.events.emit('pokemonswitchmenu-select-option-0');
     expect(ctx.actions.player.type).toBe(ActionTypes.SWITCH_POKEMON);
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('enemyAction');
+  });
+
+  test('switching to active pokemon logs a message and returns to PLAYER_ACTION', () => {
+    const ctx = makeContext();
+    new PlayerPokemon().onEnter.call(ctx);
+    ctx.events.emit('pokemonteammenu-select-option-0');
+    ctx.events.emit('pokemonswitchmenu-select-option-0');
+    expect(ctx.actions.player).toBeUndefined();
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('already in battle'));
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('playerAction');
   });
 
   test('Details option logs a not-implemented message', () => {
