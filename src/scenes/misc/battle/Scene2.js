@@ -4,6 +4,7 @@ import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import DialogBox from '@Objects/ui/DialogBox.js';
 import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
+import WeatherDisplay from '@Objects/ui/WeatherDisplay.js';
 import {
   ActivePokemonMenu,
   BattleMenu,
@@ -29,7 +30,7 @@ const PLAYER_BOX = { x: 430, y: 288 };
  * All battle state classes are bound to this scene instance.
  * @extends Phaser.Scene
  */
-export default class extends Phaser.Scene {
+export default class BattleScene2 extends Phaser.Scene {
   constructor() {
     super({ key: 'BattleScene2' });
     this.data = {};
@@ -89,6 +90,9 @@ export default class extends Phaser.Scene {
   create() {
     this._drawBackground();
 
+    // Weather particles — behind screens and status boxes
+    this.WeatherDisplay = new WeatherDisplay(this);
+
     // Field-side screen barriers — rendered directly on the battlefield, below all other UI
     this.FieldScreens = new FieldScreensDisplay(this);
 
@@ -122,36 +126,59 @@ export default class extends Phaser.Scene {
 
   update(time) {
     this.stateMachine.update(time);
+    this.WeatherDisplay.tick(time);
   }
 
   // ─── Background ────────────────────────────────────────────────────────────
 
+  // Sky and ground colour palettes per weather type.
+  static BG_PALETTES = {
+    null:        { skyTop: 0x78b8f0, skyBot: 0xb8dff8, gndTop: 0x68a838, gndBot: 0x48882a },
+    rain:        { skyTop: 0x405878, skyBot: 0x708898, gndTop: 0x507030, gndBot: 0x385820 },
+    sun:         { skyTop: 0x68c0f8, skyBot: 0xf0d870, gndTop: 0x80c840, gndBot: 0x60a030 },
+    sandstorm:   { skyTop: 0xc07820, skyBot: 0xe0a040, gndTop: 0x987040, gndBot: 0x785830 },
+    hail:        { skyTop: 0x5878a0, skyBot: 0x90b0c8, gndTop: 0x508858, gndBot: 0x387040 },
+  };
+
   _drawBackground() {
-    // Sky
-    const sky = this.add.graphics();
-    sky.fillGradientStyle(0x78b8f0, 0x78b8f0, 0xb8dff8, 0xb8dff8, 1);
-    sky.fillRect(0, 0, 800, UI_Y);
+    this._skyGfx    = this.add.graphics();
+    this._groundGfx = this.add.graphics();
+    this._updateBackground(null);
 
-    // Ground
-    const ground = this.add.graphics();
-    ground.fillGradientStyle(0x68a838, 0x68a838, 0x48882a, 0x48882a, 1);
-    ground.fillRect(0, UI_Y - 90, 800, 90);
-
-    // Battle area / UI strip divider
+    // Static elements drawn once — border, platforms, silhouettes.
     const border = this.add.graphics();
     border.lineStyle(4, 0x181818);
     border.lineBetween(0, UI_Y, 800, UI_Y);
     border.lineBetween(ACTION_X, UI_Y, ACTION_X, 600);
 
-    // Platforms (ellipses under where sprites will stand)
-    const platforms = this.add.graphics();
-    platforms.fillStyle(0x80b848, 0.5);
-    platforms.fillEllipse(190, UI_Y - 28, 210, 40);   // player side
-    platforms.fillEllipse(610, UI_Y - 168, 170, 32);  // enemy side
+    this._platformsGfx = this.add.graphics();
+    this._updatePlatforms(null);
 
     // Placeholder silhouettes until sprites are loaded
     this._silhouette(190, UI_Y - 90,  88, 0x282848, true);
     this._silhouette(610, UI_Y - 198, 62, 0x203820, false);
+  }
+
+  _updateBackground(weatherType) {
+    const pal = BattleScene2.BG_PALETTES[weatherType] ?? BattleScene2.BG_PALETTES[null];
+
+    this._skyGfx.clear();
+    this._skyGfx.fillGradientStyle(pal.skyTop, pal.skyTop, pal.skyBot, pal.skyBot, 1);
+    this._skyGfx.fillRect(0, 0, 800, UI_Y);
+
+    this._groundGfx.clear();
+    this._groundGfx.fillGradientStyle(pal.gndTop, pal.gndTop, pal.gndBot, pal.gndBot, 1);
+    this._groundGfx.fillRect(0, UI_Y - 90, 800, 90);
+  }
+
+  _updatePlatforms(weatherType) {
+    const color = weatherType === 'sandstorm' ? 0xb89060
+                : weatherType === 'hail'      ? 0x70a888
+                : 0x80b848;
+    this._platformsGfx.clear();
+    this._platformsGfx.fillStyle(color, 0.5);
+    this._platformsGfx.fillEllipse(190, UI_Y - 28,  210, 40);
+    this._platformsGfx.fillEllipse(610, UI_Y - 168, 170, 32);
   }
 
   /**
@@ -224,6 +251,9 @@ export default class extends Phaser.Scene {
       this.config.enemy.team.getActivePokemon(),
     ]);
     this.FieldScreens.update(this.screens);
+    this.WeatherDisplay.setWeather(this.weather);
+    this._updateBackground(this.weather?.type ?? null);
+    this._updatePlatforms(this.weather?.type ?? null);
   }
 
   /**

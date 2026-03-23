@@ -56,6 +56,19 @@ export default class BattleStart {
 
     this.logger.addItem(`Battle rules: ${this.generation.name}`);
 
+    // Initialise field weather from battle data (e.g. { field: { weather: 'rain' } }).
+    const startWeather = this.data.field?.weather ?? null;
+    if (startWeather) {
+      this.weather = { type: startWeather, turnsLeft: 5 };
+      const WEATHER_START = {
+        rain:      'A heavy rain began to fall!',
+        sun:       'The sunlight turned harsh!',
+        sandstorm: 'A sandstorm brewed!',
+        hail:      'It started to hail!',
+      };
+      this.logger.addItem(WEATHER_START[startWeather] ?? 'The weather changed!');
+    }
+
     this.events.emit('battle-start', this.data);
     this.remapActivePokemon();
     // console.log('[batle-start] Battle started with data:', this.data);

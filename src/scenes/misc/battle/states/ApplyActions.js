@@ -306,8 +306,10 @@ export default class ApplyActions {
           }
 
           // Check if this is the charge turn of a two-turn move.
+          // Solar Beam skips its charge turn in harsh sunlight.
           const multiTurnDef = MULTI_TURN_MOVES[move.name?.toLowerCase()];
-          if (multiTurnDef && !activeMon.lockedMove) {
+          const solarBeamInSun = move.name?.toLowerCase() === 'solar beam' && weather?.type === 'sun';
+          if (multiTurnDef && !activeMon.lockedMove && !solarBeamInSun) {
             // Charge turn: decrement PP, show the wind-up message, lock in.
             move.pp.current = Math.max(0, move.pp.current - 1);
             this.logger.addItem(multiTurnDef.chargeMessage.replace('{name}', activeMon.getName()));

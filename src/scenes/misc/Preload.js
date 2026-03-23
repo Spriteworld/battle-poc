@@ -170,7 +170,7 @@ export default class extends Phaser.Scene {
     const isTrainer = Math.random() < 0.5;
 
     const data = {
-      field: { weather: 'clear', terrain: 'normal' },
+      field: { weather: 'rain', terrain: 'normal' },
       player: {
         name: 'Player',
         team: [

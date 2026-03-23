@@ -18,11 +18,14 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Returns the damage multiplier that weather applies to a move.
  * Rain: Water ×1.5, Fire ×0.5. Sun: Fire ×1.5, Water ×0.5.
+ * Sandstorm: Rock-type defenders take ×0.5 special damage (equivalent to ×1.5 Sp. Def).
  * @param {Move} move
  * @param {{ type: string|null, turnsLeft: number }|null} weather
+ * @param {object|null} [target] - Defending BattlePokemon (needed for sandstorm Sp. Def check)
+ * @param {object|null} [generation] - Active generation config (needed for move category)
  * @return {number}
  */
-function getWeatherMultiplier(move, weather) {
+function getWeatherMultiplier(move, weather, target = null, generation = null) {
   if (!weather?.type || !move?.type) return 1;
   const w = weather.type;
   const t = move.type;
@@ -33,6 +36,12 @@ function getWeatherMultiplier(move, weather) {
   if (w === 'sun') {
     if (t === TYPES.FIRE)  return 1.5;
     if (t === TYPES.WATER) return 0.5;
+  }
+  if (w === 'sandstorm' && target && generation) {
+    const cat = generation.getCategory(move);
+    if (cat === Moves.MOVE_CATEGORIES.SPECIAL && (target.types ?? []).includes(TYPES.ROCK)) {
+      return 0.5; // Rock types receive ×1.5 effective Sp. Def in sandstorm
+    }
   }
   return 1;
 }
@@ -238,7 +247,7 @@ export default class extends BasePokemon {
           };
         }
       }
-      const weatherMult = getWeatherMultiplier(move, weather);
+      const weatherMult = getWeatherMultiplier(move, weather, target, generation);
       info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
 
@@ -353,7 +362,7 @@ export default class extends BasePokemon {
           damage: 0,
         };
       }
-      const weatherMult = getWeatherMultiplier(move, weather);
+      const weatherMult = getWeatherMultiplier(move, weather, target, generation);
       info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
 

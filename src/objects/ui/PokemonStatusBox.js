@@ -21,7 +21,6 @@ const STATUS_BADGE = {
 
 /** Badge configs for volatile / Pokérus conditions. */
 const VOLATILE_BADGE = {
-  leechSeed:    { label: 'LSE', bg: 0x70b000, text: '#ffffff' },
   infatuated:   { label: 'INF', bg: 0xe060a0, text: '#ffffff' },
   yawnCounter:  { label: 'DRW', bg: 0xd4a010, text: '#181818' },
   encored:      { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
@@ -190,8 +189,8 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       return { bg, text };
     });
 
-    // Stat stage badges — pre-allocate one slot per trackable stat (7 max).
-    this._stageBadges = Array.from({ length: 7 }, () => {
+    // Stat stage badges — pre-allocate slots for 7 stats + leech seed indicator.
+    this._stageBadges = Array.from({ length: 8 }, () => {
       const bg = new Phaser.GameObjects.Graphics(this.scene);
       bg.setVisible(false);
       this.add(bg);
@@ -232,7 +231,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     }
     this._updateGenderSymbol(gender);
     this._updateStatusBadge(status, volatileStatus, pokerus);
-    this._updateStageBadges(stages);
+    this._updateStageBadges(stages, volatileStatus);
   }
 
   /**
@@ -252,34 +251,46 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Renders one small badge per non-zero stat stage below the HP bar.
+   * Renders one small badge per non-zero stat stage below the HP bar, plus a
+   * leech seed indicator when the Pokémon is seeded.
    * Boosts are green, drops are red. Label format: "ATK+2", "DEF-1", etc.
    * @param {object} [stages]
+   * @param {object} [volatileStatus]
    */
-  _updateStageBadges(stages = {}) {
+  _updateStageBadges(stages = {}, volatileStatus = {}) {
     // y position: below the HP bar (enemy) or below the HP numbers (player)
     const badgeY = this._showHpNumbers ? 63 : 42;
-    const active = Object.entries(stages).filter(([, v]) => v !== 0);
+
+    // Build the list: leech seed first (if active), then non-zero stat stages.
+    const entries = [];
+    if (volatileStatus?.leechSeed) {
+      entries.push({ label: 'SED', color: 0x70b000, textColor: '#ffffff', fixed: true });
+    }
+    for (const [stat, value] of Object.entries(stages)) {
+      if (value !== 0) {
+        const label = STAGE_LABELS[stat] ?? stat.slice(0, 3);
+        const sign  = value > 0 ? '+' : '';
+        entries.push({ label: `${label}${sign}${value}`, color: value > 0 ? 0x2a7a2a : 0xb03030, textColor: '#ffffff', fixed: false });
+      }
+    }
 
     this._stageBadges.forEach(({ bg, text }, i) => {
-      if (i >= active.length) {
+      if (i >= entries.length) {
         bg.setVisible(false);
         text.setVisible(false);
         return;
       }
 
-      const [stat, value] = active[i];
-      const label = STAGE_LABELS[stat] ?? stat.slice(0, 3);
-      const sign  = value > 0 ? '+' : '';
-      const color = value > 0 ? 0x2a7a2a : 0xb03030;
+      const entry = entries[i];
       const x = 10 + i * (STAGE_BADGE_W + 2);
 
       bg.clear();
-      bg.fillStyle(color);
+      bg.fillStyle(entry.color);
       bg.fillRoundedRect(x, badgeY, STAGE_BADGE_W, STAGE_BADGE_H, 2);
       bg.setVisible(true);
 
-      text.setText(`${label}${sign}${value}`);
+      text.setText(entry.label);
+      text.setColor(entry.textColor);
       text.setPosition(x + STAGE_BADGE_W / 2, badgeY + 1);
       text.setVisible(true);
     });

@@ -13,7 +13,7 @@ export default {
   ability: {
     name: 'none',
   },
-  currentHp: 1,
+  currentHp: 15,
   moves: [{
     name: 'Tackle',
     pp: {
@@ -25,6 +25,12 @@ export default {
     pp: {
       max: 5,
       current: 5
+    },
+  },{
+    name: 'Leech Seed',
+    pp: {
+      max: 10,
+      current: 10
     },
   }],
   ivs: {
