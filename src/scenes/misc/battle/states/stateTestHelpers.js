@@ -73,7 +73,7 @@ export function makeMon(overrides = {}) {
       EVASION: 0,
     },
     toxicCount: 0,
-    volatileStatus: { leechSeed: false, infatuated: false, magicCoat: false, yawnCounter: 0, wishPending: null, encored: null, disabledMove: null, furyCutterCount: 0 },
+    volatileStatus: { leechSeed: false, infatuated: false, magicCoat: false, yawnCounter: 0, wishPending: null, encored: null, disabledMove: null, furyCutterCount: 0, confusedTurns: 0 },
     lastUsedMove: null,
     applyStageChange: jest.fn((stat, delta) => ({ message: `MockMon's ${stat} changed by ${delta}!` })),
   };

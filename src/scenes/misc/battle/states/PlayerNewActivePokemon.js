@@ -34,6 +34,7 @@ export default class PlayerNewActivePokemon {
             outgoing.volatileStatus.infatuated      = false;
             outgoing.volatileStatus.encored         = null;
             outgoing.volatileStatus.furyCutterCount = 0;
+            outgoing.volatileStatus.confusedTurns   = 0;
           }
           this.batonPassData = null;
         }

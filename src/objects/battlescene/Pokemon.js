@@ -103,6 +103,8 @@ export default class extends BasePokemon {
       disabledMove: null,
       /** 1-based consecutive Fury Cutter use count; resets on miss, different move, or switch-out */
       furyCutterCount: 0,
+      /** Turns remaining while confused; 0 = not confused */
+      confusedTurns: 0,
     };
 
     /**

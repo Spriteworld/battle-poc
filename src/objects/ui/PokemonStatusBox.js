@@ -21,10 +21,11 @@ const STATUS_BADGE = {
 
 /** Badge configs for volatile / Pokérus conditions. */
 const VOLATILE_BADGE = {
-  leechSeed:   { label: 'LSE', bg: 0x70b000, text: '#ffffff' },
-  infatuated:  { label: 'INF', bg: 0xe060a0, text: '#ffffff' },
-  yawnCounter: { label: 'DRW', bg: 0xd4a010, text: '#181818' },
-  encored:     { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
+  leechSeed:    { label: 'LSE', bg: 0x70b000, text: '#ffffff' },
+  infatuated:   { label: 'INF', bg: 0xe060a0, text: '#ffffff' },
+  yawnCounter:  { label: 'DRW', bg: 0xd4a010, text: '#181818' },
+  encored:      { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
+  confusedTurns: { label: 'CNF', bg: 0xc030c0, text: '#ffffff' },
 };
 const POKERUS_BADGE = { label: 'PKR', bg: 0x9040c0, text: '#ffffff' };
 

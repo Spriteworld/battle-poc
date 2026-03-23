@@ -1,7 +1,16 @@
 import { ActionTypes } from '@Objects';
-import { Abilities, calcEscape, Moves, STATUS } from '@spriteworld/pokemon-data';
+import { Abilities, CalcDamage, calcEscape, Moves, STATUS, TYPES } from '@spriteworld/pokemon-data';
 
 const { MULTI_TURN_MOVES, MULTI_HIT_MOVES, rollHitCount } = Moves;
+
+/** Synthetic move used for confusion self-damage (40-power Physical Normal). */
+const CONFUSION_HIT = {
+  name: 'confusion',
+  power: 40,
+  type: TYPES.NORMAL,
+  category: Moves.MOVE_CATEGORIES.PHYSICAL,
+  accuracy: null,
+};
 
 export default class ApplyActions {
   onEnter() {
@@ -84,6 +93,7 @@ export default class ApplyActions {
           outgoing.volatileStatus.encored        = null;
           outgoing.volatileStatus.disabledMove   = null;
           outgoing.volatileStatus.furyCutterCount = 0;
+          outgoing.volatileStatus.confusedTurns  = 0;
         }
 
         // switch pokemon
@@ -219,6 +229,30 @@ export default class ApplyActions {
             callbackScope: this,
           });
           return;
+        }
+      }
+
+      // Confusion: 50% chance to hit self; counter decrements each turn.
+      if ((activeMon.volatileStatus?.confusedTurns ?? 0) > 0) {
+        activeMon.volatileStatus.confusedTurns--;
+        if (activeMon.volatileStatus.confusedTurns === 0) {
+          this.logger.addItem(`${activeMon.getName()} snapped out of confusion!`);
+        } else {
+          this.logger.addItem(`${activeMon.getName()} is confused!`);
+          if (Math.random() < 0.5) {
+            const selfInfo = CalcDamage.calculate(activeMon, activeMon, CONFUSION_HIT, { stab: 1, typeEffectiveness: 1 }, this.generation);
+            const selfDmg = Math.max(1, selfInfo.damage || 0);
+            activeMon.takeDamage(selfDmg);
+            this.logger.addItem(`It hurt itself in its confusion! (${selfDmg} damage)`);
+            this.currentAction = null;
+            this.remapActivePokemon();
+            this.time.addEvent({
+              delay: 1000,
+              callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
+              callbackScope: this,
+            });
+            return;
+          }
         }
       }
 

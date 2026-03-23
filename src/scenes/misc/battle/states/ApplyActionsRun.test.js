@@ -11,6 +11,7 @@ jest.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
 // Moves is provided as empty registries so ApplyActions.js can destructure without error.
 jest.mock('@spriteworld/pokemon-data', () => ({
   calcEscape: jest.fn(),
+  CalcDamage: { calculate: jest.fn(() => ({ damage: 20 })) },
   Abilities: {
     ARENA_TRAP:  'Arena Trap',
     SHADOW_TAG:  'Shadow Tag',
@@ -20,7 +21,10 @@ jest.mock('@spriteworld/pokemon-data', () => ({
     MULTI_TURN_MOVES: {},
     MULTI_HIT_MOVES:  {},
     rollHitCount:     jest.fn(() => 2),
+    MOVE_CATEGORIES:  { PHYSICAL: 'PHYSICAL', SPECIAL: 'SPECIAL', STATUS: 'STATUS' },
   },
+  STATUS: { BURN: 'BURN', PARALYZE: 'PARALYZE', POISON: 'POISON', TOXIC: 'TOXIC', FROZEN: 'FROZEN', SLEEP: 'SLEEP' },
+  TYPES: { NORMAL: 'NORMAL' },
 }));
 
 // Mock @Objects to prevent Pokemon.js from loading BasePokemon from the mocked data package.
