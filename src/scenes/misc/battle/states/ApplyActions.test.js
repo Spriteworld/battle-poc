@@ -127,7 +127,7 @@ describe('ApplyActions — ATTACK', () => {
     const { ctx, playerMon, move } = makeAttackCtx();
     new ApplyActions().onEnter.call(ctx);
     expect(playerMon.attack).toHaveBeenCalledWith(
-      ctx.config.enemy.team.getActivePokemon(), move, GEN_3
+      ctx.config.enemy.team.getActivePokemon(), move, GEN_3, ctx.screens.enemy
     );
   });
 

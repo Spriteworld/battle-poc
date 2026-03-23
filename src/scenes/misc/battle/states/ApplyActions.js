@@ -153,6 +153,11 @@ export default class ApplyActions {
       let info = {};
       let activeMon = player.team.getActivePokemon();
 
+      // Determine which side is attacking so we can look up the correct screen state.
+      const attackerKey = player.getName().toLowerCase() === 'player' ? 'player' : 'enemy';
+      const defenderKey = attackerKey === 'player' ? 'enemy' : 'player';
+      const fieldState = this.screens[defenderKey];
+
       // ── Pre-attack status checks ────────────────────────────────────────────
 
       // Paralysis: 25% chance to be unable to move this turn.
@@ -273,25 +278,37 @@ export default class ApplyActions {
             return;
           }
 
+          // Brick Break — clears defender's screens before dealing damage.
+          if (move.name?.toLowerCase() === 'brick break') {
+            if (fieldState.reflect > 0) {
+              fieldState.reflect = 0;
+              this.logger.addItem(`${activeMon.getName()} broke through Reflect!`);
+            }
+            if (fieldState.lightScreen > 0) {
+              fieldState.lightScreen = 0;
+              this.logger.addItem(`${activeMon.getName()} broke through Light Screen!`);
+            }
+          }
+
           // Strike turn (or a regular move): clear locked state then attack.
           if (activeMon.lockedMove) {
             activeMon.lockedMove = null;
             activeMon.invulnerable = false;
-            info = activeMon.attackLocked(target, move, this.generation);
+            info = activeMon.attackLocked(target, move, this.generation, fieldState);
           } else {
             // Multi-hit move — roll hit count and deal damage per-hit.
             const multiHitDef = MULTI_HIT_MOVES[move.name?.toLowerCase()];
             if (multiHitDef) {
               const hitCount = rollHitCount(multiHitDef.minHits, multiHitDef.maxHits);
-              info = activeMon.attackMultiHit(target, move, this.generation, hitCount, multiHitDef.powers ?? null);
+              info = activeMon.attackMultiHit(target, move, this.generation, hitCount, multiHitDef.powers ?? null, fieldState);
             } else {
-              info = activeMon.attack(target, move, this.generation);
+              info = activeMon.attack(target, move, this.generation, fieldState);
             }
           }
           break;
         }
         case ActionTypes.NPC_ATTACK:
-          info = activeMon.attackWithAI(target, this.generation);
+          info = activeMon.attackWithAI(target, this.generation, fieldState);
         break;
       }
 
@@ -361,12 +378,30 @@ export default class ApplyActions {
         break;
       }
 
+      if (info.screenReduced === 'reflect') {
+        this.logger.addItem("Reflect weakened the damage!");
+      } else if (info.screenReduced === 'lightScreen') {
+        this.logger.addItem("Light Screen weakened the damage!");
+      }
+
       if (info.effect?.message) {
         this.logger.addItem(info.effect.message);
       }
 
       if (info.damage === 0 && !info.effect && info.typeEffectiveness !== 0) {
         this.logger.addItem('It had no effect!');
+      }
+
+      // Light Screen / Reflect — set on the attacker's side for 5 turns.
+      if (info.effect?.lightScreen) {
+        const side = this.screens[attackerKey];
+        side.lightScreen = 5;
+        this.logger.addItem(`${activeMon.getName()} put up a Light Screen!`);
+      }
+      if (info.effect?.reflect) {
+        const side = this.screens[attackerKey];
+        side.reflect = 5;
+        this.logger.addItem(`${activeMon.getName()} put up a Reflect!`);
       }
 
       // Baton Pass — force the player to switch, passing stages + leech seed.

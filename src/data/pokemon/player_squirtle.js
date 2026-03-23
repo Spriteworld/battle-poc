@@ -24,6 +24,12 @@ export default {
       max: 30,
       current: 30
     },
+  }, {
+    name: 'Reflect',
+    pp: {
+      max: 20,
+      current: 20
+    },
   }],
   ivs: {
     [STATS.HP]: 31,

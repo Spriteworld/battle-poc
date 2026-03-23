@@ -100,5 +100,25 @@ export default function applyEndOfTurnStatus() {
     if (mon.volatileStatus) mon.volatileStatus.magicCoat = false;
   }
 
+  // Screen countdown — Light Screen and Reflect last 5 turns.
+  if (this.screens) {
+    for (const side of ['player', 'enemy']) {
+      const label = side === 'player' ? 'Your' : "The enemy's";
+      const s = this.screens[side];
+      if (s.lightScreen > 0) {
+        s.lightScreen--;
+        if (s.lightScreen === 0) {
+          this.logger.addItem(`${label} Light Screen wore off!`);
+        }
+      }
+      if (s.reflect > 0) {
+        s.reflect--;
+        if (s.reflect === 0) {
+          this.logger.addItem(`${label} Reflect wore off!`);
+        }
+      }
+    }
+  }
+
   this.remapActivePokemon();
 }

@@ -3,6 +3,7 @@ import StateMachine from '@Objects/StateMachine';
 import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import DialogBox from '@Objects/ui/DialogBox.js';
+import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
 import {
   ActivePokemonMenu,
   BattleMenu,
@@ -21,6 +22,7 @@ const ACTION_X  = 490;   // x-start of the action panel
 
 const ENEMY_BOX  = { x: 20,  y: 15  };
 const PLAYER_BOX = { x: 430, y: 288 };
+
 
 /**
  * Main battle scene.  Owns the state machine and all UI objects.
@@ -69,6 +71,12 @@ export default class extends Phaser.Scene {
     this.actions = {};
     this.currentAction = null;
     this.escapeAttempts = 0;
+
+    /** Field-side screens — each counter is the number of turns remaining (0 = not active). */
+    this.screens = {
+      player: { lightScreen: 0, reflect: 0 },
+      enemy:  { lightScreen: 0, reflect: 0 },
+    };
   }
 
   init(data) {
@@ -77,6 +85,9 @@ export default class extends Phaser.Scene {
 
   create() {
     this._drawBackground();
+
+    // Field-side screen barriers — rendered directly on the battlefield, below all other UI
+    this.FieldScreens = new FieldScreensDisplay(this);
 
     // Dialog box (bottom-left)
     this.logger = new DialogBox(this, 0, UI_Y, DIALOG_W, UI_H, 9);
@@ -209,6 +220,7 @@ export default class extends Phaser.Scene {
       this.config.player.team.getActivePokemon(),
       this.config.enemy.team.getActivePokemon(),
     ]);
+    this.FieldScreens.update(this.screens);
   }
 
   /**

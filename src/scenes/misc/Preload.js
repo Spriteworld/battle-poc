@@ -10,7 +10,7 @@ import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves } from '@spriteworld/pok
  * Each reload picks new species and movesets from the FireRed/LeafGreen Pokédex
  * and the Generation 3 move pool.
  */
-const USE_RANDOM_TEAMS = !false;
+const USE_RANDOM_TEAMS = false;
 
 // ─── Random team helpers ──────────────────────────────────────────────────────
 

@@ -117,9 +117,10 @@ export default class extends BasePokemon {
    * @param {object} target - Defending BattlePokemon
    * @param {Move} move
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation] - Active generation rules
+   * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
    * @return {object}
    */
-  attack(target, move, generation) {
+  attack(target, move, generation, fieldState = null) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
@@ -162,7 +163,7 @@ export default class extends BasePokemon {
 
     if (move?.name?.toLowerCase() === 'metronome') {
       this.lastUsedMove = move;
-      return this.useMetronome(target, move, generation);
+      return this.useMetronome(target, move, generation, fieldState);
     }
 
     if (typeof move === 'undefined' || !(move instanceof Move)) {
@@ -197,6 +198,18 @@ export default class extends BasePokemon {
       }
       info = CalcDamage.calculate(this, target, move, undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
+
+      // Screen modifier — halves damage; critical hits bypass screens (Gen 3+).
+      if (fieldState && info.damage > 0 && (info.critical ?? 1) <= 1) {
+        const cat = generation?.getCategory(move);
+        if (cat === Moves.MOVE_CATEGORIES.PHYSICAL && fieldState.reflect > 0) {
+          info.damage = Math.floor(info.damage / 2);
+          info.screenReduced = 'reflect';
+        } else if (cat === Moves.MOVE_CATEGORIES.SPECIAL && fieldState.lightScreen > 0) {
+          info.damage = Math.floor(info.damage / 2);
+          info.screenReduced = 'lightScreen';
+        }
+      }
     }
 
     target.takeDamage(info.damage);
@@ -279,9 +292,10 @@ export default class extends BasePokemon {
    * @param {object} target - Defending BattlePokemon
    * @param {Move} move
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
+   * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
    * @return {object}
    */
-  attackLocked(target, move, generation) {
+  attackLocked(target, move, generation, fieldState = null) {
     let info;
     if (typeof move.onAttack === 'function') {
       info = move.onAttack(this, target, generation);
@@ -297,6 +311,18 @@ export default class extends BasePokemon {
       }
       info = CalcDamage.calculate(this, target, move, undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
+
+      // Screen modifier — halves damage; critical hits bypass screens (Gen 3+).
+      if (fieldState && info.damage > 0 && (info.critical ?? 1) <= 1) {
+        const cat = generation?.getCategory(move);
+        if (cat === Moves.MOVE_CATEGORIES.PHYSICAL && fieldState.reflect > 0) {
+          info.damage = Math.floor(info.damage / 2);
+          info.screenReduced = 'reflect';
+        } else if (cat === Moves.MOVE_CATEGORIES.SPECIAL && fieldState.lightScreen > 0) {
+          info.damage = Math.floor(info.damage / 2);
+          info.screenReduced = 'lightScreen';
+        }
+      }
     }
 
     target.takeDamage(info.damage);
@@ -324,9 +350,10 @@ export default class extends BasePokemon {
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} generation
    * @param {number} hitCount - number of times to hit
    * @param {number[]|null} [powers] - optional per-hit power overrides (e.g. Triple Kick: [10,20,30])
+   * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
    * @return {object}
    */
-  attackMultiHit(target, move, generation, hitCount, powers = null) {
+  attackMultiHit(target, move, generation, hitCount, powers = null, fieldState = null) {
     move.pp.current = Math.max(0, move.pp.current - 1);
 
     // Single accuracy check for all hits (Gen 3+).
@@ -343,12 +370,26 @@ export default class extends BasePokemon {
 
     let totalDamage = 0;
     let lastInfo = {};
+    let screenReduced = null;
     const hitResults = [];
 
     for (let i = 0; i < hitCount; i++) {
       const effectiveMove = (powers && powers[i] !== undefined) ? { ...move, power: powers[i] } : move;
       const info = CalcDamage.calculate(this, target, effectiveMove, undefined, generation);
-      const dmg = Math.max(0, info.damage || 0);
+      let dmg = Math.max(0, info.damage || 0);
+
+      // Screen modifier per-hit — critical hits bypass screens (Gen 3+).
+      if (fieldState && dmg > 0 && (info.critical ?? 1) <= 1) {
+        const cat = generation?.getCategory(move);
+        if (cat === Moves.MOVE_CATEGORIES.PHYSICAL && fieldState.reflect > 0) {
+          dmg = Math.floor(dmg / 2);
+          screenReduced = 'reflect';
+        } else if (cat === Moves.MOVE_CATEGORIES.SPECIAL && fieldState.lightScreen > 0) {
+          dmg = Math.floor(dmg / 2);
+          screenReduced = 'lightScreen';
+        }
+      }
+
       totalDamage += dmg;
       target.takeDamage(dmg);
       hitResults.push({ damage: dmg, critical: info.critical });
@@ -370,6 +411,7 @@ export default class extends BasePokemon {
       hitResults,
       critical: lastInfo.critical,
       typeEffectiveness: lastInfo.typeEffectiveness,
+      screenReduced,
       effect,
     };
   }
@@ -377,15 +419,16 @@ export default class extends BasePokemon {
   /**
    * @param {object} target
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
+   * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
    * @return {object}
    */
-  attackRandomMove(target, generation) {
+  attackRandomMove(target, generation, fieldState = null) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
     const available = this.moves.filter(m => m.pp.current > 0);
     const move = available[Math.floor(Math.random() * available.length)];
-    return this.attack(target, move, generation);
+    return this.attack(target, move, generation, fieldState);
   }
 
   /**
@@ -402,9 +445,10 @@ export default class extends BasePokemon {
    *
    * @param {object} target
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
+   * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
    * @return {object}
    */
-  attackWithAI(target, generation) {
+  attackWithAI(target, generation, fieldState = null) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
@@ -427,14 +471,14 @@ export default class extends BasePokemon {
     // 30% chance to act randomly (Gen 3 AI imperfection)
     if (usable.length === 0 || Math.random() < 0.3) {
       const move = available[Math.floor(Math.random() * available.length)];
-      return this.attack(target, move, generation);
+      return this.attack(target, move, generation, fieldState);
     }
 
     usable.sort((a, b) => b.score - a.score);
     const topScore = usable[0].score;
     const topMoves = usable.filter(s => s.score === topScore);
     const chosen = topMoves[Math.floor(Math.random() * topMoves.length)];
-    return this.attack(target, chosen.move, generation);
+    return this.attack(target, chosen.move, generation, fieldState);
   }
 
   /**
@@ -445,9 +489,10 @@ export default class extends BasePokemon {
    * @param {object} target
    * @param {Move} metronomeMove - the Metronome move instance (for PP tracking)
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} generation
+   * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
    * @return {object}
    */
-  useMetronome(target, metronomeMove, generation) {
+  useMetronome(target, metronomeMove, generation, fieldState = null) {
     metronomeMove.pp.current = Math.max(0, metronomeMove.pp.current - 1);
 
     const allMoves = getMovesByGen(generation.gen);
@@ -465,7 +510,7 @@ export default class extends BasePokemon {
       onEffect: MOVE_EFFECTS[data.name.toLowerCase()] || null,
     };
 
-    const info = this.attackLocked(target, calledMove, generation);
+    const info = this.attackLocked(target, calledMove, generation, fieldState);
     return { ...info, move: `Metronome → ${data.name}` };
   }
 

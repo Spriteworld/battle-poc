@@ -137,6 +137,10 @@ export function makeContext(overrides = {}) {
     currentAction:  null,
     generation:     GEN_3,
     escapeAttempts: 0,
+    screens: {
+      player: { lightScreen: 0, reflect: 0 },
+      enemy:  { lightScreen: 0, reflect: 0 },
+    },
     time: {
       addEvent: jest.fn(({ callback, callbackScope }) => callback.call(callbackScope)),
     },
