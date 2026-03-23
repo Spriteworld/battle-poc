@@ -116,6 +116,140 @@ describe('applyEndOfTurnStatus — skips fainted Pokémon', () => {
   });
 });
 
+// ─── Yawn ─────────────────────────────────────────────────────────────────────
+
+describe('applyEndOfTurnStatus — yawn', () => {
+  test('decrements yawnCounter each EOT', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.volatileStatus.yawnCounter = 2;
+    call(ctx);
+    expect(playerMon.volatileStatus.yawnCounter).toBe(1);
+  });
+
+  test('applies sleep when yawnCounter reaches 0', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.volatileStatus.yawnCounter = 1;
+    jest.spyOn(Math, 'random').mockReturnValue(0.5); // sleep = 4 turns
+    call(ctx);
+    expect(playerMon.status[STATUS.SLEEP]).toBeGreaterThan(0);
+    jest.spyOn(Math, 'random').mockRestore();
+  });
+
+  test('logs a "fell asleep" message when sleep is applied', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.volatileStatus.yawnCounter = 1;
+    call(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('fell asleep'));
+  });
+
+  test('does not apply sleep if the target already has a status condition', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.volatileStatus.yawnCounter = 1;
+    playerMon.status[STATUS.POISON] = 1;
+    call(ctx);
+    expect(playerMon.status[STATUS.SLEEP]).toBe(0);
+  });
+
+  test('does not decrement for a fainted Pokémon', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.isAlive.mockReturnValue(false);
+    playerMon.volatileStatus.yawnCounter = 2;
+    call(ctx);
+    expect(playerMon.volatileStatus.yawnCounter).toBe(2);
+  });
+});
+
+// ─── Wish ─────────────────────────────────────────────────────────────────────
+
+describe('applyEndOfTurnStatus — wish', () => {
+  function setWishPending(mon, turnsLeft, healAmount = 50) {
+    mon.volatileStatus.wishPending = { healAmount, turnsLeft };
+  }
+
+  test('decrements turnsLeft each EOT', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    setWishPending(playerMon, 2);
+    call(ctx);
+    expect(playerMon.volatileStatus.wishPending.turnsLeft).toBe(1);
+  });
+
+  test('heals the active Pokémon when turnsLeft reaches 0', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.currentHp = 30;
+    playerMon.maxHp = 100;
+    setWishPending(playerMon, 1, 50);
+    call(ctx);
+    expect(playerMon.currentHp).toBe(80);
+  });
+
+  test('clamps heal to maxHp', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.currentHp = 90;
+    playerMon.maxHp = 100;
+    setWishPending(playerMon, 1, 50);
+    call(ctx);
+    expect(playerMon.currentHp).toBe(100);
+  });
+
+  test('logs a "wish came true" message', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    setWishPending(playerMon, 1);
+    call(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('wish came true'));
+  });
+
+  test('clears wishPending after it resolves', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    setWishPending(playerMon, 1);
+    call(ctx);
+    expect(playerMon.volatileStatus.wishPending).toBeNull();
+  });
+
+  test('does not heal if the active Pokémon is fainted', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.isAlive.mockReturnValue(false);
+    playerMon.currentHp = 0;
+    setWishPending(playerMon, 1, 50);
+    call(ctx);
+    expect(playerMon.currentHp).toBe(0);
+  });
+
+  test('heals the currently active Pokémon even if the wisher switched out', () => {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    // Simulate wisher is on the bench (wishPending on playerMon but a different mon is active)
+    setWishPending(playerMon, 1, 40);
+
+    const activeMon = {
+      currentHp: 20, maxHp: 100,
+      isAlive: jest.fn(() => true),
+      getName: jest.fn(() => 'ActiveMon'),
+      status: { BURN: 0, POISON: 0, SLEEP: 0, FROZEN: 0, PARALYZE: 0, TOXIC: 0 },
+      volatileStatus: { leechSeed: false, yawnCounter: 0, magicCoat: false },
+      toxicCount: 0,
+      takeDamage: jest.fn(),
+      flinched: false,
+    };
+    ctx.config.player.team.getActivePokemon.mockReturnValue(activeMon);
+    // Keep playerMon in the team's pokemon array so the wish finder can find it
+    ctx.config.player.team.pokemon = [playerMon, activeMon];
+
+    call(ctx);
+    expect(activeMon.currentHp).toBe(60);
+  });
+});
+
 // ─── Leech Seed ────────────────────────────────────────────────────────────────
 
 describe('applyEndOfTurnStatus — leech seed', () => {

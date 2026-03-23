@@ -79,9 +79,11 @@ export default class ApplyActions {
         // Clear volatile status on the outgoing Pokémon before switching.
         const outgoing = player.team.getActivePokemon();
         if (outgoing?.volatileStatus) {
-          outgoing.volatileStatus.leechSeed  = false;
-          outgoing.volatileStatus.infatuated = false;
-          outgoing.volatileStatus.encored    = null;
+          outgoing.volatileStatus.leechSeed      = false;
+          outgoing.volatileStatus.infatuated     = false;
+          outgoing.volatileStatus.encored        = null;
+          outgoing.volatileStatus.disabledMove   = null;
+          outgoing.volatileStatus.furyCutterCount = 0;
         }
 
         // switch pokemon
@@ -281,7 +283,7 @@ export default class ApplyActions {
             const multiHitDef = MULTI_HIT_MOVES[move.name?.toLowerCase()];
             if (multiHitDef) {
               const hitCount = rollHitCount(multiHitDef.minHits, multiHitDef.maxHits);
-              info = activeMon.attackMultiHit(target, move, this.generation, hitCount);
+              info = activeMon.attackMultiHit(target, move, this.generation, hitCount, multiHitDef.powers ?? null);
             } else {
               info = activeMon.attack(target, move, this.generation);
             }
@@ -301,8 +303,16 @@ export default class ApplyActions {
         info.enemy
       ].join(' '));
 
+      if (info.reflected) {
+        this.logger.addItem(`${info.enemy} bounced the move back with Magic Coat!`);
+      }
+
       if (info.accuracy === 0) {
-        this.logger.addItem('It totally missed!');
+        if (info.disabled) {
+          this.logger.addItem(`${activeMon.getName()}'s ${info.move} is disabled!`);
+        } else {
+          this.logger.addItem('It totally missed!');
+        }
         this.currentAction = null;
         this.time.addEvent({
           delay: 1000,
@@ -312,21 +322,29 @@ export default class ApplyActions {
         return;
       }
 
-      if (info.damage > 0) {
-        this.logger.addItem([
-          '   for',
-          info.damage,
-          '('+ action.target.currentHp+')',
-          'damage!'
-        ].join(' '));
-      }
-
-      if (info.hits > 1) {
+      if (Array.isArray(info.hitResults) && info.hitResults.length > 0) {
+        info.hitResults.forEach(({ damage, critical }, i) => {
+          if (damage > 0) {
+            this.logger.addItem(`   Hit ${i + 1}: ${damage} damage!`);
+          }
+          if (critical > 1) {
+            this.logger.addItem('A critical hit!');
+          }
+        });
         this.logger.addItem(`Hit ${info.hits} time${info.hits === 1 ? '' : 's'}!`);
-      }
+      } else {
+        if (info.damage > 0) {
+          this.logger.addItem([
+            '   for',
+            info.damage,
+            '('+ action.target.currentHp+')',
+            'damage!'
+          ].join(' '));
+        }
 
-      if (info.critical > 1) {
-        this.logger.addItem('It was a critical hit!');
+        if (info.critical > 1) {
+          this.logger.addItem('It was a critical hit!');
+        }
       }
 
       console.log('[ApplyActions] info', info);
@@ -349,6 +367,18 @@ export default class ApplyActions {
 
       if (info.damage === 0 && !info.effect && info.typeEffectiveness !== 0) {
         this.logger.addItem('It had no effect!');
+      }
+
+      // Baton Pass — force the player to switch, passing stages + leech seed.
+      if (info.effect?.batonPass) {
+        this.batonPassData = { outgoing: activeMon };
+        this.currentAction = null;
+        this.time.addEvent({
+          delay: 1000,
+          callback: () => this.stateMachine.setState(this.stateDef.PLAYER_NEW_ACTIVE_POKEMON),
+          callbackScope: this,
+        });
+        return;
       }
 
       this.currentAction = null;

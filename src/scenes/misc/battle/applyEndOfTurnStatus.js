@@ -51,9 +51,53 @@ export default function applyEndOfTurnStatus() {
     this.logger.addItem(`${seeded.getName()}'s health is sapped by Leech Seed!`);
   }
 
+  // Yawn countdown — apply sleep when counter expires.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    if ((mon.volatileStatus?.yawnCounter ?? 0) <= 0) continue;
+    mon.volatileStatus.yawnCounter--;
+    if (mon.volatileStatus.yawnCounter === 0) {
+      const alreadyHasStatus = Object.values(mon.status).some(v => v > 0);
+      if (!alreadyHasStatus) {
+        mon.status[STATUS.SLEEP] = Math.floor(Math.random() * 7) + 1;
+        this.logger.addItem(`${mon.getName()} fell asleep!`);
+      }
+    }
+  }
+
+  // Wish countdown — heal the active Pokémon in the slot when the wish resolves.
+  for (const side of [this.config.player, this.config.enemy]) {
+    const activeNow = side.team.getActivePokemon();
+    const wisher = side.team.pokemon.find(m => m.volatileStatus?.wishPending?.turnsLeft > 0);
+    if (!wisher) continue;
+    wisher.volatileStatus.wishPending.turnsLeft--;
+    if (wisher.volatileStatus.wishPending.turnsLeft === 0) {
+      const healAmt = wisher.volatileStatus.wishPending.healAmount;
+      wisher.volatileStatus.wishPending = null;
+      if (activeNow.isAlive()) {
+        activeNow.currentHp = Math.min(activeNow.maxHp, activeNow.currentHp + healAmt);
+        this.logger.addItem(`${activeNow.getName()}'s wish came true!`);
+      }
+    }
+  }
+
+  // Disable countdown — clear when the timer expires.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    const dis = mon.volatileStatus?.disabledMove;
+    if (!dis) continue;
+    dis.turnsLeft--;
+    if (dis.turnsLeft <= 0) {
+      const moveName = dis.move.name;
+      mon.volatileStatus.disabledMove = null;
+      this.logger.addItem(`${mon.getName()}'s ${moveName} is no longer disabled!`);
+    }
+  }
+
   // Reset per-round flags for both active Pokémon.
   for (const mon of mons) {
     mon.flinched = false;
+    if (mon.volatileStatus) mon.volatileStatus.magicCoat = false;
   }
 
   this.remapActivePokemon();

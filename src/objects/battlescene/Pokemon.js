@@ -91,10 +91,18 @@ export default class extends BasePokemon {
      * Unlike primary status, multiple volatile statuses can be active at once.
      */
     this.volatileStatus = {
-      leechSeed: false,
-      infatuated: false,
+      leechSeed:   false,
+      infatuated:  false,
+      magicCoat:   false,
+      yawnCounter: 0,
+      /** null | { healAmount: number, turnsLeft: number } */
+      wishPending: null,
       /** null | { move: Move, turnsLeft: number } */
-      encored: null,
+      encored:     null,
+      /** null | { move: Move, turnsLeft: number } */
+      disabledMove: null,
+      /** 1-based consecutive Fury Cutter use count; resets on miss, different move, or switch-out */
+      furyCutterCount: 0,
     };
 
     /**
@@ -128,6 +136,28 @@ export default class extends BasePokemon {
           this.volatileStatus.encored = null;
         }
       }
+    }
+
+    // Fury Cutter — track consecutive uses before lastUsedMove is overwritten.
+    if (move?.name?.toLowerCase() === 'fury cutter') {
+      const wasConsecutive = this.lastUsedMove?.name?.toLowerCase() === 'fury cutter';
+      this.volatileStatus.furyCutterCount = wasConsecutive
+        ? Math.min((this.volatileStatus.furyCutterCount ?? 0) + 1, 4)
+        : 1;
+    } else if (this.volatileStatus?.furyCutterCount) {
+      this.volatileStatus.furyCutterCount = 0;
+    }
+
+    // Disable — the selected move cannot be used while disabled.
+    if (move && this.volatileStatus.disabledMove?.move === move) {
+      return {
+        player:   this.getName(),
+        enemy:    target.getName(),
+        move:     move.name,
+        accuracy: 0,
+        damage:   0,
+        disabled: true,
+      };
     }
 
     if (move?.name?.toLowerCase() === 'metronome') {
@@ -181,8 +211,17 @@ export default class extends BasePokemon {
       };
     }
 
+    // Magic Coat: reflect STATUS moves back to the original attacker.
+    let reflected = false;
+    if (move.category === Moves.MOVE_CATEGORIES.STATUS && target.volatileStatus?.magicCoat) {
+      target.volatileStatus.magicCoat = false;
+      reflected = true;
+    }
+    const effectUser   = reflected ? target : this;
+    const effectTarget = reflected ? this   : target;
+
     const effect = (typeof move.onEffect === 'function')
-      ? move.onEffect(this, target, info) || null
+      ? move.onEffect(effectUser, effectTarget, info) || null
       : null;
 
     return {
@@ -191,6 +230,7 @@ export default class extends BasePokemon {
       move: move.name,
       ...info,
       effect,
+      reflected,
     };
   }
 
@@ -283,9 +323,10 @@ export default class extends BasePokemon {
    * @param {Move} move
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} generation
    * @param {number} hitCount - number of times to hit
+   * @param {number[]|null} [powers] - optional per-hit power overrides (e.g. Triple Kick: [10,20,30])
    * @return {object}
    */
-  attackMultiHit(target, move, generation, hitCount) {
+  attackMultiHit(target, move, generation, hitCount, powers = null) {
     move.pp.current = Math.max(0, move.pp.current - 1);
 
     // Single accuracy check for all hits (Gen 3+).
@@ -302,12 +343,15 @@ export default class extends BasePokemon {
 
     let totalDamage = 0;
     let lastInfo = {};
+    const hitResults = [];
 
     for (let i = 0; i < hitCount; i++) {
-      const info = CalcDamage.calculate(this, target, move, undefined, generation);
+      const effectiveMove = (powers && powers[i] !== undefined) ? { ...move, power: powers[i] } : move;
+      const info = CalcDamage.calculate(this, target, effectiveMove, undefined, generation);
       const dmg = Math.max(0, info.damage || 0);
       totalDamage += dmg;
       target.takeDamage(dmg);
+      hitResults.push({ damage: dmg, critical: info.critical });
       lastInfo = info;
     }
 
@@ -323,6 +367,7 @@ export default class extends BasePokemon {
       accuracy: 1,
       damage: totalDamage,
       hits: hitCount,
+      hitResults,
       critical: lastInfo.critical,
       typeEffectiveness: lastInfo.typeEffectiveness,
       effect,

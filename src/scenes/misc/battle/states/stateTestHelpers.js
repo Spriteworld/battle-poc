@@ -49,7 +49,7 @@ export function makeMon(overrides = {}) {
     attackRandomMove: jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     attackWithAI:     jest.fn(() => ({ move: 'Tackle', enemy: 'Foe', damage: 10, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
     attackLocked:     jest.fn(() => ({ move: 'Fly', enemy: 'Foe', damage: 15, accuracy: 1, critical: 1, typeEffectiveness: 1 })),
-    attackMultiHit:   jest.fn(() => ({ move: 'Fury Attack', enemy: 'Foe', damage: 30, accuracy: 1, critical: 1, typeEffectiveness: 1, hits: 3 })),
+    attackMultiHit:   jest.fn(() => ({ move: 'Fury Attack', enemy: 'Foe', damage: 30, accuracy: 1, critical: 1, typeEffectiveness: 1, hits: 3, hitResults: [{ damage: 10, critical: 1 }, { damage: 10, critical: 1 }, { damage: 10, critical: 1 }] })),
     takeDamage:       jest.fn(),
     useItem:          jest.fn(() => ({ message: 'HP restored!' })),
     lockedMove:  null,
@@ -73,7 +73,7 @@ export function makeMon(overrides = {}) {
       EVASION: 0,
     },
     toxicCount: 0,
-    volatileStatus: { leechSeed: false, infatuated: false, encored: null },
+    volatileStatus: { leechSeed: false, infatuated: false, magicCoat: false, yawnCounter: 0, wishPending: null, encored: null, disabledMove: null, furyCutterCount: 0 },
     lastUsedMove: null,
     applyStageChange: jest.fn((stat, delta) => ({ message: `MockMon's ${stat} changed by ${delta}!` })),
   };
