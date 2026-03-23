@@ -19,12 +19,11 @@ const STATUS_BADGE = {
   'TOXIC':     { label: 'PSN', bg: 0x5828a0, text: '#ffffff' },
 };
 
-/** Badge configs for volatile / Pokérus conditions. */
+/** Badge configs for volatile / Pokérus conditions (shown next to name). */
 const VOLATILE_BADGE = {
-  infatuated:   { label: 'INF', bg: 0xe060a0, text: '#ffffff' },
-  yawnCounter:  { label: 'DRW', bg: 0xd4a010, text: '#181818' },
-  encored:      { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
-  confusedTurns: { label: 'CNF', bg: 0xc030c0, text: '#ffffff' },
+  infatuated:  { label: 'INF', bg: 0xe060a0, text: '#ffffff' },
+  yawnCounter: { label: 'DRW', bg: 0xd4a010, text: '#181818' },
+  encored:     { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
 };
 const POKERUS_BADGE = { label: 'PkRs', bg: 0x9040c0, text: '#ffffff' };
 
@@ -261,16 +260,19 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     // y position: below the HP bar (enemy) or below the HP numbers (player)
     const badgeY = this._showHpNumbers ? 63 : 42;
 
-    // Build the list: leech seed first (if active), then non-zero stat stages.
+    // Build the list: leech seed first, confusion, then non-zero stat stages.
     const entries = [];
     if (volatileStatus?.leechSeed) {
-      entries.push({ label: 'SED', color: 0x70b000, textColor: '#ffffff', fixed: true });
+      entries.push({ label: 'SED', color: 0x70b000, textColor: '#ffffff' });
+    }
+    if (volatileStatus?.confusedTurns) {
+      entries.push({ label: 'CNF', color: 0xc030c0, textColor: '#ffffff' });
     }
     for (const [stat, value] of Object.entries(stages)) {
       if (value !== 0) {
         const label = STAGE_LABELS[stat] ?? stat.slice(0, 3);
         const sign  = value > 0 ? '+' : '';
-        entries.push({ label: `${label}${sign}${value}`, color: value > 0 ? 0x2a7a2a : 0xb03030, textColor: '#ffffff', fixed: false });
+        entries.push({ label: `${label}${sign}${value}`, color: value > 0 ? 0x2a7a2a : 0xb03030, textColor: '#ffffff' });
       }
     }
 
