@@ -1,4 +1,14 @@
-import { STATUS } from '@spriteworld/pokemon-data';
+import { STATUS, TYPES } from '@spriteworld/pokemon-data';
+
+const WEATHER_END = {
+  rain:      'The rain stopped.',
+  sun:       'The harsh sunlight faded.',
+  sandstorm: 'The sandstorm subsided.',
+  hail:      'The hail stopped.',
+};
+
+const SANDSTORM_IMMUNE = new Set([TYPES.ROCK, TYPES.GROUND, TYPES.STEEL]);
+const HAIL_IMMUNE      = new Set([TYPES.ICE]);
 
 /**
  * Applies end-of-turn status damage to both active Pokémon.
@@ -98,6 +108,45 @@ export default function applyEndOfTurnStatus() {
   for (const mon of mons) {
     mon.flinched = false;
     if (mon.volatileStatus) mon.volatileStatus.magicCoat = false;
+  }
+
+  // Trap damage — seeded Pokémon lose 1/16 max HP per turn; count down to release.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    const trap = mon.volatileStatus?.trapped;
+    if (!trap) continue;
+    const dmg = Math.max(1, Math.floor(mon.maxHp / 16));
+    mon.takeDamage(dmg);
+    this.logger.addItem(`${mon.getName()} is hurt by ${trap.sourceName}! (${dmg} damage)`);
+    trap.turnsLeft--;
+    if (trap.turnsLeft <= 0) {
+      mon.volatileStatus.trapped = null;
+      this.logger.addItem(`${mon.getName()} was freed from ${trap.sourceName}!`);
+    }
+  }
+
+  // Weather damage — sandstorm and hail deal 1/16 HP to non-immune types; decrement counter.
+  if (this.weather?.type) {
+    const { type } = this.weather;
+    if (type === 'sandstorm' || type === 'hail') {
+      const immuneSet = type === 'sandstorm' ? SANDSTORM_IMMUNE : HAIL_IMMUNE;
+      for (const mon of mons) {
+        if (!mon.isAlive()) continue;
+        const isImmune = (mon.types ?? []).some(t => immuneSet.has(t));
+        if (!isImmune) {
+          const dmg = Math.max(1, Math.floor(mon.maxHp / 16));
+          mon.takeDamage(dmg);
+          this.logger.addItem(`${mon.getName()} is buffeted by the ${type}!`);
+        }
+      }
+    }
+
+    this.weather.turnsLeft--;
+    if (this.weather.turnsLeft <= 0) {
+      this.logger.addItem(WEATHER_END[type] ?? 'The weather cleared.');
+      this.weather.type     = null;
+      this.weather.turnsLeft = 0;
+    }
   }
 
   // Screen countdown — Light Screen and Reflect last 5 turns.

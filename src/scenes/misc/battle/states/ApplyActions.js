@@ -71,6 +71,15 @@ export default class ApplyActions {
       console.log('[ApplyActions] enemy pokemon:', enemyActivePokemon);
       // check to see if enemy or field has an ability to stop (e.g. Arena Trap)
       // if so, show message and go back to PLAYER_ACTION state
+      const playerActivePokemon = this.config.player.team.getActivePokemon();
+      const trapData = playerActivePokemon?.volatileStatus?.trapped;
+      if (trapData) {
+        this.logger.addItem(`${playerActivePokemon.getName()} is trapped by ${trapData.sourceName} and can't switch!`);
+        this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+        this.time.addEvent({ delay: 1000, callback: () => {}, callbackScope: this });
+        return;
+      }
+
       let canStopSwitch = [
         enemyActivePokemon.hasAbility(Abilities.ARENA_TRAP),
         enemyActivePokemon.hasAbility(Abilities.SHADOW_TAG),
@@ -94,6 +103,7 @@ export default class ApplyActions {
           outgoing.volatileStatus.disabledMove   = null;
           outgoing.volatileStatus.furyCutterCount = 0;
           outgoing.volatileStatus.confusedTurns  = 0;
+          outgoing.volatileStatus.trapped        = null;
         }
 
         // switch pokemon
@@ -167,6 +177,7 @@ export default class ApplyActions {
       const attackerKey = player.getName().toLowerCase() === 'player' ? 'player' : 'enemy';
       const defenderKey = attackerKey === 'player' ? 'enemy' : 'player';
       const fieldState = this.screens[defenderKey];
+      const weather    = this.weather ?? null;
 
       // ── Pre-attack status checks ────────────────────────────────────────────
 
@@ -328,21 +339,21 @@ export default class ApplyActions {
           if (activeMon.lockedMove) {
             activeMon.lockedMove = null;
             activeMon.invulnerable = false;
-            info = activeMon.attackLocked(target, move, this.generation, fieldState);
+            info = activeMon.attackLocked(target, move, this.generation, fieldState, weather);
           } else {
             // Multi-hit move — roll hit count and deal damage per-hit.
             const multiHitDef = MULTI_HIT_MOVES[move.name?.toLowerCase()];
             if (multiHitDef) {
               const hitCount = rollHitCount(multiHitDef.minHits, multiHitDef.maxHits);
-              info = activeMon.attackMultiHit(target, move, this.generation, hitCount, multiHitDef.powers ?? null, fieldState);
+              info = activeMon.attackMultiHit(target, move, this.generation, hitCount, multiHitDef.powers ?? null, fieldState, weather);
             } else {
-              info = activeMon.attack(target, move, this.generation, fieldState);
+              info = activeMon.attack(target, move, this.generation, fieldState, weather);
             }
           }
           break;
         }
         case ActionTypes.NPC_ATTACK:
-          info = activeMon.attackWithAI(target, this.generation, fieldState);
+          info = activeMon.attackWithAI(target, this.generation, fieldState, weather);
         break;
       }
 
@@ -436,6 +447,19 @@ export default class ApplyActions {
         const side = this.screens[attackerKey];
         side.reflect = 5;
         this.logger.addItem(`${activeMon.getName()} put up a Reflect!`);
+      }
+
+      // Weather — set a 5-turn weather condition on the field.
+      if (info.effect?.setWeather) {
+        const WEATHER_START = {
+          rain:       'A heavy rain began to fall!',
+          sun:        'The sunlight turned harsh!',
+          sandstorm:  'A sandstorm brewed!',
+          hail:       'It started to hail!',
+        };
+        this.weather.type     = info.effect.setWeather;
+        this.weather.turnsLeft = 5;
+        this.logger.addItem(WEATHER_START[info.effect.setWeather] ?? 'The weather changed!');
       }
 
       // Baton Pass — force the player to switch, passing stages + leech seed.

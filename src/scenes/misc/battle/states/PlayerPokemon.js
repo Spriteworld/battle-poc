@@ -21,6 +21,12 @@ export default class PlayerPokemon {
 
         this.events.once('pokemonswitchmenu-select-option-0', () => {
           const active = playerTeam.getActivePokemon();
+          const trapData = active?.volatileStatus?.trapped;
+          if (trapData) {
+            this.logger.addItem(`${active.getName()} is trapped by ${trapData.sourceName} and can't switch!`);
+            this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+            return;
+          }
           if (pokemon.id === active.id) {
             this.logger.addItem(`${pokemon.getName()} is already in battle!`);
             this.stateMachine.setState(this.stateDef.PLAYER_ACTION);

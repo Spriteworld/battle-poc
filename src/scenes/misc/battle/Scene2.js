@@ -77,6 +77,9 @@ export default class extends Phaser.Scene {
       player: { lightScreen: 0, reflect: 0 },
       enemy:  { lightScreen: 0, reflect: 0 },
     };
+
+    /** Active weather — type is null when no weather is in effect. */
+    this.weather = { type: null, turnsLeft: 0 };
   }
 
   init(data) {

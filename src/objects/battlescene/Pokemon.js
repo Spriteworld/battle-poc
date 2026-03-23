@@ -16,6 +16,42 @@ import Move from './Move.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
+ * Returns the damage multiplier that weather applies to a move.
+ * Rain: Water ×1.5, Fire ×0.5. Sun: Fire ×1.5, Water ×0.5.
+ * @param {Move} move
+ * @param {{ type: string|null, turnsLeft: number }|null} weather
+ * @return {number}
+ */
+function getWeatherMultiplier(move, weather) {
+  if (!weather?.type || !move?.type) return 1;
+  const w = weather.type;
+  const t = move.type;
+  if (w === 'rain') {
+    if (t === TYPES.WATER) return 1.5;
+    if (t === TYPES.FIRE)  return 0.5;
+  }
+  if (w === 'sun') {
+    if (t === TYPES.FIRE)  return 1.5;
+    if (t === TYPES.WATER) return 0.5;
+  }
+  return 1;
+}
+
+/**
+ * Returns true if the weather-based accuracy override makes a move always-hit.
+ * Thunder always hits in rain; Blizzard always hits in hail.
+ * @param {Move} move
+ * @param {{ type: string|null }|null} weather
+ * @return {boolean}
+ */
+function weatherBypassAccuracy(move, weather) {
+  if (!weather?.type || !move?.name) return false;
+  const name = move.name.toLowerCase();
+  return (weather.type === 'rain'  && name === 'thunder')  ||
+         (weather.type === 'hail'  && name === 'blizzard');
+}
+
+/**
  * Pseudo-move used when all moves are at 0 PP.
  * Typeless damage (typeEffectiveness forced to 1 in struggle()), ½ max HP recoil.
  */
@@ -105,6 +141,8 @@ export default class extends BasePokemon {
       furyCutterCount: 0,
       /** Turns remaining while confused; 0 = not confused */
       confusedTurns: 0,
+      /** null | { sourceName: string, turnsLeft: number } — trapping move (Wrap, Bind, etc.) */
+      trapped: null,
     };
 
     /**
@@ -120,9 +158,10 @@ export default class extends BasePokemon {
    * @param {Move} move
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation] - Active generation rules
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
+   * @param {{ type: string|null, turnsLeft: number }|null} [weather] - Current field weather
    * @return {object}
    */
-  attack(target, move, generation, fieldState = null) {
+  attack(target, move, generation, fieldState = null, weather = null) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
@@ -165,7 +204,7 @@ export default class extends BasePokemon {
 
     if (move?.name?.toLowerCase() === 'metronome') {
       this.lastUsedMove = move;
-      return this.useMetronome(target, move, generation, fieldState);
+      return this.useMetronome(target, move, generation, fieldState, weather);
     }
 
     if (typeof move === 'undefined' || !(move instanceof Move)) {
@@ -183,7 +222,8 @@ export default class extends BasePokemon {
       info = move.onAttack(this, target, generation);
     } else {
       // Standard accuracy check — null means the move always hits (e.g. Swift, Aerial Ace).
-      if (move.accuracy !== null) {
+      // Weather can also force a bypass (Thunder in rain, Blizzard in hail).
+      if (move.accuracy !== null && !weatherBypassAccuracy(move, weather)) {
         const accStageDelta = Math.max(-6, Math.min(6,
           (this.stages?.ACCURACY ?? 0) - (target.stages?.EVASION ?? 0)
         ));
@@ -198,7 +238,8 @@ export default class extends BasePokemon {
           };
         }
       }
-      info = CalcDamage.calculate(this, target, move, undefined, generation);
+      const weatherMult = getWeatherMultiplier(move, weather);
+      info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
 
       // Screen modifier — halves damage; critical hits bypass screens (Gen 3+).
@@ -295,14 +336,15 @@ export default class extends BasePokemon {
    * @param {Move} move
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
+   * @param {{ type: string|null, turnsLeft: number }|null} [weather] - Current field weather
    * @return {object}
    */
-  attackLocked(target, move, generation, fieldState = null) {
+  attackLocked(target, move, generation, fieldState = null, weather = null) {
     let info;
     if (typeof move.onAttack === 'function') {
       info = move.onAttack(this, target, generation);
     } else {
-      if (move.accuracy !== null && !(Math.random() * 100 < move.accuracy)) {
+      if (move.accuracy !== null && !weatherBypassAccuracy(move, weather) && !(Math.random() * 100 < move.accuracy)) {
         return {
           player: this.getName(),
           enemy: target.getName(),
@@ -311,7 +353,8 @@ export default class extends BasePokemon {
           damage: 0,
         };
       }
-      info = CalcDamage.calculate(this, target, move, undefined, generation);
+      const weatherMult = getWeatherMultiplier(move, weather);
+      info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
 
       // Screen modifier — halves damage; critical hits bypass screens (Gen 3+).
@@ -353,13 +396,14 @@ export default class extends BasePokemon {
    * @param {number} hitCount - number of times to hit
    * @param {number[]|null} [powers] - optional per-hit power overrides (e.g. Triple Kick: [10,20,30])
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
+   * @param {{ type: string|null, turnsLeft: number }|null} [weather] - Current field weather
    * @return {object}
    */
-  attackMultiHit(target, move, generation, hitCount, powers = null, fieldState = null) {
+  attackMultiHit(target, move, generation, hitCount, powers = null, fieldState = null, weather = null) {
     move.pp.current = Math.max(0, move.pp.current - 1);
 
     // Single accuracy check for all hits (Gen 3+).
-    if (move.accuracy !== null && !(Math.random() * 100 < move.accuracy)) {
+    if (move.accuracy !== null && !weatherBypassAccuracy(move, weather) && !(Math.random() * 100 < move.accuracy)) {
       return {
         player: this.getName(),
         enemy: target.getName(),
@@ -375,9 +419,10 @@ export default class extends BasePokemon {
     let screenReduced = null;
     const hitResults = [];
 
+    const weatherMult = getWeatherMultiplier(move, weather);
     for (let i = 0; i < hitCount; i++) {
       const effectiveMove = (powers && powers[i] !== undefined) ? { ...move, power: powers[i] } : move;
-      const info = CalcDamage.calculate(this, target, effectiveMove, undefined, generation);
+      const info = CalcDamage.calculate(this, target, effectiveMove, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
       let dmg = Math.max(0, info.damage || 0);
 
       // Screen modifier per-hit — critical hits bypass screens (Gen 3+).
@@ -422,15 +467,16 @@ export default class extends BasePokemon {
    * @param {object} target
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
+   * @param {{ type: string|null, turnsLeft: number }|null} [weather] - Current field weather
    * @return {object}
    */
-  attackRandomMove(target, generation, fieldState = null) {
+  attackRandomMove(target, generation, fieldState = null, weather = null) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
     const available = this.moves.filter(m => m.pp.current > 0);
     const move = available[Math.floor(Math.random() * available.length)];
-    return this.attack(target, move, generation, fieldState);
+    return this.attack(target, move, generation, fieldState, weather);
   }
 
   /**
@@ -448,9 +494,10 @@ export default class extends BasePokemon {
    * @param {object} target
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
+   * @param {{ type: string|null, turnsLeft: number }|null} [weather] - Current field weather
    * @return {object}
    */
-  attackWithAI(target, generation, fieldState = null) {
+  attackWithAI(target, generation, fieldState = null, weather = null) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
@@ -473,14 +520,14 @@ export default class extends BasePokemon {
     // 30% chance to act randomly (Gen 3 AI imperfection)
     if (usable.length === 0 || Math.random() < 0.3) {
       const move = available[Math.floor(Math.random() * available.length)];
-      return this.attack(target, move, generation, fieldState);
+      return this.attack(target, move, generation, fieldState, weather);
     }
 
     usable.sort((a, b) => b.score - a.score);
     const topScore = usable[0].score;
     const topMoves = usable.filter(s => s.score === topScore);
     const chosen = topMoves[Math.floor(Math.random() * topMoves.length)];
-    return this.attack(target, chosen.move, generation, fieldState);
+    return this.attack(target, chosen.move, generation, fieldState, weather);
   }
 
   /**
@@ -492,9 +539,10 @@ export default class extends BasePokemon {
    * @param {Move} metronomeMove - the Metronome move instance (for PP tracking)
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} generation
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
+   * @param {{ type: string|null, turnsLeft: number }|null} [weather] - Current field weather
    * @return {object}
    */
-  useMetronome(target, metronomeMove, generation, fieldState = null) {
+  useMetronome(target, metronomeMove, generation, fieldState = null, weather = null) {
     metronomeMove.pp.current = Math.max(0, metronomeMove.pp.current - 1);
 
     const allMoves = getMovesByGen(generation.gen);
@@ -512,7 +560,7 @@ export default class extends BasePokemon {
       onEffect: MOVE_EFFECTS[data.name.toLowerCase()] || null,
     };
 
-    const info = this.attackLocked(target, calledMove, generation, fieldState);
+    const info = this.attackLocked(target, calledMove, generation, fieldState, weather);
     return { ...info, move: `Metronome → ${data.name}` };
   }
 

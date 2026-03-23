@@ -73,7 +73,7 @@ export function makeMon(overrides = {}) {
       EVASION: 0,
     },
     toxicCount: 0,
-    volatileStatus: { leechSeed: false, infatuated: false, magicCoat: false, yawnCounter: 0, wishPending: null, encored: null, disabledMove: null, furyCutterCount: 0, confusedTurns: 0 },
+    volatileStatus: { leechSeed: false, infatuated: false, magicCoat: false, yawnCounter: 0, wishPending: null, encored: null, disabledMove: null, furyCutterCount: 0, confusedTurns: 0, trapped: null },
     lastUsedMove: null,
     applyStageChange: jest.fn((stat, delta) => ({ message: `MockMon's ${stat} changed by ${delta}!` })),
   };
@@ -141,6 +141,7 @@ export function makeContext(overrides = {}) {
       player: { lightScreen: 0, reflect: 0 },
       enemy:  { lightScreen: 0, reflect: 0 },
     },
+    weather: { type: null, turnsLeft: 0 },
     time: {
       addEvent: jest.fn(({ callback, callbackScope }) => callback.call(callbackScope)),
     },
