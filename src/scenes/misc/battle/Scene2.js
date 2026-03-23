@@ -174,13 +174,14 @@ export default class extends Phaser.Scene {
   // ─── Input ─────────────────────────────────────────────────────────────────
 
   onKeyInput(event) {
-    if (!this.currentMenu || !this.currentMenu.config?.selected) return;
-
+    // Active menu — route all navigation to it.
     switch (event.code) {
-      case 'ArrowUp':    this.currentMenu.moveSelectionUp();     break;
-      case 'ArrowDown':  this.currentMenu.moveSelectionDown();   break;
-      case 'ArrowLeft':  this.currentMenu.moveSelectionLeft?.(); break;
-      case 'ArrowRight': this.currentMenu.moveSelectionRight?.(); break;
+      case 'ArrowUp':    this.currentMenu.moveSelectionUp(); break;
+      case 'ArrowDown':  this.currentMenu.moveSelectionDown(); break;
+      case 'ArrowLeft':  this.currentMenu.moveSelectionLeft(); break;
+      case 'ArrowRight': this.currentMenu.moveSelectionRight(); break;
+      case 'PageUp':     this.logger.scrollUp(); break;
+      case 'PageDown':   this.logger.scrollDown(); break;
       case 'Enter':
       case 'KeyZ':
         this.currentMenu.confirm();

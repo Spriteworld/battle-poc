@@ -6,15 +6,20 @@ const PANEL_H = 230;
 const PAD_X = 16;
 const PAD_Y = 20;
 
+// Max rows visible before the list scrolls: floor((PANEL_H - PAD_Y - 10) / cellHeight)
+const CELL_H   = 36;
+const MAX_VIS  = Math.floor((PANEL_H - PAD_Y - 10) / CELL_H); // 5
+
 /** Single-column item list for the player's bag. @extends Menu */
 export default class BagMenu extends Menu {
   constructor(scene, x, y) {
     super(scene, x, y, {
       columns: 1,
       cellWidth: PANEL_W - PAD_X * 2,
-      cellHeight: 36,
+      cellHeight: CELL_H,
       padX: PAD_X,
       padY: PAD_Y,
+      maxVisible: MAX_VIS,
     });
     this.name = 'BagMenu';
     this._drawPanel();
@@ -27,5 +32,6 @@ export default class BagMenu extends Menu {
     bg.lineStyle(4, 0x181818);
     bg.strokeRect(0, 0, PANEL_W, PANEL_H);
     this.addAt(bg, 0);
+    this._createScrollArrows(PANEL_W, PANEL_H);
   }
 }

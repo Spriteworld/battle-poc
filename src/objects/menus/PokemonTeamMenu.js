@@ -6,15 +6,19 @@ const PANEL_H = 230;
 const PAD_X = 16;
 const PAD_Y = 20;
 
+const CELL_H  = 34;
+const MAX_VIS = Math.floor((PANEL_H - PAD_Y - 10) / CELL_H); // 5
+
 /** Single-column Pokémon party list. @extends Menu */
 export default class PokemonTeamMenu extends Menu {
   constructor(scene, x, y) {
     super(scene, x, y, {
       columns: 1,
       cellWidth: PANEL_W - PAD_X * 2,
-      cellHeight: 34,
+      cellHeight: CELL_H,
       padX: PAD_X,
       padY: PAD_Y,
+      maxVisible: MAX_VIS,
     });
     this.name = 'PokemonTeamMenu';
     this._drawPanel();
@@ -27,5 +31,6 @@ export default class PokemonTeamMenu extends Menu {
     bg.lineStyle(4, 0x181818);
     bg.strokeRect(0, 0, PANEL_W, PANEL_H);
     this.addAt(bg, 0);
+    this._createScrollArrows(PANEL_W, PANEL_H);
   }
 }
