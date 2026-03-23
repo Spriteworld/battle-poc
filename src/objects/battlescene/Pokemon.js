@@ -18,11 +18,11 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Returns the damage multiplier that weather applies to a move.
  * Rain: Water ×1.5, Fire ×0.5. Sun: Fire ×1.5, Water ×0.5.
- * Sandstorm: Rock-type defenders take ×0.5 special damage (equivalent to ×1.5 Sp. Def).
+ * Sandstorm (Gen 3+): Rock-type defenders take ×0.5 special damage (equivalent to ×1.5 Sp. Def).
  * @param {Move} move
  * @param {{ type: string|null, turnsLeft: number }|null} weather
  * @param {object|null} [target] - Defending BattlePokemon (needed for sandstorm Sp. Def check)
- * @param {object|null} [generation] - Active generation config (needed for move category)
+ * @param {object|null} [generation] - Active generation config (needed for move category and gen number)
  * @return {number}
  */
 function getWeatherMultiplier(move, weather, target = null, generation = null) {
@@ -37,7 +37,8 @@ function getWeatherMultiplier(move, weather, target = null, generation = null) {
     if (t === TYPES.FIRE)  return 1.5;
     if (t === TYPES.WATER) return 0.5;
   }
-  if (w === 'sandstorm' && target && generation) {
+  // Sandstorm Rock Sp. Def boost was introduced in Gen 3.
+  if (w === 'sandstorm' && target && generation && (generation.gen ?? 3) >= 3) {
     const cat = generation.getCategory(move);
     if (cat === Moves.MOVE_CATEGORIES.SPECIAL && (target.types ?? []).includes(TYPES.ROCK)) {
       return 0.5; // Rock types receive ×1.5 effective Sp. Def in sandstorm
@@ -48,16 +49,18 @@ function getWeatherMultiplier(move, weather, target = null, generation = null) {
 
 /**
  * Returns true if the weather-based accuracy override makes a move always-hit.
- * Thunder always hits in rain; Blizzard always hits in hail.
+ * Thunder always hits in rain (Gen 2+); Blizzard always hits in hail (Gen 3+).
  * @param {Move} move
  * @param {{ type: string|null }|null} weather
+ * @param {object|null} [generation] - Active generation config
  * @return {boolean}
  */
-function weatherBypassAccuracy(move, weather) {
+function weatherBypassAccuracy(move, weather, generation = null) {
   if (!weather?.type || !move?.name) return false;
+  const gen = generation?.gen ?? 3;
   const name = move.name.toLowerCase();
-  return (weather.type === 'rain'  && name === 'thunder')  ||
-         (weather.type === 'hail'  && name === 'blizzard');
+  return (gen >= 2 && weather.type === 'rain' && name === 'thunder') ||
+         (gen >= 3 && weather.type === 'hail' && name === 'blizzard');
 }
 
 /**
@@ -232,7 +235,7 @@ export default class extends BasePokemon {
     } else {
       // Standard accuracy check — null means the move always hits (e.g. Swift, Aerial Ace).
       // Weather can also force a bypass (Thunder in rain, Blizzard in hail).
-      if (move.accuracy !== null && !weatherBypassAccuracy(move, weather)) {
+      if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation)) {
         const accStageDelta = Math.max(-6, Math.min(6,
           (this.stages?.ACCURACY ?? 0) - (target.stages?.EVASION ?? 0)
         ));
@@ -341,7 +344,7 @@ export default class extends BasePokemon {
    * Executes the strike turn of a two-turn charge move without decrementing PP.
    * PP was already decremented on the charge turn; re-using attack() would subtract it again.
    *
-   * @param {object} target - Defending BattlePokemon
+   * @param {object} target - Defending BattlePokémon
    * @param {Move} move
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
@@ -353,7 +356,7 @@ export default class extends BasePokemon {
     if (typeof move.onAttack === 'function') {
       info = move.onAttack(this, target, generation);
     } else {
-      if (move.accuracy !== null && !weatherBypassAccuracy(move, weather) && !(Math.random() * 100 < move.accuracy)) {
+      if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation) && !(Math.random() * 100 < move.accuracy)) {
         return {
           player: this.getName(),
           enemy: target.getName(),
@@ -412,7 +415,7 @@ export default class extends BasePokemon {
     move.pp.current = Math.max(0, move.pp.current - 1);
 
     // Single accuracy check for all hits (Gen 3+).
-    if (move.accuracy !== null && !weatherBypassAccuracy(move, weather) && !(Math.random() * 100 < move.accuracy)) {
+    if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation) && !(Math.random() * 100 < move.accuracy)) {
       return {
         player: this.getName(),
         enemy: target.getName(),
@@ -428,7 +431,7 @@ export default class extends BasePokemon {
     let screenReduced = null;
     const hitResults = [];
 
-    const weatherMult = getWeatherMultiplier(move, weather);
+    const weatherMult = getWeatherMultiplier(move, weather, target, generation);
     for (let i = 0; i < hitCount; i++) {
       const effectiveMove = (powers && powers[i] !== undefined) ? { ...move, power: powers[i] } : move;
       const info = CalcDamage.calculate(this, target, effectiveMove, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);

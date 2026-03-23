@@ -126,9 +126,12 @@ export default function applyEndOfTurnStatus() {
   }
 
   // Weather damage — sandstorm and hail deal 1/16 HP to non-immune types; decrement counter.
+  // Hail was introduced in Gen 3; sandstorm EOT damage has applied since Gen 2.
   if (this.weather?.type) {
     const { type } = this.weather;
-    if (type === 'sandstorm' || type === 'hail') {
+    const gen = this.generation?.gen ?? 3;
+    const hailActive = type === 'hail' && gen >= 3;
+    if (type === 'sandstorm' || hailActive) {
       const immuneSet = type === 'sandstorm' ? SANDSTORM_IMMUNE : HAIL_IMMUNE;
       for (const mon of mons) {
         if (!mon.isAlive()) continue;

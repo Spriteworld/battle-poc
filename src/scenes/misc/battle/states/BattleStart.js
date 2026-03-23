@@ -57,8 +57,11 @@ export default class BattleStart {
     this.logger.addItem(`Battle rules: ${this.generation.name}`);
 
     // Initialise field weather from battle data (e.g. { field: { weather: 'rain' } }).
+    // Weather was introduced in Gen 2; Hail was introduced in Gen 3.
     const startWeather = this.data.field?.weather ?? null;
-    if (startWeather) {
+    const gen = this.generation.gen ?? 3;
+    const weatherAllowed = startWeather && gen >= 2 && (startWeather !== 'hail' || gen >= 3);
+    if (weatherAllowed) {
       this.weather = { type: startWeather, turnsLeft: 5 };
       const WEATHER_START = {
         rain:      'A heavy rain began to fall!',

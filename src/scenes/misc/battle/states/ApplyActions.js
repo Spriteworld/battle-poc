@@ -308,7 +308,9 @@ export default class ApplyActions {
           // Check if this is the charge turn of a two-turn move.
           // Solar Beam skips its charge turn in harsh sunlight.
           const multiTurnDef = MULTI_TURN_MOVES[move.name?.toLowerCase()];
-          const solarBeamInSun = move.name?.toLowerCase() === 'solar beam' && weather?.type === 'sun';
+          // Solar Beam skips its charge turn in sun — Gen 3+ behaviour only.
+          const solarBeamInSun = this.generation.gen >= 3 &&
+            move.name?.toLowerCase() === 'solar beam' && weather?.type === 'sun';
           if (multiTurnDef && !activeMon.lockedMove && !solarBeamInSun) {
             // Charge turn: decrement PP, show the wind-up message, lock in.
             move.pp.current = Math.max(0, move.pp.current - 1);
@@ -452,16 +454,22 @@ export default class ApplyActions {
       }
 
       // Weather — set a 5-turn weather condition on the field.
+      // Weather was introduced in Gen 2; Hail was introduced in Gen 3.
       if (info.effect?.setWeather) {
-        const WEATHER_START = {
-          rain:       'A heavy rain began to fall!',
-          sun:        'The sunlight turned harsh!',
-          sandstorm:  'A sandstorm brewed!',
-          hail:       'It started to hail!',
-        };
-        this.weather.type     = info.effect.setWeather;
-        this.weather.turnsLeft = 5;
-        this.logger.addItem(WEATHER_START[info.effect.setWeather] ?? 'The weather changed!');
+        const wType = info.effect.setWeather;
+        const gen = this.generation.gen ?? 3;
+        const weatherAllowed = gen >= 2 && (wType !== 'hail' || gen >= 3);
+        if (weatherAllowed) {
+          const WEATHER_START = {
+            rain:       'A heavy rain began to fall!',
+            sun:        'The sunlight turned harsh!',
+            sandstorm:  'A sandstorm brewed!',
+            hail:       'It started to hail!',
+          };
+          this.weather.type     = wType;
+          this.weather.turnsLeft = 5;
+          this.logger.addItem(WEATHER_START[wType] ?? 'The weather changed!');
+        }
       }
 
       // Baton Pass — force the player to switch, passing stages + leech seed.
