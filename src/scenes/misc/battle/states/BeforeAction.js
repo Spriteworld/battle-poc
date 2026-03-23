@@ -1,7 +1,9 @@
-import { STATS, STATUS, Moves } from '@spriteworld/pokemon-data';
+import { STATS, STATUS } from '@spriteworld/pokemon-data';
 import { ActionTypes } from '../../../../objects';
 
-const { getActionPriority } = Moves;
+const ATTACK_ACTION_TYPES = [ActionTypes.ATTACK, ActionTypes.NPC_ATTACK];
+const actionPriority = action =>
+  ATTACK_ACTION_TYPES.includes(action.type) ? (action.config?.move?.priority ?? 0) : Infinity;
 
 export default class BeforeAction {
   onEnter() {
@@ -18,8 +20,6 @@ export default class BeforeAction {
       this.stateMachine.setState(check);
       return;
     }
-
-    const ATTACK_TYPES = [ActionTypes.ATTACK, ActionTypes.NPC_ATTACK];
 
     // Speed order as a tiebreaker (higher speed goes first; equal speed is random).
     // Paralysis halves effective speed for turn-order purposes (Gen 3).
@@ -55,8 +55,8 @@ export default class BeforeAction {
 
     if (actionCount > 1) {
       // Priority tier: higher number goes first; non-attack actions get Infinity.
-      const playerPriority = getActionPriority(this.actions.player, ATTACK_TYPES);
-      const enemyPriority  = getActionPriority(this.actions.enemy,  ATTACK_TYPES);
+      const playerPriority = actionPriority(this.actions.player);
+      const enemyPriority  = actionPriority(this.actions.enemy);
 
       let first;
       if (playerPriority > enemyPriority)      { first = 'player'; }

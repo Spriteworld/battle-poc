@@ -2,7 +2,7 @@ import { CalcDamage, BasePokemon, TYPES, Moves, STATS, calcTypeEffectiveness } f
 
 const {
   STAT_STAGE_MULTIPLIERS, ACC_STAGE_MULTIPLIERS, STAT_DISPLAY_NAMES,
-  MOVE_EFFECTS, MOVE_OVERRIDES, getMovesByGen,
+  getMovesByGen,
 } = Moves;
 
 // Moves that cannot be called by Metronome (Gen 3).
@@ -561,16 +561,9 @@ export default class extends BasePokemon {
     const pool = allMoves.filter(m => !METRONOME_BANNED.has(m.name.toLowerCase()));
     const data  = pool[Math.floor(Math.random() * pool.length)];
 
-    // Build a lightweight move object the attack pipeline understands.
-    const calledMove = {
-      name:     data.name,
-      type:     data.type,
-      category: data.category,
-      power:    data.power,
-      accuracy: data.accuracy ?? null,
-      onAttack: MOVE_OVERRIDES[data.name.toLowerCase()] || null,
-      onEffect: MOVE_EFFECTS[data.name.toLowerCase()] || null,
-    };
+    // The data instance already carries onEffect, onAttack, multiHit, multiTurn, priority.
+    // Wrap with a mutable pp object so the attack pipeline can decrement it.
+    const calledMove = { ...data, pp: { max: data.pp, current: data.pp } };
 
     const info = this.attackLocked(target, calledMove, generation, fieldState, weather);
     return { ...info, move: `Metronome → ${data.name}` };

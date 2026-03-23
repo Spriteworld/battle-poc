@@ -68,8 +68,8 @@ describe('BeforeAction', () => {
     const ctx = makeContext();
     ctx.config.player.team.getActivePokemon().stats[STATS.SPEED] = 10;
     ctx.config.enemy.team.getActivePokemon().stats[STATS.SPEED] = 200;
-    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'quick attack' } } };
-    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'tackle' } } };
+    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'quick attack', priority: 1 } } };
+    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'tackle', priority: 0 } } };
     ctx.actions = { player: playerAction, enemy: enemyAction };
     new BeforeAction().onEnter.call(ctx);
     expect(ctx.currentAction).toBe(playerAction);
@@ -79,8 +79,8 @@ describe('BeforeAction', () => {
     const ctx = makeContext();
     ctx.config.player.team.getActivePokemon().stats[STATS.SPEED] = 200;
     ctx.config.enemy.team.getActivePokemon().stats[STATS.SPEED] = 10;
-    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'tackle' } } };
-    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'quick attack' } } };
+    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'tackle', priority: 0 } } };
+    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'quick attack', priority: 1 } } };
     ctx.actions = { player: playerAction, enemy: enemyAction };
     new BeforeAction().onEnter.call(ctx);
     expect(ctx.currentAction).toBe(enemyAction);
@@ -89,8 +89,8 @@ describe('BeforeAction', () => {
   test('priority: same tier falls back to speed order', () => {
     const ctx = makeContext();
     // player speed 100 > enemy speed 80
-    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'quick attack' } } };
-    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'mach punch' } } };
+    const playerAction = { type: ActionTypes.ATTACK, player: ctx.config.player, target: {}, config: { move: { name: 'quick attack', priority: 1 } } };
+    const enemyAction  = { type: ActionTypes.ATTACK, player: ctx.config.enemy,  target: {}, config: { move: { name: 'mach punch', priority: 1 } } };
     ctx.actions = { player: playerAction, enemy: enemyAction };
     new BeforeAction().onEnter.call(ctx);
     expect(ctx.currentAction).toBe(playerAction); // player faster at same +1 priority

@@ -1,7 +1,7 @@
 import { ActionTypes } from '@Objects';
 import { Abilities, CalcDamage, calcEscape, Moves, STATUS, TYPES } from '@spriteworld/pokemon-data';
 
-const { MULTI_TURN_MOVES, MULTI_HIT_MOVES, rollHitCount } = Moves;
+const { rollHitCount } = Moves;
 
 /** Synthetic move used for confusion self-damage (40-power Physical Normal). */
 const CONFUSION_HIT = {
@@ -307,7 +307,7 @@ export default class ApplyActions {
 
           // Check if this is the charge turn of a two-turn move.
           // Solar Beam skips its charge turn in harsh sunlight.
-          const multiTurnDef = MULTI_TURN_MOVES[move.name?.toLowerCase()];
+          const multiTurnDef = move.multiTurn ?? null;
           // Solar Beam skips its charge turn in sun — Gen 3+ behaviour only.
           const solarBeamInSun = this.generation.gen >= 3 &&
             move.name?.toLowerCase() === 'solar beam' && weather?.type === 'sun';
@@ -346,7 +346,7 @@ export default class ApplyActions {
             info = activeMon.attackLocked(target, move, this.generation, fieldState, weather);
           } else {
             // Multi-hit move — roll hit count and deal damage per-hit.
-            const multiHitDef = MULTI_HIT_MOVES[move.name?.toLowerCase()];
+            const multiHitDef = move.multiHit ?? null;
             if (multiHitDef) {
               const hitCount = rollHitCount(multiHitDef.minHits, multiHitDef.maxHits);
               info = activeMon.attackMultiHit(target, move, this.generation, hitCount, multiHitDef.powers ?? null, fieldState, weather);

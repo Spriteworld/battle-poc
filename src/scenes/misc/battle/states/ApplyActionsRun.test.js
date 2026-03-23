@@ -18,10 +18,8 @@ jest.mock('@spriteworld/pokemon-data', () => ({
     MAGNET_PULL: 'Magnet Pull',
   },
   Moves: {
-    MULTI_TURN_MOVES: {},
-    MULTI_HIT_MOVES:  {},
-    rollHitCount:     jest.fn(() => 2),
-    MOVE_CATEGORIES:  { PHYSICAL: 'PHYSICAL', SPECIAL: 'SPECIAL', STATUS: 'STATUS' },
+    rollHitCount:    jest.fn(() => 2),
+    MOVE_CATEGORIES: { PHYSICAL: 'PHYSICAL', SPECIAL: 'SPECIAL', STATUS: 'STATUS' },
   },
   STATUS: { BURN: 'BURN', PARALYZE: 'PARALYZE', POISON: 'POISON', TOXIC: 'TOXIC', FROZEN: 'FROZEN', SLEEP: 'SLEEP' },
   TYPES: { NORMAL: 'NORMAL' },

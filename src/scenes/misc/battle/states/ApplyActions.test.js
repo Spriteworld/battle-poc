@@ -244,7 +244,7 @@ describe('ApplyActions — multi-turn charge turn', () => {
     const ctx = makeContext();
     const playerMon = ctx.config.player.team.getActivePokemon();
     const enemyMon  = ctx.config.enemy.team.getActivePokemon();
-    const move = { name: 'Fly', pp: { current: 15, max: 15 } };
+    const move = { name: 'Fly', pp: { current: 15, max: 15 }, multiTurn: { chargeMessage: '{name} flew up high!', invulnerable: true } };
     ctx.currentAction = {
       type:   ActionTypes.ATTACK,
       player: ctx.config.player,
@@ -343,7 +343,7 @@ describe('ApplyActions — multi-hit moves', () => {
     const ctx = makeContext();
     const playerMon = ctx.config.player.team.getActivePokemon();
     const enemyMon  = ctx.config.enemy.team.getActivePokemon();
-    const move = { name: 'Fury Attack', pp: { current: 20, max: 20 } };
+    const move = { name: 'Fury Attack', pp: { current: 20, max: 20 }, multiHit: { minHits: 2, maxHits: 5 } };
     ctx.currentAction = {
       type:   ActionTypes.ATTACK,
       player: ctx.config.player,
