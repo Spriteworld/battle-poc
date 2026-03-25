@@ -33,10 +33,15 @@ export default class PlayerAttack {
     this.AttackMenu.clear();
 
     Object.values(moves).forEach((move, idx) => {
+      const prefix = move.implemented === false ? '[N] ' : move.implemented === 'partial' ? '[P] ' : '';
+
       this.AttackMenu.addMenuItem(
-        `${move.name} (${move.pp.current}/${move.pp.max}pp)`
+        `${prefix}${move.name} (${move.pp.current}/${move.pp.max}pp)`
       );
-      this.events.once('attackmenu-select-option-' + idx, () => attack(move));
+      this.events.once('attackmenu-select-option-' + idx, () => {
+        this._lastMoveIndex = idx;
+        attack(move);
+      });
     });
 
     this.AttackMenu.addMenuItem('Cancel');
@@ -48,6 +53,9 @@ export default class PlayerAttack {
     });
 
     this.activateMenu(this.AttackMenu);
+    // Re-select the last used move (activateMenu always resets to 0)
+    const lastIdx = Math.min(this._lastMoveIndex ?? 0, moves.length - 1);
+    this.AttackMenu.select(lastIdx);
   }
 
   onExit() {

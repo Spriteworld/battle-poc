@@ -8,6 +8,7 @@ export default class extends Trainer {
   }
 
   getName() {
-    return this.team.getActivePokemon().getName();
+    const active = this.team.getActivePokemon();
+    return active ? active.getName() : this.name;
   }
 }

@@ -21,13 +21,19 @@ export default {
       current: 10
     },
   }, {
-    name: 'Razor Leaf',
+    name: 'Bide',
     pp: {
       max: 5,
       current: 5
     },
   },{
     name: 'Leech Seed',
+    pp: {
+      max: 10,
+      current: 10
+    },
+  },{
+    name: 'Belly Drum',
     pp: {
       max: 10,
       current: 10

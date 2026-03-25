@@ -23,15 +23,21 @@ export default defineConfig({
     'process.env': {}
   },
   build: {
-    assetsInlineLimit: 0,
-    minify: true,
+    lib: {
+      entry: resolve(__dirname, 'src/index.js'),
+      name: 'SpriteworldBattle',
+      fileName: 'battle',
+    },
     rollupOptions: {
+      // The host app supplies these — don't bundle them
+      external: ['phaser', '@spriteworld/pokemon-data'],
       output: {
-        manualChunks: () => 'app',
-        entryFileNames: `assets/[name]-[hash].js`,
-        // chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name]-[hash].[ext]`
-      }
-    }
+        globals: {
+          phaser: 'Phaser',
+          '@spriteworld/pokemon-data': 'SpriteworldPokemonData',
+        },
+      },
+    },
+    outDir: 'dist/lib',
   },
 });

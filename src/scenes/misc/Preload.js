@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
-import Scenes from '@Scenes';
+import BattleUI from '@Scenes/misc/battle/UI.js';
+import BattleScene from '@Scenes/misc/battle/Scene.js';
+import BattleScene2 from '@Scenes/misc/battle/Scene2.js';
+const Scenes = { BattleUI, BattleScene, BattleScene2 };
 import * as pokemon from '@Data/pokemon/';
 import Items from '@Data/items/';
 import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves } from '@spriteworld/pokemon-data';

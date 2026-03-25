@@ -33,9 +33,14 @@ export function makeMenu(name) {
 
 export function makeMon(overrides = {}) {
   const base = {
+    pid:       'mock-pid',
     currentHp: 100,
     maxHp:     100,
     stats:     { [STATS.SPEED]: 100 },
+    moves: [
+      { name: 'Tackle', pp: { current: 35, max: 35 } },
+      { name: 'Growl',  pp: { current: 40, max: 40 } },
+    ],
     getName:          jest.fn(() => 'MockMon'),
     nameWithHP:       jest.fn(() => 'MockMon (100/100)'),
     isAlive:          jest.fn(() => true),
@@ -109,6 +114,7 @@ export function makeContext(overrides = {}) {
   };
 
   const ctx = {
+    game:         { events: makeEvents() },
     logger:       { addItem: jest.fn() },
     stateMachine: { setState: jest.fn() },
     stateDef: {

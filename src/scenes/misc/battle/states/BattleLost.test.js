@@ -9,9 +9,9 @@ describe('BattleLost', () => {
     expect(() => new BattleLost().onEnter.call(ctx)).not.toThrow();
   });
 
-  test('does not call setState (transition is commented out)', () => {
+  test('transitions to BATTLE_IDLE', () => {
     const ctx = makeContext();
     new BattleLost().onEnter.call(ctx);
-    expect(ctx.stateMachine.setState).not.toHaveBeenCalled();
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('battleIdle');
   });
 });

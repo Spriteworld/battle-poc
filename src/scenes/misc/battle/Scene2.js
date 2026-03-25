@@ -221,6 +221,7 @@ export default class BattleScene2 extends Phaser.Scene {
       case 'ArrowDown':  this.currentMenu.moveSelectionDown(); break;
       case 'ArrowLeft':  this.currentMenu.moveSelectionLeft(); break;
       case 'ArrowRight': this.currentMenu.moveSelectionRight(); break;
+      case 'KeyL':       this.logger.toggle(); break;
       case 'PageUp':     this.logger.scrollUp(); break;
       case 'PageDown':   this.logger.scrollDown(); break;
       case 'Enter':
@@ -277,7 +278,6 @@ export default class BattleScene2 extends Phaser.Scene {
       delete this.actions.enemy;
       if (!this.config.enemy.team.switchToNextLivingPokemon()) {
         this.logger.addItem('The enemy has no more Pokémon left!');
-        this.remapActivePokemon();
         return this.stateDef.BATTLE_WON;
       }
       const newMon = this.config.enemy.team.getActivePokemon();

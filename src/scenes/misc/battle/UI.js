@@ -130,7 +130,8 @@ export default class extends Phaser.Scene {
     let attacks = this.battleScene.activeMon[playerTurn].getAttacks();
 
     this.attackMenu.remap(attacks.map(move => {
-      return `${move.name} (${move.pp.current}pp)`;
+      const prefix = move.implemented === false ? '[N] ' : move.implemented === 'partial' ? '[P] ' : '';
+      return `${prefix}${move.name} (${move.pp.current}pp)`;
     }));
   }
 }
