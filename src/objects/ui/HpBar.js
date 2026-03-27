@@ -19,6 +19,7 @@ export default class HpBar extends Phaser.GameObjects.Container {
   constructor(scene, x, y, config = {}) {
     super(scene, x, y);
     this._width = config.width ?? 120;
+    this._barHeight = config.barHeight ?? 6;
     this._currentHp = config.currentHp ?? 0;
     this._maxHp = config.maxHp ?? 100;
     scene.add.existing(this);
@@ -39,7 +40,7 @@ export default class HpBar extends Phaser.GameObjects.Container {
     this.removeAll(true);
 
     const W = this._width;
-    const H = 6;
+    const H = this._barHeight;
     const ratio = this._maxHp > 0
       ? Math.max(0, Math.min(1, this._currentHp / this._maxHp))
       : 0;

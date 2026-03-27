@@ -96,6 +96,11 @@ export default class extends BasePokemon {
     this.moves = this.moves.map(move => new Move(move, config));
     this.id = config.id || uuidv4();
 
+    /** The item currently held by this Pokémon. null if not holding anything. */
+    this.heldItem = config.heldItem ?? null;
+    /** The last item this Pokémon consumed — restored by Recycle. */
+    this.consumedItem = null;
+
     /** Set when locked into a two-turn charge move. `{ move: Move, invulnerable: boolean }` */
     this.lockedMove = null;
     /** True during the charge turn of moves like Fly/Dig/Bounce/Dive. */
@@ -151,11 +156,75 @@ export default class extends BasePokemon {
       disabledMove: null,
       /** 1-based consecutive Fury Cutter use count; resets on miss, different move, or switch-out */
       furyCutterCount: 0,
+      /** 1-based consecutive Rollout use count; resets on miss, different move, or switch-out */
+      rolloutCount: 0,
       /** Turns remaining while confused; 0 = not confused */
       confusedTurns: 0,
+      /** True when the Pokémon has used Ingrain; heals 1/16 max HP per turn */
+      ingrained: false,
+      /** 0–3 uses of Stockpile stored; consumed by Spit Up and Swallow */
+      stockpileCount: 0,
       /** null | { sourceName: string, turnsLeft: number } — trapping move (Wrap, Bind, etc.) */
       trapped: null,
+      /** True when the Pokémon is having a nightmare; loses 1/4 HP per turn while asleep */
+      nightmare:       false,
+      /** True when the Pokémon is cursed by Ghost-type Curse; loses 1/4 HP per turn */
+      cursed:          false,
+      /** True when Focus Energy is active; raises critical-hit rate */
+      focusEnergy:     false,
+      /** Perish Song countdown; Pokémon faints when it reaches 0 */
+      perishSongCount: 0,
+      /** Turns remaining under Taunt; STATUS moves are blocked */
+      taunted:         0,
+      /** True when Torment is active; prevents using the same move twice in a row */
+      tormented:       false,
+      /** True when Foresight/Odor Sleuth is active; Ghost-type loses Normal/Fighting immunity */
+      identified:      false,
+      /** True when Lock-On/Mind Reader is active; next attack auto-hits */
+      lockedOn:        false,
+      /** True when Charge is active; doubles next Electric-type move's power */
+      charged:         false,
+      /** True when Snatch is waiting to intercept a beneficial status move */
+      snatching:       false,
+      /** null | { move: Move, turnsLeft: number } — locked into rampage move (Thrash/Outrage/Petal Dance) */
+      rampaging:       null,
+      /** null | { hp: number } — substitute proxy; absorbs incoming damage */
+      substitute:      null,
+      /** True when Protect/Detect is active; blocks all incoming damage/effects this turn */
+      protected:       false,
+      /** Consecutive Protect/Detect/Endure uses; increments each use, resets when chain broken */
+      protectCount:    0,
+      /** True when Endure is active; user survives any KO hit with 1 HP this turn */
+      enduring:        false,
+      /** True when Destiny Bond is active; if user is KO'd, opponent also faints */
+      destinyBond:     false,
+      /** True when Imprison is active; opponent cannot use shared moves */
+      imprisoning:     false,
+      /** True when Grudge is active; if user is KO'd, opponent's killing move loses all PP */
+      grudge:          false,
+      /** null | { turnsLeft: number } — locked into Uproar for 1–2 more turns; prevents sleep */
+      uproaring:       null,
+      /** null | { damageAccumulated: number, turnsLeft: number } — storing energy with Bide */
+      biding:          null,
+      /** True when Flash Fire has been triggered; boosts the user's Fire-type moves by 1.5× */
+      flashFire:       false,
+      /** True on the "loafing" turn for a Pokémon with Truant; alternates each turn */
+      truantLoaf:      false,
     };
+
+    // Huge Power / Pure Power: permanently double the Attack stat at construction time.
+    const abilityName = this.ability?.name?.toLowerCase() ?? '';
+    if (abilityName === 'huge power' || abilityName === 'pure power') {
+      this._baseStats[STATS.ATTACK] = Math.floor(this._baseStats[STATS.ATTACK] * 2);
+      this.stats[STATS.ATTACK]      = Math.floor(this.stats[STATS.ATTACK] * 2);
+    }
+
+    /**
+     * The last damage this Pokémon received this turn — used by Counter, Mirror Coat, Metal Burst.
+     * Reset to null at end of turn in applyEndOfTurnStatus.
+     * @type {{ damage: number, category: string }|null}
+     */
+    this._lastReceivedDamage = null;
 
     /**
      * The last move successfully used by this Pokémon — used by Encore.
@@ -163,6 +232,13 @@ export default class extends BasePokemon {
      * @type {Move|null}
      */
     this.lastUsedMove = null;
+
+    /**
+     * True until the Pokémon takes its first attack action after entering battle.
+     * Reset to true on switch-in. Used by Fake Out's first-turn restriction.
+     * @type {boolean}
+     */
+    this.isFirstTurn = true;
   }
 
   /**
@@ -202,6 +278,16 @@ export default class extends BasePokemon {
       this.volatileStatus.furyCutterCount = 0;
     }
 
+    // Rollout — track consecutive uses before lastUsedMove is overwritten.
+    if (move?.name?.toLowerCase() === 'rollout') {
+      const wasConsecutive = this.lastUsedMove?.name?.toLowerCase() === 'rollout';
+      this.volatileStatus.rolloutCount = wasConsecutive
+        ? (this.volatileStatus.rolloutCount ?? 0) + 1
+        : 1;
+    } else if (this.volatileStatus?.rolloutCount) {
+      this.volatileStatus.rolloutCount = 0;
+    }
+
     // Disable — the selected move cannot be used while disabled.
     if (move && this.volatileStatus.disabledMove?.move === move) {
       return {
@@ -235,11 +321,21 @@ export default class extends BasePokemon {
     } else {
       // Standard accuracy check — null means the move always hits (e.g. Swift, Aerial Ace).
       // Weather can also force a bypass (Thunder in rain, Blizzard in hail).
+      const cat = generation?.getCategory?.(move) ?? move.category;
+      const isPhysical = cat === Moves.MOVE_CATEGORIES.PHYSICAL;
+      const isSpecial  = cat === Moves.MOVE_CATEGORIES.SPECIAL;
+
       if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation)) {
+        // Ability-based accuracy modifiers.
+        let accAbilityMult = 1;
+        if (typeof this.hasAbility === 'function') {
+          if (this.hasAbility('Compound Eyes')) accAbilityMult *= 1.3;
+          if (this.hasAbility('Hustle') && isPhysical) accAbilityMult *= 0.8;
+        }
         const accStageDelta = Math.max(-6, Math.min(6,
           (this.stages?.ACCURACY ?? 0) - (target.stages?.EVASION ?? 0)
         ));
-        const effectiveAcc = move.accuracy * ACC_STAGE_MULTIPLIERS[accStageDelta + 6];
+        const effectiveAcc = move.accuracy * ACC_STAGE_MULTIPLIERS[accStageDelta + 6] * accAbilityMult;
         if (!(Math.random() * 100 < effectiveAcc)) {
           return {
             player: this.getName(),
@@ -250,24 +346,113 @@ export default class extends BasePokemon {
           };
         }
       }
+
+      // ── Temporary stat modifications for ability-based damage multipliers ──────
+      let origAttack = null, origSpAtk = null, origDef = null;
+      if (typeof this.hasAbility === 'function') {
+        const hpFrac = this.currentHp / this.maxHp;
+        if (isPhysical) {
+          let atkMult = 1;
+          if (this.hasAbility('Hustle')) atkMult *= 1.5;
+          if (this.hasAbility('Guts') && Object.values(this.status ?? {}).some(v => v > 0)) atkMult *= 1.5;
+          if (hpFrac <= 1/3) {
+            if (this.hasAbility('Blaze')    && move.type === TYPES.FIRE)  atkMult *= 1.5;
+            if (this.hasAbility('Torrent')  && move.type === TYPES.WATER) atkMult *= 1.5;
+            if (this.hasAbility('Overgrow') && move.type === TYPES.GRASS) atkMult *= 1.5;
+            if (this.hasAbility('Swarm')    && move.type === TYPES.BUG)   atkMult *= 1.5;
+          }
+          if (this.volatileStatus?.flashFire && move.type === TYPES.FIRE) atkMult *= 1.5;
+          if (atkMult !== 1) {
+            origAttack = this.stats[STATS.ATTACK];
+            this.stats[STATS.ATTACK] = Math.floor(origAttack * atkMult);
+          }
+          // Marvel Scale: defender's Defense × 1.5 when statused.
+          if (typeof target.hasAbility === 'function' && target.hasAbility('Marvel Scale') &&
+              Object.values(target.status ?? {}).some(v => v > 0)) {
+            origDef = target.stats[STATS.DEFENSE];
+            target.stats[STATS.DEFENSE] = Math.floor(origDef * 1.5);
+          }
+        } else if (isSpecial) {
+          let spaMult = 1;
+          if (hpFrac <= 1/3) {
+            if (this.hasAbility('Blaze')    && move.type === TYPES.FIRE)  spaMult *= 1.5;
+            if (this.hasAbility('Torrent')  && move.type === TYPES.WATER) spaMult *= 1.5;
+            if (this.hasAbility('Overgrow') && move.type === TYPES.GRASS) spaMult *= 1.5;
+            if (this.hasAbility('Swarm')    && move.type === TYPES.BUG)   spaMult *= 1.5;
+          }
+          if (this.volatileStatus?.flashFire && move.type === TYPES.FIRE) spaMult *= 1.5;
+          if (spaMult !== 1) {
+            origSpAtk = this.stats[STATS.SPECIAL_ATTACK];
+            this.stats[STATS.SPECIAL_ATTACK] = Math.floor(origSpAtk * spaMult);
+          }
+        }
+      }
+
       const weatherMult = getWeatherMultiplier(move, weather, target, generation);
       info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
+
+      // Restore temporarily modified stats.
+      if (origAttack !== null) this.stats[STATS.ATTACK]         = origAttack;
+      if (origSpAtk  !== null) this.stats[STATS.SPECIAL_ATTACK] = origSpAtk;
+      if (origDef    !== null) target.stats[STATS.DEFENSE]      = origDef;
+
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
+
+      // Battle Armor / Shell Armor: prevent critical hits.
+      if ((info.critical ?? 1) > 1 && typeof target.hasAbility === 'function' &&
+          (target.hasAbility('Battle Armor') || target.hasAbility('Shell Armor'))) {
+        info.damage   = Math.floor(info.damage / (info.critical ?? 2));
+        info.critical = 1;
+      }
+
+      // Thick Fat: halve incoming Fire and Ice damage.
+      if (info.damage > 0 && typeof target.hasAbility === 'function' && target.hasAbility('Thick Fat') &&
+          (move.type === TYPES.FIRE || move.type === TYPES.ICE)) {
+        info.damage = Math.floor(info.damage / 2);
+      }
+
+      // Wonder Guard: only super-effective moves deal damage.
+      if (info.damage > 0 && typeof target.hasAbility === 'function' && target.hasAbility('Wonder Guard')) {
+        if ((info.typeEffectiveness ?? 1) <= 1) {
+          info.damage = 0;
+        }
+      }
 
       // Screen modifier — halves damage; critical hits bypass screens (Gen 3+).
       if (fieldState && info.damage > 0 && (info.critical ?? 1) <= 1) {
-        const cat = generation?.getCategory(move);
-        if (cat === Moves.MOVE_CATEGORIES.PHYSICAL && fieldState.reflect > 0) {
+        if (isPhysical && fieldState.reflect > 0) {
           info.damage = Math.floor(info.damage / 2);
           info.screenReduced = 'reflect';
-        } else if (cat === Moves.MOVE_CATEGORIES.SPECIAL && fieldState.lightScreen > 0) {
+        } else if (isSpecial && fieldState.lightScreen > 0) {
           info.damage = Math.floor(info.damage / 2);
           info.screenReduced = 'lightScreen';
         }
       }
     }
 
+    // Substitute — redirect damage to the substitute HP proxy; effects don't pass through.
+    if (target.volatileStatus?.substitute && info.damage > 0) {
+      const sub = target.volatileStatus.substitute;
+      sub.hp -= info.damage;
+      if (sub.hp <= 0) {
+        target.volatileStatus.substitute = null;
+        info.substituteBroke = true;
+      }
+      info.damage = 0;
+    }
+
     target.takeDamage(info.damage);
+
+    // Endure — if this hit would faint the target, leave at exactly 1 HP.
+    if (target.volatileStatus?.enduring && target.currentHp <= 0) {
+      target.currentHp = 1;
+      info.endured = true;
+    }
+
+    if (info.damage > 0) {
+      target._lastReceivedDamage = { damage: info.damage, category: generation?.getCategory(move) ?? move.category, type: move.type };
+    }
+    this.isFirstTurn = false;
 
     // A missed onAttack (accuracy: 0) returns without applying effects.
     if (info.accuracy === 0) {
@@ -278,6 +463,9 @@ export default class extends BasePokemon {
         ...info,
       };
     }
+
+    // Pass weather into info so onEffect handlers (e.g. weatherHeal) can read it.
+    if (weather) info.weather = weather;
 
     // Magic Coat: reflect STATUS moves back to the original attacker.
     let reflected = false;
@@ -382,11 +570,35 @@ export default class extends BasePokemon {
       }
     }
 
+    // Substitute — redirect damage to the substitute HP proxy; effects don't pass through.
+    if (target.volatileStatus?.substitute && info.damage > 0) {
+      const sub = target.volatileStatus.substitute;
+      sub.hp -= info.damage;
+      if (sub.hp <= 0) {
+        target.volatileStatus.substitute = null;
+        info.substituteBroke = true;
+      }
+      info.damage = 0;
+    }
+
     target.takeDamage(info.damage);
+
+    // Endure — if this hit would faint the target, leave at exactly 1 HP.
+    if (target.volatileStatus?.enduring && target.currentHp <= 0) {
+      target.currentHp = 1;
+      info.endured = true;
+    }
+
+    if (info.damage > 0) {
+      target._lastReceivedDamage = { damage: info.damage, category: generation?.getCategory(move) ?? move.category, type: move.type };
+    }
+    this.isFirstTurn = false;
 
     if (info.accuracy === 0) {
       return { player: this.getName(), enemy: target.getName(), move: move.name, ...info };
     }
+
+    if (weather) info.weather = weather;
 
     const effect = (typeof move.onEffect === 'function')
       ? move.onEffect(this, target, info) || null
@@ -429,6 +641,7 @@ export default class extends BasePokemon {
     let totalDamage = 0;
     let lastInfo = {};
     let screenReduced = null;
+    let substituteBroke = false;
     const hitResults = [];
 
     const weatherMult = getWeatherMultiplier(move, weather, target, generation);
@@ -449,16 +662,39 @@ export default class extends BasePokemon {
         }
       }
 
+      // Substitute — redirect damage per-hit; stop hitting once the sub breaks.
+      if (target.volatileStatus?.substitute && dmg > 0) {
+        const sub = target.volatileStatus.substitute;
+        sub.hp -= dmg;
+        if (sub.hp <= 0) {
+          target.volatileStatus.substitute = null;
+          substituteBroke = true;
+        }
+        dmg = 0;
+      }
+
       totalDamage += dmg;
       target.takeDamage(dmg);
       hitResults.push({ damage: dmg, critical: info.critical });
       lastInfo = info;
     }
 
+    if (totalDamage > 0) {
+      target._lastReceivedDamage = { damage: totalDamage, category: generation?.getCategory(move) ?? move.category };
+    }
+    this.isFirstTurn = false;
+
     // Apply effect once after all hits (e.g. Twineedle's 20% poison).
     const effect = (typeof move.onEffect === 'function')
-      ? move.onEffect(this, target, { ...lastInfo, damage: totalDamage }) || null
+      ? move.onEffect(this, target, { ...lastInfo, damage: totalDamage, weather }) || null
       : null;
+
+    // Endure — if the combined hits would faint the target, leave at exactly 1 HP.
+    let endured = false;
+    if (target.volatileStatus?.enduring && target.currentHp <= 0) {
+      target.currentHp = 1;
+      endured = true;
+    }
 
     return {
       player: this.getName(),
@@ -471,6 +707,8 @@ export default class extends BasePokemon {
       critical: lastInfo.critical,
       typeEffectiveness: lastInfo.typeEffectiveness,
       screenReduced,
+      substituteBroke,
+      endured,
       effect,
     };
   }

@@ -1,4 +1,5 @@
-import { STATUS, TYPES } from '@spriteworld/pokemon-data';
+import { Abilities, STATUS, TYPES } from '@spriteworld/pokemon-data';
+import { applyAbilityEOT } from './applyAbilityEffects.js';
 
 const WEATHER_END = {
   rain:      'The rain stopped.',
@@ -68,9 +69,12 @@ export default function applyEndOfTurnStatus() {
     mon.volatileStatus.yawnCounter--;
     if (mon.volatileStatus.yawnCounter === 0) {
       const alreadyHasStatus = Object.values(mon.status).some(v => v > 0);
-      if (!alreadyHasStatus) {
+      const sleepImmune = mon.hasAbility?.(Abilities.INSOMNIA) || mon.hasAbility?.(Abilities.VITAL_SPIRIT);
+      if (!alreadyHasStatus && !sleepImmune) {
         mon.status[STATUS.SLEEP] = Math.floor(Math.random() * 7) + 1;
         this.logger.addItem(`${mon.getName()} fell asleep!`);
+      } else if (sleepImmune) {
+        this.logger.addItem(`${mon.getName()}'s ability kept it from falling asleep!`);
       }
     }
   }
@@ -104,20 +108,108 @@ export default function applyEndOfTurnStatus() {
     }
   }
 
+  // Ingrain — heal 1/16 max HP per turn.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    if (!mon.volatileStatus?.ingrained) continue;
+    const healAmt = Math.max(1, Math.floor(mon.maxHp / 16));
+    mon.currentHp = Math.min(mon.maxHp, mon.currentHp + healAmt);
+    this.logger.addItem(`${mon.getName()} absorbed nutrients with its roots!`);
+  }
+
+  // Nightmare — sleeping Pokémon with nightmare lose 1/4 HP per turn.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    if (!mon.volatileStatus?.nightmare) continue;
+    if ((mon.status?.[STATUS.SLEEP] ?? 0) === 0) {
+      // Woke up — clear nightmare
+      mon.volatileStatus.nightmare = false;
+      continue;
+    }
+    const dmg = Math.max(1, Math.floor(mon.maxHp / 4));
+    mon.takeDamage(dmg);
+    this.logger.addItem(`${mon.getName()} is locked in a nightmare!`);
+  }
+
+  // Curse — cursed Pokémon lose 1/4 HP per turn.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    if (!mon.volatileStatus?.cursed) continue;
+    const dmg = Math.max(1, Math.floor(mon.maxHp / 4));
+    mon.takeDamage(dmg);
+    this.logger.addItem(`${mon.getName()} is afflicted by the curse!`);
+  }
+
+  // Perish Song — countdown to faint.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    if ((mon.volatileStatus?.perishSongCount ?? 0) <= 0) continue;
+    mon.volatileStatus.perishSongCount--;
+    this.logger.addItem(`${mon.getName()}'s perish count fell to ${mon.volatileStatus.perishSongCount}!`);
+    if (mon.volatileStatus.perishSongCount === 0) {
+      mon.takeDamage(mon.currentHp);
+      this.logger.addItem(`${mon.getName()} fainted from the perish song!`);
+    }
+  }
+
+  // Taunt countdown.
+  for (const mon of mons) {
+    if (!mon.isAlive()) continue;
+    if ((mon.volatileStatus?.taunted ?? 0) <= 0) continue;
+    mon.volatileStatus.taunted--;
+    if (mon.volatileStatus.taunted === 0) {
+      this.logger.addItem(`${mon.getName()}'s taunt wore off!`);
+    }
+  }
+
+  // Bide — accumulate damage received this turn before _lastReceivedDamage is cleared.
+  for (const mon of mons) {
+    if (!mon.volatileStatus?.biding) continue;
+    const received = mon._lastReceivedDamage?.damage ?? 0;
+    mon.volatileStatus.biding.damageAccumulated += received;
+  }
+
+  // Uproar EOT — wake any sleeping Pokémon while the field is loud.
+  const anyUproaring = mons.some(m => m.volatileStatus?.uproaring);
+  if (anyUproaring) {
+    for (const mon of mons) {
+      if ((mon.status?.[STATUS.SLEEP] ?? 0) > 0) {
+        mon.status[STATUS.SLEEP] = 0;
+        this.logger.addItem(`${mon.getName()} woke up from the uproar!`);
+      }
+    }
+  }
+
   // Reset per-round flags for both active Pokémon.
   for (const mon of mons) {
     mon.flinched = false;
-    if (mon.volatileStatus) mon.volatileStatus.magicCoat = false;
+    mon._lastReceivedDamage = null;
+    if (mon.volatileStatus) {
+      mon.volatileStatus.magicCoat = false;
+      // Destiny Bond wears off at end of turn.
+      mon.volatileStatus.destinyBond = false;
+      // Endure lasts only one turn.
+      mon.volatileStatus.enduring = false;
+      // Protect/Detect: clear the shield; if it was NOT set this turn, break the chain.
+      if (mon.volatileStatus.protected) {
+        mon.volatileStatus.protected = false;
+        // Chain continues — protectCount already set by onEffect.
+      } else {
+        mon.volatileStatus.protectCount = 0;
+      }
+    }
   }
 
-  // Trap damage — seeded Pokémon lose 1/16 max HP per turn; count down to release.
+  // Trap damage — damaging traps deal 1/16 max HP per turn; no-damage traps (Mean Look etc.) just prevent switching.
   for (const mon of mons) {
     if (!mon.isAlive()) continue;
     const trap = mon.volatileStatus?.trapped;
     if (!trap) continue;
-    const dmg = Math.max(1, Math.floor(mon.maxHp / 16));
-    mon.takeDamage(dmg);
-    this.logger.addItem(`${mon.getName()} is hurt by ${trap.sourceName}! (${dmg} damage)`);
+    if (!trap.noDamage) {
+      const dmg = Math.max(1, Math.floor(mon.maxHp / 16));
+      mon.takeDamage(dmg);
+      this.logger.addItem(`${mon.getName()} is hurt by ${trap.sourceName}! (${dmg} damage)`);
+    }
     trap.turnsLeft--;
     if (trap.turnsLeft <= 0) {
       mon.volatileStatus.trapped = null;
@@ -135,7 +227,8 @@ export default function applyEndOfTurnStatus() {
       const immuneSet = type === 'sandstorm' ? SANDSTORM_IMMUNE : HAIL_IMMUNE;
       for (const mon of mons) {
         if (!mon.isAlive()) continue;
-        const isImmune = (mon.types ?? []).some(t => immuneSet.has(t));
+        const isImmune = (mon.types ?? []).some(t => immuneSet.has(t)) ||
+          (type === 'sandstorm' && mon.hasAbility?.(Abilities.SAND_VEIL));
         if (!isImmune) {
           const dmg = Math.max(1, Math.floor(mon.maxHp / 16));
           mon.takeDamage(dmg);
@@ -152,7 +245,7 @@ export default function applyEndOfTurnStatus() {
     }
   }
 
-  // Screen countdown — Light Screen and Reflect last 5 turns.
+  // Screen countdown — Light Screen, Reflect, Mist, and Safeguard last 5 turns.
   if (this.screens) {
     for (const side of ['player', 'enemy']) {
       const label = side === 'player' ? 'Your' : "The enemy's";
@@ -169,6 +262,47 @@ export default function applyEndOfTurnStatus() {
           this.logger.addItem(`${label} Reflect wore off!`);
         }
       }
+      if (s.mist > 0) {
+        s.mist--;
+        if (s.mist === 0) {
+          this.logger.addItem(`${label} Mist wore off!`);
+        }
+      }
+      if (s.safeguard > 0) {
+        s.safeguard--;
+        if (s.safeguard === 0) {
+          this.logger.addItem(`${label} Safeguard wore off!`);
+        }
+      }
+    }
+  }
+
+  // Future Sight / Doom Desire — countdown to delayed damage; deal damage when counter expires.
+  if (this.screens) {
+    for (const [side, defenderSide] of [['player', 'enemy'], ['enemy', 'player']]) {
+      const fs = this.screens[defenderSide]?.futureSight;
+      if (!fs) continue;
+      fs.turnsLeft--;
+      if (fs.turnsLeft <= 0) {
+        const defender = this.config[defenderSide].team.getActivePokemon();
+        this.screens[defenderSide].futureSight = null;
+        if (defender.isAlive()) {
+          defender.takeDamage(fs.damage);
+          this.logger.addItem(`${defender.getName()} took the future attack! (${fs.damage} damage)`);
+        }
+      }
+    }
+  }
+
+  // EOT ability effects (Speed Boost, Rain Dish, Dry Skin, Shed Skin).
+  for (const mon of mons) {
+    applyAbilityEOT(mon, this.weather, this.logger);
+    if (!mon.isAlive?.()) continue;
+    // Clear sleep status for Insomnia/Vital Spirit holders (covers edge cases like Trace).
+    if ((mon.status?.[STATUS.SLEEP] ?? 0) > 0 &&
+        (mon.hasAbility?.(Abilities.INSOMNIA) || mon.hasAbility?.(Abilities.VITAL_SPIRIT))) {
+      mon.status[STATUS.SLEEP] = 0;
+      this.logger.addItem(`${mon.getName()}'s ability woke it up!`);
     }
   }
 

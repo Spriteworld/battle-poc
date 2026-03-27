@@ -11,6 +11,7 @@ import BattleEnd from './BattleEnd.js';
 import BattleWon from './BattleWon.js';
 import BattleLost from './BattleLost.js';
 import BattleIdle from './BattleIdle.js';
+import LearnMove from './LearnMove.js';
 
 export {
   BattleStart,
@@ -26,4 +27,5 @@ export {
   BattleWon,
   BattleLost,
   BattleIdle,
+  LearnMove,
 };

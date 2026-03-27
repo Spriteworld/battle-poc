@@ -4,7 +4,9 @@ export default class {
   constructor(team, trainerName) {
     this.active = 0;
     this.pokemon = team.map(mon => {
-      return new BattlePokemon(mon, trainerName);
+      const p = new BattlePokemon(mon, trainerName);
+      p.team = this;
+      return p;
     });
   }
 

@@ -2,9 +2,11 @@ import Phaser from 'phaser';
 import StateMachine from '@Objects/StateMachine';
 import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
+import applyExperienceGains from './applyExperienceGains.js';
 import DialogBox from '@Objects/ui/DialogBox.js';
 import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
 import WeatherDisplay from '@Objects/ui/WeatherDisplay.js';
+import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
 import {
   ActivePokemonMenu,
   BattleMenu,
@@ -50,6 +52,7 @@ export default class BattleScene2 extends Phaser.Scene {
       BATTLE_END:                'battleEnd',
       BATTLE_WON:                'battleWon',
       BATTLE_LOST:               'battleLost',
+      LEARN_MOVE:                'learnMove',
     };
 
     this.stateMachine = new StateMachine(this)
@@ -66,6 +69,7 @@ export default class BattleScene2 extends Phaser.Scene {
       .addState(this.stateDef.BATTLE_END,                 new State.BattleEnd)
       .addState(this.stateDef.BATTLE_WON,                 new State.BattleWon)
       .addState(this.stateDef.BATTLE_LOST,                new State.BattleLost)
+      .addState(this.stateDef.LEARN_MOVE,                 new State.LearnMove)
     ;
 
     this.currentMenu = null;
@@ -73,10 +77,13 @@ export default class BattleScene2 extends Phaser.Scene {
     this.currentAction = null;
     this.escapeAttempts = 0;
 
-    /** Field-side screens — each counter is the number of turns remaining (0 = not active). */
+    this._playerSprite = null;
+    this._enemySprite  = null;
+
+    /** Field-side screens and entry hazards. Screen counters = turns remaining (0 = not active). */
     this.screens = {
-      player: { lightScreen: 0, reflect: 0 },
-      enemy:  { lightScreen: 0, reflect: 0 },
+      player: { lightScreen: 0, reflect: 0, mist: 0, safeguard: 0, spikes: 0, toxicSpikes: 0, stealthRock: false },
+      enemy:  { lightScreen: 0, reflect: 0, mist: 0, safeguard: 0, spikes: 0, toxicSpikes: 0, stealthRock: false },
     };
 
     /** Active weather — type is null when no weather is in effect. */
@@ -145,7 +152,7 @@ export default class BattleScene2 extends Phaser.Scene {
     this._groundGfx = this.add.graphics();
     this._updateBackground(null);
 
-    // Static elements drawn once — border, platforms, silhouettes.
+    // Static elements drawn once — border and platforms.
     const border = this.add.graphics();
     border.lineStyle(4, 0x181818);
     border.lineBetween(0, UI_Y, 800, UI_Y);
@@ -153,10 +160,6 @@ export default class BattleScene2 extends Phaser.Scene {
 
     this._platformsGfx = this.add.graphics();
     this._updatePlatforms(null);
-
-    // Placeholder silhouettes until sprites are loaded
-    this._silhouette(190, UI_Y - 90,  88, 0x282848, true);
-    this._silhouette(610, UI_Y - 198, 62, 0x203820, false);
   }
 
   _updateBackground(weatherType) {
@@ -179,21 +182,6 @@ export default class BattleScene2 extends Phaser.Scene {
     this._platformsGfx.fillStyle(color, 0.5);
     this._platformsGfx.fillEllipse(190, UI_Y - 28,  210, 40);
     this._platformsGfx.fillEllipse(610, UI_Y - 168, 170, 32);
-  }
-
-  /**
-   * Draws a rough oval silhouette where a Pokémon sprite will go.
-   * @param {number} x
-   * @param {number} y
-   * @param {number} size
-   * @param {number} color
-   * @param {boolean} isPlayer
-   */
-  _silhouette(x, y, size, color, isPlayer) {
-    const g = this.add.graphics();
-    g.fillStyle(color, 0.45);
-    g.fillEllipse(x, y, size * (isPlayer ? 1.5 : 1), size * 0.75);
-    g.fillEllipse(x, y - size * 0.55, size * 0.85, size * 0.85);
   }
 
   // ─── Menu management ───────────────────────────────────────────────────────
@@ -255,6 +243,40 @@ export default class BattleScene2 extends Phaser.Scene {
     this.WeatherDisplay.setWeather(this.weather);
     this._updateBackground(this.weather?.type ?? null);
     this._updatePlatforms(this.weather?.type ?? null);
+    this._updatePokemonSprites();
+  }
+
+  _updatePokemonSprites() {
+    const tilesetBaseUrl = this.data?.tilesetBaseUrl;
+    if (!tilesetBaseUrl || !this.config?.player) return;
+
+    const player = this.config.player.team.getActivePokemon();
+    const enemy  = this.config.enemy.team.getActivePokemon();
+
+    if (this._playerSprite) { this._playerSprite.destroy(); this._playerSprite = null; }
+    if (this._enemySprite)  { this._enemySprite.destroy();  this._enemySprite  = null; }
+
+    if (player) {
+      this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 150, {
+        species:        player.pokemon?.nat_dex_id ?? player.species,
+        shiny:          player.isShiny ?? false,
+        gender:         player.gender  ?? null,
+        isBack:         true,
+        size:           192,
+        tilesetBaseUrl,
+      });
+    }
+
+    if (enemy) {
+      this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 196, {
+        species:        enemy.pokemon?.nat_dex_id ?? enemy.species,
+        shiny:          enemy.isShiny ?? false,
+        gender:         enemy.gender  ?? null,
+        isBack:         false,
+        size:           128,
+        tilesetBaseUrl,
+      });
+    }
   }
 
   /**
@@ -276,13 +298,24 @@ export default class BattleScene2 extends Phaser.Scene {
       this.logger.addItem("The enemy's active Pokémon fainted!");
       // Clear any pending enemy action — the fainted Pokémon can't act.
       delete this.actions.enemy;
+
+      // Award EXP for this faint immediately.
+      this.applyExperienceGains();
+
+      const hasPending = this.config.player.team.pokemon.some(
+        p => p.pendingMovesToLearn?.length > 0
+      );
+
       if (!this.config.enemy.team.switchToNextLivingPokemon()) {
         this.logger.addItem('The enemy has no more Pokémon left!');
-        return this.stateDef.BATTLE_WON;
+        this.remapActivePokemon();
+        return hasPending ? this.stateDef.LEARN_MOVE : this.stateDef.BATTLE_WON;
       }
       const newMon = this.config.enemy.team.getActivePokemon();
+      newMon.isFirstTurn = true;
       this.logger.addItem(`${this.config.enemy.getName()} sent out ${newMon.getName()}!`);
       this.remapActivePokemon();
+      if (hasPending) return this.stateDef.LEARN_MOVE;
     }
 
     return null;
@@ -297,6 +330,10 @@ export default class BattleScene2 extends Phaser.Scene {
    */
   applyEndOfTurnStatus() {
     applyEndOfTurnStatus.call(this);
+  }
+
+  applyExperienceGains() {
+    applyExperienceGains.call(this);
   }
 
   checkForEndOfBattle() {

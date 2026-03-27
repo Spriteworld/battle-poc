@@ -1,5 +1,6 @@
 import { STATS, STATUS } from '@spriteworld/pokemon-data';
 import { ActionTypes } from '../../../../objects';
+import { getAbilitySpeedModifier } from '../applyAbilityEffects.js';
 
 const ATTACK_ACTION_TYPES = [ActionTypes.ATTACK, ActionTypes.NPC_ATTACK];
 const actionPriority = action =>
@@ -26,8 +27,12 @@ export default class BeforeAction {
     const playerActiveMon = this.config.player.team.getActivePokemon();
     const enemyActiveMon  = this.config.enemy.team.getActivePokemon();
     const paralyzed = mon => (mon.status?.[STATUS.PARALYZE] ?? 0) > 0;
-    let playerSpeed = playerActiveMon.stats[STATS.SPEED] * (paralyzed(playerActiveMon) ? 0.5 : 1);
-    let enemySpeed  = enemyActiveMon.stats[STATS.SPEED]  * (paralyzed(enemyActiveMon)  ? 0.5 : 1);
+    let playerSpeed = playerActiveMon.stats[STATS.SPEED] *
+      (paralyzed(playerActiveMon) ? 0.5 : 1) *
+      getAbilitySpeedModifier(playerActiveMon, this.weather);
+    let enemySpeed  = enemyActiveMon.stats[STATS.SPEED] *
+      (paralyzed(enemyActiveMon)  ? 0.5 : 1) *
+      getAbilitySpeedModifier(enemyActiveMon,  this.weather);
     let speedOrder;
     if (playerSpeed > enemySpeed)       { speedOrder = ['player', 'enemy']; }
     else if (playerSpeed < enemySpeed)  { speedOrder = ['enemy',  'player']; }

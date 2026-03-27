@@ -49,6 +49,8 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
         level: playerPokemon.level,
         currentHp: playerPokemon.currentHp,
         maxHp: playerPokemon.maxHp,
+        exp: playerPokemon.exp ?? 0,
+        growth: playerPokemon.pokemon?.growth,
         status: playerPokemon.status,
         stages: playerPokemon.stages,
         gender: playerPokemon.gender,

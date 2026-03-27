@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import HpBar from './HpBar.js';
-import { GENDERS } from '@spriteworld/pokemon-data';
+import { GENDERS, EXPERIENCE_TABLES, GROWTH } from '@spriteworld/pokemon-data';
 
 const FONT = { fontFamily: 'monospace', color: '#181818' };
 
@@ -70,7 +70,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._showHpNumbers = config.showHpNumbers ?? false;
     this._isEnemy = config.isEnemy ?? false;
     this._width = config.width ?? 220;
-    this._height = this._showHpNumbers ? 80 : 56;
+    this._height = this._showHpNumbers ? 84 : 56;
     scene.add.existing(this);
     this._build();
   }
@@ -146,27 +146,38 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._levelText.setOrigin(1, 0);
     this.add(this._levelText);
 
-    // "HP" label
-    const hpLabel = this.scene.add.text(10, 31, 'HP', {
-      ...FONT,
-      fontSize: '10px',
-      fontStyle: 'bold',
-      color: '#505050',
-    });
-    this.add(hpLabel);
-
-    // HP bar
-    this._hpBar = new HpBar(this.scene, 30, 34, { width: w - 40 });
-    this.add(this._hpBar);
-
-    // Numeric HP (player side only)
     if (this._showHpNumbers) {
-      this._hpNumText = this.scene.add.text(w - 8, 50, '', {
-        ...FONT,
-        fontSize: '12px',
+      // Player: taller HP bar with numbers rendered inside it
+      this._hpBar = new HpBar(this.scene, 10, 26, { width: w - 20, barHeight: 14 });
+      this.add(this._hpBar);
+
+      const hpInLabel = this.scene.add.text(16, 33, 'HP', {
+        fontFamily: 'monospace', fontSize: '10px', fontStyle: 'bold', color: '#ffffff',
+      });
+      this.add(hpInLabel);
+
+      this._hpNumText = this.scene.add.text(w - 14, 33, '', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
       });
       this._hpNumText.setOrigin(1, 0);
       this.add(this._hpNumText);
+
+      // EXP bar (drawn on remap)
+      this._expBarGfx = new Phaser.GameObjects.Graphics(this.scene);
+      this.add(this._expBarGfx);
+
+    } else {
+      // Enemy: label + thin bar
+      const hpLabel = this.scene.add.text(10, 31, 'HP', {
+        ...FONT,
+        fontSize: '10px',
+        fontStyle: 'bold',
+        color: '#505050',
+      });
+      this.add(hpLabel);
+
+      this._hpBar = new HpBar(this.scene, 30, 34, { width: w - 40 });
+      this.add(this._hpBar);
     }
 
     // Status badge slots — pre-allocate slots for primary + volatile + pokerus.
@@ -221,16 +232,48 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
    * @param {object} [data.volatileStatus] - BattlePokemon volatile status (leechSeed, etc.)
    * @param {number} [data.pokerus]        - Pokérus value (>0 means infected)
    */
-  remap({ name, level, currentHp, maxHp, status, stages, gender, volatileStatus, pokerus }) {
+  remap({ name, level, currentHp, maxHp, exp, growth, status, stages, gender, volatileStatus, pokerus }) {
     this._nameText.setText(name);
     this._levelText.setText(`Lv.${level}`);
     this._hpBar.update(currentHp, maxHp);
     if (this._hpNumText) {
       this._hpNumText.setText(`${currentHp}/${maxHp}`);
     }
+    if (this._expBarGfx) {
+      this._drawExpBar(level, exp, growth);
+    }
     this._updateGenderSymbol(gender);
     this._updateStatusBadge(status, volatileStatus, pokerus);
     this._updateStageBadges(stages, volatileStatus);
+  }
+
+  _drawExpBar(level, exp, growth) {
+    const g = this._expBarGfx;
+    g.clear();
+
+    const W = this._width - 20;
+    const x = 10;
+    const y = 46;
+    const H = 4;
+
+    const table = EXPERIENCE_TABLES[growth ?? GROWTH.MEDIUM_FAST] ?? EXPERIENCE_TABLES[GROWTH.MEDIUM_FAST];
+    let ratio = 1;
+    if ((level ?? 1) < 100) {
+      const lo = table[(level ?? 1) - 1] ?? 0;
+      const hi = table[level ?? 1]       ?? lo + 1;
+      ratio = hi > lo ? Math.max(0, Math.min(1, ((exp ?? lo) - lo) / (hi - lo))) : 0;
+    }
+
+    // Track
+    g.fillStyle(0xa8a8a8);
+    g.fillRect(x, y, W, H);
+
+    // Fill (blue)
+    const fillW = Math.max(0, Math.floor(W * ratio));
+    if (fillW > 0) {
+      g.fillStyle(0x4848f8);
+      g.fillRect(x, y, fillW, H);
+    }
   }
 
   /**
@@ -257,8 +300,8 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
    * @param {object} [volatileStatus]
    */
   _updateStageBadges(stages = {}, volatileStatus = {}) {
-    // y position: below the HP bar (enemy) or below the HP numbers (player)
-    const badgeY = this._showHpNumbers ? 63 : 42;
+    // y position: below the EXP bar (player) or below the HP bar (enemy)
+    const badgeY = this._showHpNumbers ? 56 : 42;
 
     // Build the list: leech seed first, confusion, then non-zero stat stages.
     const entries = [];

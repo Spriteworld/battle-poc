@@ -78,7 +78,11 @@ export function makeMon(overrides = {}) {
       EVASION: 0,
     },
     toxicCount: 0,
-    volatileStatus: { leechSeed: false, infatuated: false, magicCoat: false, yawnCounter: 0, wishPending: null, encored: null, disabledMove: null, furyCutterCount: 0, confusedTurns: 0, trapped: null },
+    ability: { name: 'none' },
+    heldItem:     null,
+    consumedItem: null,
+    volatileStatus: { leechSeed: false, infatuated: false, magicCoat: false, yawnCounter: 0, wishPending: null, encored: null, disabledMove: null, furyCutterCount: 0, rolloutCount: 0, confusedTurns: 0, trapped: null, ingrained: false, stockpileCount: 0, nightmare: false, cursed: false, focusEnergy: false, perishSongCount: 0, taunted: 0, tormented: false, identified: false, lockedOn: false, charged: false, snatching: false, rampaging: null, substitute: null, destinyBond: false, imprisoning: false, grudge: false, protected: false, protectCount: 0, enduring: false, uproaring: null, biding: null, flashFire: false, truantLoaf: false },
+    _lastReceivedDamage: null,
     lastUsedMove: null,
     applyStageChange: jest.fn((stat, delta) => ({ message: `MockMon's ${stat} changed by ${delta}!` })),
   };
@@ -144,8 +148,8 @@ export function makeContext(overrides = {}) {
     generation:     GEN_3,
     escapeAttempts: 0,
     screens: {
-      player: { lightScreen: 0, reflect: 0 },
-      enemy:  { lightScreen: 0, reflect: 0 },
+      player: { lightScreen: 0, reflect: 0, mist: 0, safeguard: 0, spikes: 0, toxicSpikes: 0, stealthRock: false },
+      enemy:  { lightScreen: 0, reflect: 0, mist: 0, safeguard: 0, spikes: 0, toxicSpikes: 0, stealthRock: false },
     },
     weather: { type: null, turnsLeft: 0 },
     time: {
