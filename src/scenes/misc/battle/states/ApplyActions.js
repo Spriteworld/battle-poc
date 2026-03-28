@@ -55,11 +55,7 @@ export default class ApplyActions {
       //   this.data.player.inventory.items.splice(itemIndex, 1);
       // }
 
-      this.time.addEvent({ 
-        delay: 1000, 
-        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
-        callbackScope: this 
-      });
+      this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
       return;
     }
 
@@ -82,7 +78,6 @@ export default class ApplyActions {
       if (trapData) {
         this.logger.addItem(`${playerActivePokemon.getName()} is trapped by ${trapData.sourceName} and can't switch!`);
         this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
-        this.time.addEvent({ delay: 1000, callback: () => {}, callbackScope: this });
         return;
       }
 
@@ -212,11 +207,7 @@ export default class ApplyActions {
         ].join(' '));
       }
 
-      this.time.addEvent({ 
-        delay: 1000, 
-        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
-        callbackScope: this 
-      });
+      this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
       return;
     }
 
@@ -242,11 +233,7 @@ export default class ApplyActions {
         this.stateMachine.setState(this.stateDef.BATTLE_END);
       } else {
         this.logger.addItem('[ApplyActions] You can\'t escape!');
-        this.time.addEvent({ 
-          delay: 1000, 
-          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), 
-          callbackScope: this 
-        });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
       }
       return;
     }
@@ -282,11 +269,7 @@ export default class ApplyActions {
       if (activeMon.status?.[STATUS.PARALYZE] > 0 && Math.random() < 0.25) {
         this.logger.addItem(`${activeMon.getName()} is paralyzed! It can't move!`);
         this.currentAction = null;
-        this.time.addEvent({
-          delay: 1000,
-          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-          callbackScope: this,
-        });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
         return;
       }
 
@@ -316,17 +299,13 @@ export default class ApplyActions {
             } else {
               this.logger.addItem(`${activeMon.getName()} is fast asleep!`);
               this.currentAction = null;
-              this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+              this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
               return;
             }
           } else {
             this.logger.addItem(`${activeMon.getName()} is fast asleep!`);
             this.currentAction = null;
-            this.time.addEvent({
-              delay: 1000,
-              callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-              callbackScope: this,
-            });
+            this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
             return;
           }
         }
@@ -341,11 +320,7 @@ export default class ApplyActions {
         } else {
           this.logger.addItem(`${activeMon.getName()} is frozen solid!`);
           this.currentAction = null;
-          this.time.addEvent({
-            delay: 1000,
-            callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-            callbackScope: this,
-          });
+          this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
           return;
         }
       }
@@ -359,11 +334,7 @@ export default class ApplyActions {
         if (Math.random() < 0.50) {
           this.logger.addItem(`${activeMon.getName()} is immobilized by love!`);
           this.currentAction = null;
-          this.time.addEvent({
-            delay: 1000,
-            callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-            callbackScope: this,
-          });
+          this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
           return;
         }
       }
@@ -386,11 +357,7 @@ export default class ApplyActions {
             this.logger.addItem(`It hurt itself in its confusion! (${selfDmg} damage)`);
             this.currentAction = null;
             this.remapActivePokemon();
-            this.time.addEvent({
-              delay: 1000,
-              callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-              callbackScope: this,
-            });
+            this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
             return;
           }
         }
@@ -402,7 +369,7 @@ export default class ApplyActions {
         if (move && move.category === Moves.MOVE_CATEGORIES.STATUS) {
           this.logger.addItem(`${activeMon.getName()} can't use ${move.name} due to the taunt!`);
           this.currentAction = null;
-          this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+          this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
           return;
         }
       }
@@ -413,7 +380,7 @@ export default class ApplyActions {
         if (move && activeMon.lastUsedMove?.name === move.name) {
           this.logger.addItem(`${activeMon.getName()} can't use ${move.name} due to torment!`);
           this.currentAction = null;
-          this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+          this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
           return;
         }
       }
@@ -425,7 +392,7 @@ export default class ApplyActions {
         if (oppMoves.some(m => m.name?.toLowerCase() === moveName)) {
           this.logger.addItem(`${activeMon.getName()} can't use ${config.move.name}! It's imprisoned!`);
           this.currentAction = null;
-          this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+          this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
           return;
         }
       }
@@ -434,7 +401,7 @@ export default class ApplyActions {
       if (target.volatileStatus?.protected) {
         this.logger.addItem(`${target.getName()} was protected!`);
         this.currentAction = null;
-        this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
         return;
       }
 
@@ -442,7 +409,7 @@ export default class ApplyActions {
       if (config?.move?.name?.toLowerCase() === 'focus punch' && activeMon._lastReceivedDamage) {
         this.logger.addItem(`${activeMon.getName()} lost its focus and couldn't move!`);
         this.currentAction = null;
-        this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
         return;
       }
 
@@ -455,11 +422,7 @@ export default class ApplyActions {
         activeMon.flinched = false;
         this.logger.addItem(`${activeMon.getName()} flinched and couldn't move!`);
         this.currentAction = null;
-        this.time.addEvent({
-          delay: 1000,
-          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-          callbackScope: this,
-        });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
         return;
       }
 
@@ -469,7 +432,7 @@ export default class ApplyActions {
           activeMon.volatileStatus.truantLoaf = false;
           this.logger.addItem(`${activeMon.getName()} is loafing around!`);
           this.currentAction = null;
-          this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+          this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
           return;
         }
         activeMon.volatileStatus.truantLoaf = true;
@@ -483,11 +446,7 @@ export default class ApplyActions {
           : ' attacked, but';
         this.logger.addItem(`${activeMon.getName()}${moveLabel} it failed!`);
         this.currentAction = null;
-        this.time.addEvent({
-          delay: 1000,
-          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-          callbackScope: this,
-        });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
         return;
       }
 
@@ -500,7 +459,7 @@ export default class ApplyActions {
         if (bide.turnsLeft > 0) {
           this.logger.addItem(`${activeMon.getName()} is storing energy!`);
           this.currentAction = null;
-          this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+          this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
           return;
         }
         // Release — deal 2× accumulated damage.
@@ -514,7 +473,7 @@ export default class ApplyActions {
         }
         this.currentAction = null;
         this.remapActivePokemon();
-        this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
         return;
       }
 
@@ -569,7 +528,7 @@ export default class ApplyActions {
             } else {
               this.logger.addItem('But it failed!');
               this.currentAction = null;
-              this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+              this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
               return;
             }
           }
@@ -597,11 +556,7 @@ export default class ApplyActions {
               if (snatched?.message) this.logger.addItem(snatched.message);
               this.currentAction = null;
               this.remapActivePokemon();
-              this.time.addEvent({
-                delay: 1000,
-                callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-                callbackScope: this,
-              });
+              this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
               return;
             }
           }
@@ -625,11 +580,7 @@ export default class ApplyActions {
             activeMon.invulnerable = multiTurnDef.invulnerable;
             this.currentAction = null;
             this.remapActivePokemon();
-            this.time.addEvent({
-              delay: 1000,
-              callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-              callbackScope: this,
-            });
+            this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
             return;
           }
 
@@ -647,7 +598,7 @@ export default class ApplyActions {
               activeMon.lastUsedMove = move;
               this.currentAction = null;
               this.remapActivePokemon();
-              this.time.addEvent({ delay: 1000, callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION), callbackScope: this });
+              this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
               return;
             }
           }
@@ -712,11 +663,7 @@ export default class ApplyActions {
           this.remapActivePokemon();
         }
         this.currentAction = null;
-        this.time.addEvent({
-          delay: 1000,
-          callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-          callbackScope: this,
-        });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
         return;
       }
 
@@ -839,11 +786,7 @@ export default class ApplyActions {
       if (info.effect?.batonPass) {
         this.batonPassData = { outgoing: activeMon };
         this.currentAction = null;
-        this.time.addEvent({
-          delay: 1000,
-          callback: () => this.stateMachine.setState(this.stateDef.PLAYER_NEW_ACTIVE_POKEMON),
-          callbackScope: this,
-        });
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.PLAYER_NEW_ACTIVE_POKEMON));
         return;
       }
 
@@ -991,11 +934,7 @@ export default class ApplyActions {
       this.currentAction = null;
 
       this.remapActivePokemon();
-      this.time.addEvent({
-        delay: 1000,
-        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-        callbackScope: this
-      });
+      this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
       return;
     }
 

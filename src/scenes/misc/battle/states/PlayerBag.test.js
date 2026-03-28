@@ -4,8 +4,16 @@ import * as ActionTypes from '../../../../objects/enums/ActionTypes.js';
 import { makeContext } from './stateTestHelpers.js';
 import PlayerBag from './PlayerBag.js';
 
-function makeItemCtx() {
-  const itemData = { getName: jest.fn(() => 'Potion'), onUse: jest.fn(() => ({ message: 'Healed!' })) };
+function makeItem(category = 'medicine') {
+  return {
+    getName:     jest.fn(() => 'Potion'),
+    getCategory: jest.fn(() => category),
+    onUse:       jest.fn(() => ({ message: 'Healed!' })),
+  };
+}
+
+function makeItemCtx(category = 'medicine') {
+  const itemData     = makeItem(category);
   const inventoryItem = { item: itemData, quantity: 3 };
   const ctx = makeContext();
   ctx.data.player.inventory.items = [inventoryItem];
@@ -16,7 +24,7 @@ describe('PlayerBag', () => {
   test('populates BagMenu with items plus Cancel', () => {
     const { ctx } = makeItemCtx();
     new PlayerBag().onEnter.call(ctx);
-    // 1 item + 1 Cancel = 2 addMenuItem calls
+    // 1 medicine item + 1 Cancel = 2 addMenuItem calls
     expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2);
   });
 
@@ -29,7 +37,7 @@ describe('PlayerBag', () => {
   test('Cancel in BagMenu → PLAYER_ACTION', () => {
     const { ctx } = makeItemCtx();
     new PlayerBag().onEnter.call(ctx);
-    ctx.events.emit('bagmenu-select-option-1'); // index 1 = Cancel
+    ctx.events.emit('bagmenu-select-option-1'); // 1 item → Cancel at index 1
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('playerAction');
   });
 
@@ -57,13 +65,81 @@ describe('PlayerBag', () => {
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('enemyAction');
   });
 
-  test('onExit removes all bagmenu and pokemonteammenu listeners', () => {
+  test('onExit removes all bagmenu, pokemonteammenu, and tab-change listeners', () => {
     const { ctx } = makeItemCtx();
     const state = new PlayerBag();
     state.onEnter.call(ctx);
     state.onExit.call(ctx);
     ctx.stateMachine.setState.mockClear();
     ctx.events.emit('bagmenu-select-option-1');
+    ctx.events.emit('bagmenu-tab-change', 1);
     expect(ctx.stateMachine.setState).not.toHaveBeenCalled();
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2); // no re-populate on tab change
+  });
+
+  test('items with wrong category are hidden in their tab', () => {
+    const ctx = makeContext();
+    ctx.data.player.inventory.items = [
+      { item: makeItem('medicine'), quantity: 2 },
+      { item: makeItem('balls'),    quantity: 5 },
+    ];
+    // Default tab is 0 = medicine
+    new PlayerBag().onEnter.call(ctx);
+    // Only the medicine item + Cancel should appear (not the balls item)
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2);
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenNthCalledWith(1, expect.stringContaining('x2'));
+  });
+
+  test('switching tabs via bagmenu-tab-change re-populates list', () => {
+    const ctx = makeContext();
+    ctx.data.player.inventory.items = [
+      { item: makeItem('medicine'), quantity: 2 },
+      { item: makeItem('balls'),    quantity: 5 },
+    ];
+    new PlayerBag().onEnter.call(ctx);
+    ctx.BagMenu.addMenuItem.mockClear();
+
+    // Simulate right-arrow tab change to Balls (index 1)
+    ctx.events.emit('bagmenu-tab-change', 1);
+
+    // Now balls item + Cancel should appear
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2);
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenNthCalledWith(1, expect.stringContaining('x5'));
+  });
+
+  test('empty tab shows only Cancel', () => {
+    const { ctx } = makeItemCtx('medicine');
+    new PlayerBag().onEnter.call(ctx);
+    ctx.BagMenu.addMenuItem.mockClear();
+
+    // Switch to Balls tab (index 1) — no balls in inventory
+    ctx.events.emit('bagmenu-tab-change', 1);
+
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(1);
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledWith('Cancel');
+  });
+
+  test('items with quantity 0 are excluded from the list', () => {
+    const ctx = makeContext();
+    ctx.data.player.inventory.items = [
+      { item: makeItem('medicine'), quantity: 0 },
+      { item: makeItem('medicine'), quantity: 1 },
+    ];
+    new PlayerBag().onEnter.call(ctx);
+    // Only the quantity=1 item + Cancel (not the exhausted one)
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2);
+  });
+
+  test('_bagTabIndex persists across re-entries', () => {
+    const { ctx } = makeItemCtx();
+    const state = new PlayerBag();
+    state.onEnter.call(ctx);
+    ctx.events.emit('bagmenu-tab-change', 3); // switch to Berry tab
+    state.onExit.call(ctx);
+
+    ctx.BagMenu.setActiveTab.mockClear();
+    state.onEnter.call(ctx);
+    // Should restore Berry tab (index 3)
+    expect(ctx.BagMenu.setActiveTab).toHaveBeenCalledWith(3);
   });
 });

@@ -82,7 +82,7 @@ function makeContext() {
   };
 
   return {
-    logger:       { addItem: jest.fn() },
+    logger:       { addItem: jest.fn(), flush: jest.fn(cb => cb?.()) },
     stateMachine: { setState: jest.fn() },
     stateDef: {
       BATTLE_IDLE:    'battleIdle',

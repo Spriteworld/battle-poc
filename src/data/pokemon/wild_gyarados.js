@@ -10,7 +10,7 @@ export default new BasePokemon({
   gender: 'male',
   level: 100,
   nature: NATURES.JOLLY,
-  ability: 'moxie',
+  ability: 'Moxie',
   item: null,
   ivs: {
     [STATS.HP]: 31,

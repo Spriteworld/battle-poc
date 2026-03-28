@@ -10,9 +10,7 @@ export default {
   level: 5,
   gender: GENDERS.MALE,
   nature: NATURES.HARDY,
-  ability: {
-    name: 'none',
-  },
+  ability: 'Overgrow',
   currentHp: 15,
   moves: [{
     name: 'Tackle',

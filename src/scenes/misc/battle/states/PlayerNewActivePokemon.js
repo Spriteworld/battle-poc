@@ -6,15 +6,13 @@ export default class PlayerNewActivePokemon {
     this.logger.addItem('Choose a Pokémon.');
     this.BattleMenu.select(2);
 
-    const playerTeam = this.config.player.team;
-    const batonPasser = this.batonPassData?.outgoing ?? null;
+    const playerTeam   = this.config.player.team;
+    const batonPasser  = this.batonPassData?.outgoing ?? null;
     const alivePokemon = Object.values(playerTeam.pokemon).filter(
       pokemon => pokemon.isAlive() && pokemon !== batonPasser
     );
 
-    this.PokemonTeamMenu.clear();
     alivePokemon.forEach((pokemon, idx) => {
-      this.PokemonTeamMenu.addMenuItem(pokemon.nameWithHP());
       this.events.once('pokemonteammenu-select-option-' + idx, () => {
         this.PokemonTeamMenu.deselect();
         this.PokemonTeamMenu.clear();
@@ -24,14 +22,12 @@ export default class PlayerNewActivePokemon {
         if (this.batonPassData) {
           const outgoing = this.batonPassData.outgoing;
 
-          // Transfer stat stages.
           for (const [stat, stage] of Object.entries(outgoing.stages ?? {})) {
             if (stage !== 0 && typeof pokemon.applyStageChange === 'function') {
               pokemon.applyStageChange(stat, stage);
             }
           }
 
-          // Transfer passable volatile statuses.
           if (outgoing.volatileStatus && pokemon.volatileStatus) {
             const PASS = ['leechSeed', 'confusedTurns', 'ingrained', 'substitute',
                           'focusEnergy', 'stockpileCount', 'charged', 'aquaRing'];
@@ -44,7 +40,6 @@ export default class PlayerNewActivePokemon {
             }
           }
 
-          // Clear outgoing volatile statuses that do NOT pass.
           if (outgoing.volatileStatus) {
             outgoing.volatileStatus.infatuated       = false;
             outgoing.volatileStatus.encored          = null;
@@ -67,26 +62,24 @@ export default class PlayerNewActivePokemon {
             outgoing.volatileStatus.uproaring        = null;
             outgoing.volatileStatus.biding           = null;
           }
-          this.batonPassData = null;
-        }
-
-        // Natural Cure: cure outgoing Pokémon's status on switch-out (baton pass path).
-        if (this.batonPassData?.outgoing && this.batonPassData.outgoing.hasAbility?.(Abilities.NATURAL_CURE)) {
-          const outgoingMon = this.batonPassData.outgoing;
-          if (Object.values(outgoingMon.status ?? {}).some(v => v > 0)) {
-            for (const key of Object.keys(outgoingMon.status)) outgoingMon.status[key] = 0;
-            if (outgoingMon.modifiers) outgoingMon.modifiers.burn = false;
-            outgoingMon.toxicCount = 0;
+          // Natural Cure: cure outgoing Pokémon's status on switch-out (baton pass path).
+          if (outgoing.hasAbility?.(Abilities.NATURAL_CURE)) {
+            if (Object.values(outgoing.status ?? {}).some(v => v > 0)) {
+              for (const key of Object.keys(outgoing.status)) outgoing.status[key] = 0;
+              if (outgoing.modifiers) outgoing.modifiers.burn = false;
+              outgoing.toxicCount = 0;
+            }
           }
+
+          this.batonPassData = null;
         }
 
         this.config.player.team.setActivePokemon(pokemon);
         pokemon.isFirstTurn = true;
 
-        // Apply entry hazards to the incoming Pokémon.
         const hazards = this.screens?.player;
         if (hazards && pokemon.isAlive?.()) {
-          const monTypes = pokemon.types ?? [];
+          const monTypes     = pokemon.types ?? [];
           const isFlyingType = monTypes.includes(TYPES.FLYING);
           const isPoisonType = monTypes.includes(TYPES.POISON);
           if (hazards.stealthRock && this.generation?.typeChart) {
@@ -118,18 +111,16 @@ export default class PlayerNewActivePokemon {
         this.remapActivePokemon();
         delete this.actions.player;
 
-        this.logger.addItem(
-          this.config.player.getName() + ' sent out ' + pokemon.getName() + '!'
-        );
+        this.logger.addItem(this.config.player.getName() + ' sent out ' + pokemon.getName() + '!');
 
-        // Trigger switch-in ability effects.
         const opponent = this.config.enemy.team.getActivePokemon();
         applySwitchInAbilities(pokemon, opponent, this.weather, this.logger, this.generation);
 
-        this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
       });
     });
 
+    this.PokemonTeamMenu.populate(alivePokemon, { showCancel: false });
     this.activateMenu(this.PokemonTeamMenu);
   }
 
@@ -139,9 +130,7 @@ export default class PlayerNewActivePokemon {
     this.PokemonTeamMenu.setVisible(false);
 
     this.events.eventNames().forEach(name => {
-      if (name.startsWith('pokemonteammenu-')) {
-        this.events.off(name);
-      }
+      if (name.startsWith('pokemonteammenu-')) this.events.off(name);
     });
   }
 }

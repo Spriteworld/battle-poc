@@ -10,7 +10,7 @@ export default new BasePokemon({
   gender: 'male',
   level: 100,
   nature: NATURES.NAUGHTY,
-  ability: 'static',
+  ability: 'Static',
   item: null,
   ivs: {
     [STATS.HP]: 31,

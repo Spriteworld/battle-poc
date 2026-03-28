@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { Menu } from '@Objects';
 
-const PANEL_W = 310;
-const PANEL_H = 230;
-const PAD_X = 16;
+const PANEL_W = 800;
+const PANEL_H = 600;
+const PAD_X = 24;
 const PAD_Y = 20;
 
-const CELL_H  = 34;
-const MAX_VIS = Math.floor((PANEL_H - PAD_Y - 10) / CELL_H); // 5
+const CELL_H  = 36;
+const MAX_VIS = Math.floor((PANEL_H - PAD_Y - 10) / CELL_H);
 
 /** Single-column Pokémon party list. @extends Menu */
 export default class PokemonTeamMenu extends Menu {

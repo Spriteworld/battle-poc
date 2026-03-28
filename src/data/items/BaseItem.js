@@ -2,16 +2,17 @@ export default class BaseItem {
   constructor({
     name,
     description,
-    onUse
+    category = 'other',
+    onUse,
   }) {
-    this.name = name;
+    this.name        = name;
     this.description = description;
-    this.onUse = onUse; // Function to call when the item is used
+    this.category    = category;
+    this.onUse       = onUse;
   }
 
-  getName() {
-    return this.name;
-  }
+  getName()     { return this.name; }
+  getCategory() { return this.category; }
 
   use(target) {
     if (typeof this.onUse === 'function') {

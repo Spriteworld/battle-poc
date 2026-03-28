@@ -5,6 +5,7 @@ export default class Revive extends BaseItem {
   constructor() {
     super({
       name: 'Revive',
+      category: 'medicine',
       description: 'Revives a fainted Pokémon to half its max HP.',
       onUse: (target, action) => {
         if (target.currentHp > 0) {

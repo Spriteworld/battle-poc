@@ -73,7 +73,7 @@ export default class extends Phaser.GameObjects.Container {
    */
   _createScrollArrows(panelW, panelH) {
     if (!this.config.maxVisible) return;
-    const style = { fontFamily: 'monospace', fontSize: '14px', color: '#a8c8f8' };
+    const style = { fontFamily: 'Gen3', fontSize: '14px', color: '#a8c8f8' };
     this._arrowUp = this.scene.add.text(panelW - 10, 6, '▲', style);
     this._arrowUp.setOrigin(1, 0);
     this._arrowUp.setVisible(false);

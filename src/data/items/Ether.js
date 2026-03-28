@@ -5,6 +5,7 @@ export default class Ether extends BaseItem {
   constructor() {
     super({
       name: 'Ether',
+      category: 'medicine',
       description: 'Restores the PP of one move by 10.',
       onUse: (target, action) => {
         const moves = target.getMoves ? target.getMoves() : [];

@@ -68,7 +68,7 @@ export default class DialogBox extends Phaser.GameObjects.Container {
     this._lines = [];
     for (let i = 0; i < this._maxVisible; i++) {
       const t = this.scene.add.text(18, TOP_PAD + i * LINE_H, '', {
-        fontFamily: 'monospace',
+        fontFamily: 'Gen3',
         fontSize: '14px',
         color: '#181818',
         wordWrap: { width: w - 36 },
@@ -78,13 +78,13 @@ export default class DialogBox extends Phaser.GameObjects.Container {
     }
 
     this._arrowUp = this.scene.add.text(w - 12, 6, '▲', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#606060',
+      fontFamily: 'Gen3', fontSize: '13px', color: '#606060',
     });
     this._arrowUp.setOrigin(1, 0).setVisible(false);
     this.add(this._arrowUp);
 
     this._arrowDown = this.scene.add.text(w - 12, h - 18, '▼', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#606060',
+      fontFamily: 'Gen3', fontSize: '13px', color: '#606060',
     });
     this._arrowDown.setOrigin(1, 0).setVisible(false);
     this.add(this._arrowDown);

@@ -4,6 +4,7 @@ export default class SuperPotion extends BaseItem {
   constructor() {
     super({
       name: 'Super Potion',
+      category: 'medicine',
       description: 'Restores 50 HP to a Pokémon.',
       onUse: (target, action) => {
         if (target.currentHp <= 0) {

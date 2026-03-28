@@ -9,9 +9,7 @@ export default {
   species: 4,
   level: 5,
   nature: NATURES.HARDY,
-  ability: {
-    name: 'none',
-  },
+  ability: 'Blaze',
   moves: [{
     name: 'Scratch',
     pp: {

@@ -3,7 +3,7 @@ import StateMachine from '@Objects/StateMachine';
 import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import applyExperienceGains from './applyExperienceGains.js';
-import DialogBox from '@Objects/ui/DialogBox.js';
+import BattleLogger from '@Objects/ui/BattleLogger.js';
 import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
 import WeatherDisplay from '@Objects/ui/WeatherDisplay.js';
 import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
@@ -12,7 +12,7 @@ import {
   BattleMenu,
   AttackMenu,
   BagMenu,
-  PokemonTeamMenu,
+  BattleTeamScreen,
   PokemonSwitchMenu,
 } from '@Objects';
 
@@ -104,7 +104,7 @@ export default class BattleScene2 extends Phaser.Scene {
     this.FieldScreens = new FieldScreensDisplay(this);
 
     // Dialog box (bottom-left)
-    this.logger = new DialogBox(this, 0, UI_Y, DIALOG_W, UI_H, 9);
+    this.logger = new BattleLogger(this, 0, UI_Y, DIALOG_W, UI_H);
 
     // Status boxes (enemy top-left, player bottom-right)
     this.ActivePokemonMenu = new ActivePokemonMenu(
@@ -116,9 +116,11 @@ export default class BattleScene2 extends Phaser.Scene {
     // All menus pre-created at the action panel position, hidden until needed
     this.BattleMenu        = new BattleMenu(this,        ACTION_X, UI_Y);
     this.AttackMenu        = new AttackMenu(this,        ACTION_X, UI_Y);
-    this.BagMenu           = new BagMenu(this,           ACTION_X, UI_Y);
-    this.PokemonTeamMenu   = new PokemonTeamMenu(this,   ACTION_X, UI_Y);
+    this.BagMenu           = new BagMenu(this,           0, 0);
+    this.PokemonTeamMenu   = new BattleTeamScreen(this);
     this.PokemonSwitchMenu = new PokemonSwitchMenu(this, ACTION_X, UI_Y);
+    this.BagMenu.setDepth(10);
+    this.PokemonTeamMenu.setDepth(10);
     [
       this.BattleMenu,
       this.AttackMenu,
@@ -214,10 +216,15 @@ export default class BattleScene2 extends Phaser.Scene {
       case 'PageDown':   this.logger.scrollDown(); break;
       case 'Enter':
       case 'KeyZ':
-        this.currentMenu.confirm();
+        if (this.logger.isFlushing()) {
+          this.logger.advance();
+        } else {
+          this.currentMenu?.confirm();
+        }
         break;
       case 'Escape':
       case 'KeyX': {
+        if (typeof this.currentMenu.back === 'function' && this.currentMenu.back()) break;
         const items = this.currentMenu.config.menuItems;
         const last  = items[items.length - 1];
         if (last?.text().toLowerCase() === 'cancel') {

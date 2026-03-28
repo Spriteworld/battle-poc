@@ -5,6 +5,7 @@ export default class FullRestore extends BaseItem {
   constructor() {
     super({
       name: 'Full Restore',
+      category: 'medicine',
       description: 'Fully restores the HP of a Pokémon and heals any status conditions.',
       onUse: (target, action) => {
         if (target.currentHp <= 0) {

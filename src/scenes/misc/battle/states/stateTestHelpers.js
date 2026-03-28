@@ -1,19 +1,30 @@
 import { STATS, STATUS, GEN_3 } from '@spriteworld/pokemon-data';
 
 export function makeEvents() {
-  const handlers = {};
+  const once       = {};  // fired once then removed
+  const persistent = {};  // fired every time until off()
   return {
+    on(name, fn) {
+      if (!persistent[name]) persistent[name] = [];
+      persistent[name].push(fn);
+    },
     once(name, fn) {
-      if (!handlers[name]) handlers[name] = [];
-      handlers[name].push(fn);
+      if (!once[name]) once[name] = [];
+      once[name].push(fn);
     },
     emit(name, ...args) {
-      const fns = handlers[name] || [];
-      delete handlers[name];
+      (persistent[name] ?? []).forEach(fn => fn(...args));
+      const fns = once[name] ?? [];
+      delete once[name];
       fns.forEach(fn => fn(...args));
     },
-    off(name) { delete handlers[name]; },
-    eventNames() { return Object.keys(handlers); },
+    off(name) {
+      delete once[name];
+      delete persistent[name];
+    },
+    eventNames() {
+      return [...new Set([...Object.keys(once), ...Object.keys(persistent)])];
+    },
   };
 }
 
@@ -22,12 +33,14 @@ export function makeMenu(name) {
   return {
     name,
     config: { menuItems: items, selected: false, menuItemIndex: 0 },
-    clear:       jest.fn(() => { items.length = 0; }),
-    remap:       jest.fn(),
-    deselect:    jest.fn(),
-    select:      jest.fn(),
-    setVisible:  jest.fn(),
-    addMenuItem: jest.fn(label => items.push({ text: () => label })),
+    clear:        jest.fn(() => { items.length = 0; }),
+    remap:        jest.fn(),
+    populate:     jest.fn((list, _opts) => list.forEach((_, i) => items.push({ text: () => String(i) }))),
+    deselect:     jest.fn(),
+    select:       jest.fn(),
+    setVisible:   jest.fn(),
+    setActiveTab: jest.fn(),
+    addMenuItem:  jest.fn(label => items.push({ text: () => label })),
   };
 }
 
@@ -119,7 +132,7 @@ export function makeContext(overrides = {}) {
 
   const ctx = {
     game:         { events: makeEvents() },
-    logger:       { addItem: jest.fn() },
+    logger:       { addItem: jest.fn(), flush: jest.fn(cb => cb?.()) },
     stateMachine: { setState: jest.fn() },
     stateDef: {
       BATTLE_IDLE:               'battleIdle',

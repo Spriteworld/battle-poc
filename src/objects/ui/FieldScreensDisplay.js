@@ -63,7 +63,7 @@ export default class FieldScreensDisplay extends Phaser.GameObjects.Container {
         this.add(g);
 
         const t = scene.add.text(0, 0, cfg.label, {
-          fontFamily: 'monospace',
+          fontFamily: 'Gen3',
           fontSize: '10px',
           fontStyle: 'bold',
           color: '#ffffff',

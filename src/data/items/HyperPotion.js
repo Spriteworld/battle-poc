@@ -4,6 +4,7 @@ export default class HyperPotion extends BaseItem {
   constructor() {
     super({
       name: 'Hyper Potion',
+      category: 'medicine',
       description: 'Restores 200 HP to a Pokémon.',
       onUse: (target, action) => {
         if (target.currentHp <= 0) {

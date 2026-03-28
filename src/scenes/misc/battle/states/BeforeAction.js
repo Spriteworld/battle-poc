@@ -18,7 +18,7 @@ export default class BeforeAction {
     let check = this.checkForDeadActivePokemon();
     if (check !== null) {
       console.warn('[Before] Check for dead active pokemon returned', check);
-      this.stateMachine.setState(check);
+      this.logger.flush(() => this.stateMachine.setState(check));
       return;
     }
 
@@ -45,10 +45,10 @@ export default class BeforeAction {
       this.applyEndOfTurnStatus();
       let eotCheck = this.checkForDeadActivePokemon();
       if (eotCheck !== null) {
-        this.stateMachine.setState(eotCheck);
+        this.logger.flush(() => this.stateMachine.setState(eotCheck));
         return;
       }
-      this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+      this.logger.flush(() => this.stateMachine.setState(this.stateDef.PLAYER_ACTION));
       return;
     }
 

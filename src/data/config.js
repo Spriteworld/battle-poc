@@ -2,8 +2,8 @@ import Phaser from 'phaser'
 import Scenes from '@Scenes';
 
 const config = {
-  parent: 'app',
-  type: Phaser.WEBGL,
+  parent: 'game-container',
+  type: Phaser.AUTO,
   width: 800,
   height: 600,
   pixelArt: true,
@@ -11,10 +11,6 @@ const config = {
   fps: {
     target: 30,
     forceSetTimeOut: true
-  },
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
   },
   physics: {
     default: 'arcade',
@@ -24,6 +20,14 @@ const config = {
 
   },
   scene: [Scenes.Preload],
+  callbacks: {
+    postBoot: (game) => {
+      game.canvas.style.width = '100%';
+      game.canvas.style.height = '100%';
+      game.canvas.style['object-fit'] = 'contain';
+      window.dispatchEvent(new Event('resize'));
+    }
+  }
 };
 
 export default config;

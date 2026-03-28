@@ -9,9 +9,7 @@ export default new BasePokemon({
   species: 19,
   level: 5,
   nature: NATURES.HARDY,
-  ability: {
-    name: 'none',
-  },
+  ability: 'Run Away',
   moves: [{
     name: 'Tackle',
     pp: {

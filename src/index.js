@@ -31,6 +31,9 @@ export {
   DialogBox,
 } from '@Objects';
 
+// Battle item classes — use to build inventory configs
+export { Items } from '@spriteworld/pokemon-data';
+
 // Phaser scenes — add these to your game's scene list
 export { default as Preload } from '@Scenes/misc/Preload.js';
 export { default as BattleScene } from '@Scenes/misc/battle/Scene2.js';

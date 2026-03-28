@@ -4,6 +4,7 @@ export default class MaxPotion extends BaseItem {
   constructor() {
     super({
       name: 'Max Potion',
+      category: 'medicine',
       description: 'Fully restores the HP of a Pokémon.',
       onUse: (target, action) => {
         if (target.currentHp <= 0) {

@@ -20,7 +20,7 @@ export default class extends Phaser.GameObjects.Text {
       color: '#f0ece4',
       align: 'left',
       fontSize: '16px',
-      fontFamily: 'monospace',
+      fontFamily: 'Gen3',
       stroke: '#181818',
       strokeThickness: 1,
     });

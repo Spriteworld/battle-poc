@@ -10,6 +10,7 @@ import MenuItem from './menus/MenuItem.js';
 import PauseMenu from './menus/PauseMenu.js';
 import BattleMenu from './menus/BattleMenu.js';
 import PokemonTeamMenu from './menus/PokemonTeamMenu.js';
+import BattleTeamScreen from './menus/BattleTeamScreen.js';
 import PokemonSwitchMenu from './menus/PokemonSwitchMenu.js';
 import ActivePokemonMenu from './menus/ActivePokemonMenu.js';
 import AttackMenu from './menus/AttackMenu.js';
@@ -35,6 +36,7 @@ export {
   PauseMenu,
   BattleMenu,
   PokemonTeamMenu,
+  BattleTeamScreen,
   PokemonSwitchMenu,
   ActivePokemonMenu,
   AttackMenu,

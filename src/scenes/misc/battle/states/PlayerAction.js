@@ -19,7 +19,7 @@ export default class PlayerAction {
     this.logger.addItem(`What will ${activeMon.getName()} do?`);
 
     // Populate the pre-created BattleMenu and show it
-    this.BattleMenu.remap(['Attack', 'Bag', 'Pokemon', 'Run']);
+    this.BattleMenu.remap(['Attack', 'Items', 'Pokemon', 'Run']);
     this.activateMenu(this.BattleMenu);
     this.ActivePokemonMenu.select(0);
 

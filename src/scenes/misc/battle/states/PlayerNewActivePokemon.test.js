@@ -9,8 +9,12 @@ describe('PlayerNewActivePokemon', () => {
     const fainted = makeMon({ isAlive: jest.fn(() => false), nameWithHP: jest.fn(() => 'Fainted (0/100)') });
     ctx.config.player.team.pokemon = [fainted, ctx.config.player.team.getActivePokemon()];
     new PlayerNewActivePokemon().onEnter.call(ctx);
-    // Only 1 alive → 1 addMenuItem call
-    expect(ctx.PokemonTeamMenu.addMenuItem).toHaveBeenCalledTimes(1);
+    // Only 1 alive → populate called with array of length 1
+    expect(ctx.PokemonTeamMenu.populate).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.anything()]),
+      expect.anything()
+    );
+    expect(ctx.PokemonTeamMenu.populate.mock.calls[0][0]).toHaveLength(1);
   });
 
   test('selecting a pokemon calls setActivePokemon', () => {

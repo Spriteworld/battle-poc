@@ -14,11 +14,7 @@ export default class EnemyAction {
         target: this.config.player.team.getActivePokemon(),
         config: { move: activeMon.lockedMove.move },
       });
-      this.time.addEvent({
-        delay: 1000,
-        callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-        callbackScope: this,
-      });
+      this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
       return;
     }
 
@@ -39,11 +35,7 @@ export default class EnemyAction {
       'is preparing to attack!',
     ].join(' '));
 
-    this.time.addEvent({
-      delay: 1000,
-      callback: () => this.stateMachine.setState(this.stateDef.BEFORE_ACTION),
-      callbackScope: this,
-    });
+    this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
   }
 
 }

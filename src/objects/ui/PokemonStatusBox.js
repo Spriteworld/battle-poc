@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import HpBar from './HpBar.js';
 import { GENDERS, EXPERIENCE_TABLES, GROWTH } from '@spriteworld/pokemon-data';
 
-const FONT = { fontFamily: 'monospace', color: '#181818' };
+const FONT = { fontFamily: 'Gen3', color: '#181818' };
 
 const GENDER_SYMBOL = {
   [GENDERS.MALE]:   { label: '♂', color: '#6890f0' },
@@ -131,7 +131,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
 
     // Gender symbol (shown between name and level)
     this._genderText = this.scene.add.text(0, 8, '', {
-      fontFamily: 'monospace',
+      fontFamily: 'Gen3',
       fontSize: '13px',
       fontStyle: 'bold',
     });
@@ -152,12 +152,12 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       this.add(this._hpBar);
 
       const hpInLabel = this.scene.add.text(16, 33, 'HP', {
-        fontFamily: 'monospace', fontSize: '10px', fontStyle: 'bold', color: '#ffffff',
+        fontFamily: 'Gen3', fontSize: '10px', fontStyle: 'bold', color: '#ffffff',
       });
       this.add(hpInLabel);
 
       this._hpNumText = this.scene.add.text(w - 14, 33, '', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
+        fontFamily: 'Gen3', fontSize: '10px', color: '#ffffff',
       });
       this._hpNumText.setOrigin(1, 0);
       this.add(this._hpNumText);
@@ -187,7 +187,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       this.add(bg);
 
       const text = this.scene.add.text(0, 0, '', {
-        fontFamily: 'monospace',
+        fontFamily: 'Gen3',
         fontSize: '10px',
         fontStyle: 'bold',
         color: '#ffffff',
@@ -206,7 +206,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       this.add(bg);
 
       const text = this.scene.add.text(0, 0, '', {
-        fontFamily: 'monospace',
+        fontFamily: 'Gen3',
         fontSize: '9px',
         fontStyle: 'bold',
         color: '#ffffff',

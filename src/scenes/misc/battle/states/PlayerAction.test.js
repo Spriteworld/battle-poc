@@ -14,7 +14,7 @@ describe('PlayerAction', () => {
   test('calls BattleMenu.remap with the four options', () => {
     const ctx = makeContext();
     new PlayerAction().onEnter.call(ctx);
-    expect(ctx.BattleMenu.remap).toHaveBeenCalledWith(['Attack', 'Bag', 'Pokemon', 'Run']);
+    expect(ctx.BattleMenu.remap).toHaveBeenCalledWith(['Attack', 'Items', 'Pokemon', 'Run']);
   });
 
   test('calls activateMenu with BattleMenu', () => {

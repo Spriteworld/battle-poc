@@ -27,20 +27,22 @@ export default class LearnMove {
     this.logger.addItem(`But ${monName} already knows 4 moves.`);
     this.logger.addItem(`Choose a move to replace, or cancel.`);
 
-    // Build the 5-item list: current 4 moves + cancel
-    const items = [
-      ...p.moves.map(m => `${m.name}  (${m.pp.current}/${m.pp.max} PP)`),
-      `Don't learn ${pending.name}`,
-    ];
-    this.AttackMenu.remap(items);
-    this.activateMenu(this.AttackMenu);
+    // Show messages first, then display the move-choice menu.
+    this.logger.flush(() => {
+      // Build the 5-item list: current 4 moves + cancel
+      const items = [
+        ...p.moves.map(m => `${m.name}  (${m.pp.current}/${m.pp.max} PP)`),
+        `Don't learn ${pending.name}`,
+      ];
+      this.AttackMenu.remap(items);
+      this.activateMenu(this.AttackMenu);
 
-    const n = items.length; // 5
-    for (let i = 0; i < n; i++) {
-      this.events.once(`attackmenu-select-option-${i}`, () => {
-        this._handleChoice(p, pending, i);
-      });
-    }
+      for (let i = 0; i < items.length; i++) {
+        this.events.once(`attackmenu-select-option-${i}`, () => {
+          this._handleChoice(p, pending, i);
+        });
+      }
+    });
   }
 
   _handleChoice(p, pending, slotIndex) {
@@ -56,8 +58,8 @@ export default class LearnMove {
     }
 
     p.pendingMovesToLearn.shift();
-    // Re-enter to process the next pending move (or finish)
-    this.stateMachine.setState(this.stateDef.LEARN_MOVE);
+    // Show the result message, then re-enter to process the next pending move (or finish).
+    this.logger.flush(() => this.stateMachine.setState(this.stateDef.LEARN_MOVE));
   }
 
   _finish() {

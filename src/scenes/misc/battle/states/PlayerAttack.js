@@ -40,6 +40,7 @@ export default class PlayerAttack {
       );
       this.events.once('attackmenu-select-option-' + idx, () => {
         this._lastMoveIndex = idx;
+        this._lastMovePokemon = activeMon.id;
         attack(move);
       });
     });
@@ -53,8 +54,9 @@ export default class PlayerAttack {
     });
 
     this.activateMenu(this.AttackMenu);
-    // Re-select the last used move (activateMenu always resets to 0)
-    const lastIdx = Math.min(this._lastMoveIndex ?? 0, moves.length - 1);
+    // Re-select the last used move, but reset to 0 if the active Pokémon changed.
+    const sameMon = this._lastMovePokemon === activeMon.id;
+    const lastIdx = sameMon ? Math.min(this._lastMoveIndex ?? 0, moves.length - 1) : 0;
     this.AttackMenu.select(lastIdx);
   }
 

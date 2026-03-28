@@ -74,8 +74,7 @@ export default class BattleStart {
 
     this.events.emit('battle-start', this.data);
     this.remapActivePokemon();
-    // console.log('[batle-start] Battle started with data:', this.data);
-    this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+    this.logger.flush(() => this.stateMachine.setState(this.stateDef.PLAYER_ACTION));
   }
   
 }
