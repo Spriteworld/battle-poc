@@ -44,6 +44,7 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
     this._mode        = 'list'; // 'list' | 'action' | 'detail'
     this._actionSlot  = 0;
     this._actionCursor = 0;
+    this._actionItems  = ACTION_ITEMS;
     this._detailSlot  = 0;
     this._detailTab   = 0;
 
@@ -84,6 +85,7 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
     this._mode        = 'list';
     this._actionSlot  = 0;
     this._actionCursor = 0;
+    this._actionItems  = ACTION_ITEMS;
     this._detailSlot  = 0;
     this._detailTab   = 0;
   }
@@ -104,11 +106,13 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
 
   // ─── Population ──────────────────────────────────────────────────────────
 
-  populate(pokemonArray, { showCancel = true } = {}) {
-    this._party     = pokemonArray;
-    this._hasCancel = showCancel;
-    this._cursor    = 0;
-    this._mode      = 'list';
+  populate(pokemonArray, { showCancel = true, actionItems = null } = {}) {
+    this._party       = pokemonArray;
+    this._hasCancel   = showCancel;
+    this._actionItems = actionItems ?? ACTION_ITEMS;
+    this._cursor      = 0;
+    this._actionCursor = 0;
+    this._mode        = 'list';
     this._rebuild();
   }
 
@@ -116,7 +120,7 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
 
   moveSelectionUp() {
     if (this._mode === 'action') {
-      this._actionCursor = (this._actionCursor - 1 + ACTION_ITEMS.length) % ACTION_ITEMS.length;
+      this._actionCursor = (this._actionCursor - 1 + this._actionItems.length) % this._actionItems.length;
       this._rebuild();
       return;
     }
@@ -133,7 +137,7 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
 
   moveSelectionDown() {
     if (this._mode === 'action') {
-      this._actionCursor = (this._actionCursor + 1) % ACTION_ITEMS.length;
+      this._actionCursor = (this._actionCursor + 1) % this._actionItems.length;
       this._rebuild();
       return;
     }
@@ -180,20 +184,18 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
     }
 
     if (this._mode === 'action') {
-      switch (this._actionCursor) {
-        case 0: // Switch
-          this.scene.events.emit('pokemonteammenu-select-option-' + this._actionSlot);
-          break;
-        case 1: // Details
-          this._detailSlot = this._actionSlot;
-          this._detailTab  = 0;
-          this._mode       = 'detail';
-          this._rebuild();
-          break;
-        case 2: // Cancel
-          this._mode = 'list';
-          this._rebuild();
-          break;
+      const label = this._actionItems[this._actionCursor];
+      if (label === 'Details') {
+        this._detailSlot = this._actionSlot;
+        this._detailTab  = 0;
+        this._mode       = 'detail';
+        this._rebuild();
+      } else if (label === 'Cancel') {
+        this._mode = 'list';
+        this._rebuild();
+      } else {
+        // 'Switch', 'Use', or any custom confirm label
+        this.scene.events.emit('pokemonteammenu-select-option-' + this._actionSlot);
       }
       return;
     }
@@ -261,22 +263,24 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
     reg(scene.add.text(SX + 16, SY + SH - 22, '◄►  tab  ·  ▲▼  member  ·  Z  switch  ·  X  back', TEXT_STYLE_HINT));
   }
 
-  /** Renders the team list plus the Switch/Details/Cancel panel in the right margin. */
+  /** Renders the team list plus the action panel in the right margin. */
   _buildAction() {
     this._buildListSlots(this._actionSlot);
 
     const { scene, reg } = this;
+    const items  = this._actionItems;
+    const panelH = items.length * ACTION_ITEM_H + ACTION_PAD * 2;
 
     // Panel background
     const g = scene.add.graphics();
     g.fillStyle(0x1a1a3a, 1);
-    g.fillRoundedRect(ACTION_X, ACTION_Y, ACTION_W, ACTION_H, 8);
+    g.fillRoundedRect(ACTION_X, ACTION_Y, ACTION_W, panelH, 8);
     g.lineStyle(2, 0x181818, 1);
-    g.strokeRoundedRect(ACTION_X, ACTION_Y, ACTION_W, ACTION_H, 8);
+    g.strokeRoundedRect(ACTION_X, ACTION_Y, ACTION_W, panelH, 8);
     reg(g);
 
     // Action items
-    ACTION_ITEMS.forEach((label, i) => {
+    items.forEach((label, i) => {
       const iy       = ACTION_Y + ACTION_PAD + i * ACTION_ITEM_H;
       const selected = i === this._actionCursor;
       const color    = selected ? '#f8e030' : '#f0ece4';

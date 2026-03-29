@@ -1,9 +1,9 @@
 import { BattleTrainer, WildTrainer, BattleTeam } from '@Objects';
 import { GENERATIONS, GEN_3 } from '@spriteworld/pokemon-data';
+import { applySwitchInAbilities } from '../applyAbilityEffects.js';
 
 export default class BattleStart {
   onEnter() {
-    this.logger.addItem('[BattleStart] New Battle!', this.data);
     // validate battle data
     if (!this.data || !this.data.player || !this.data.enemy) {
       console.error('[BattleStart] Invalid battle data');
@@ -54,7 +54,9 @@ export default class BattleStart {
       this.generation = GEN_3;
     }
 
-    this.logger.addItem(`Battle rules: ${this.generation.name}`);
+    if (this.generation.gen !== 3) {
+      this.logger.addItem(`Battle rules: ${this.generation.name}`);
+    }
 
     // Initialise field weather from battle data (e.g. { field: { weather: 'rain' } }).
     // Weather was introduced in Gen 2; Hail was introduced in Gen 3.
@@ -62,7 +64,7 @@ export default class BattleStart {
     const gen = this.generation.gen ?? 3;
     const weatherAllowed = startWeather && gen >= 2 && (startWeather !== 'hail' || gen >= 3);
     if (weatherAllowed) {
-      this.weather = { type: startWeather, turnsLeft: 5 };
+      this.weather = { type: startWeather, turnsLeft: Infinity };
       const WEATHER_START = {
         rain:      'A heavy rain began to fall!',
         sun:       'The sunlight turned harsh!',
@@ -73,6 +75,15 @@ export default class BattleStart {
     }
 
     this.events.emit('battle-start', this.data);
+
+    // Fire switch-in abilities for both leads (Intimidate, weather setters, Trace, etc.).
+    // Player's lead triggers first, then enemy's — matching Gen 3 speed-order convention
+    // at battle start where both sides send out simultaneously.
+    const playerLead = this.config.player.team.getActivePokemon();
+    const enemyLead  = this.config.enemy.team.getActivePokemon();
+    applySwitchInAbilities(playerLead, enemyLead, this.weather, this.logger, this.generation);
+    applySwitchInAbilities(enemyLead,  playerLead, this.weather, this.logger, this.generation);
+
     this.remapActivePokemon();
     this.logger.flush(() => this.stateMachine.setState(this.stateDef.PLAYER_ACTION));
   }

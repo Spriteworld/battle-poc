@@ -40,6 +40,19 @@ const SCREENS = [
   { key: 'reflect',     fillColor: 0xa06800, fillAlpha: 0.38, glowColor: 0xffdf50, label: 'REF' },
 ];
 
+/** Entry hazards shown as small badges on each side's platform. */
+const HAZARDS = [
+  { key: 'spikes',      label: 'SPK', color: 0xd0a030, maxLayers: 3 },
+  { key: 'toxicSpikes', label: 'TSP', color: 0x9040c0, maxLayers: 2 },
+  { key: 'stealthRock', label: 'SRK', color: 0x808080, maxLayers: 1 },
+];
+
+// Platform centres used for hazard badge placement.
+const PLATFORM = {
+  player: { x: 190, y: 342 },
+  enemy:  { x: 610, y: 202 },
+};
+
 /**
  * Draws field-side screen barriers (Light Screen / Reflect) as perspective-
  * correct parallelograms on the battlefield.
@@ -77,11 +90,34 @@ export default class FieldScreensDisplay extends Phaser.GameObjects.Container {
         return { g, t, cfg, zone };
       });
     }
+
+    // Hazard badge slots — one per hazard type per side.
+    const BADGE_W = 30, BADGE_H = 12;
+    this._hazardSlots = {};
+    for (const side of ['player', 'enemy']) {
+      this._hazardSlots[side] = HAZARDS.map((hcfg, i) => {
+        const bg = scene.add.graphics();
+        bg.setVisible(false);
+        this.add(bg);
+
+        const text = scene.add.text(0, 0, '', {
+          fontFamily: 'Gen3',
+          fontSize: '9px',
+          fontStyle: 'bold',
+          color: '#ffffff',
+        });
+        text.setOrigin(0.5, 0.5);
+        text.setVisible(false);
+        this.add(text);
+
+        return { bg, text, hcfg, badgeW: BADGE_W, badgeH: BADGE_H, index: i };
+      });
+    }
   }
 
   /**
-   * @param {{ player: { lightScreen: number, reflect: number },
-   *           enemy:  { lightScreen: number, reflect: number } }} screens
+   * @param {{ player: { lightScreen: number, reflect: number, spikes: number, toxicSpikes: number, stealthRock: boolean },
+   *           enemy:  { lightScreen: number, reflect: number, spikes: number, toxicSpikes: number, stealthRock: boolean } }} screens
    */
   update(screens) {
     for (const [side, slots] of Object.entries(this._slots)) {
@@ -158,6 +194,42 @@ export default class FieldScreensDisplay extends Phaser.GameObjects.Container {
         slot.t.setVisible(true);
 
         drawn++;
+      }
+    }
+
+    // ── Entry hazard badges ───────────────────────────────────────────────────
+    const BW = 30, BH = 12, BGAP = 2;
+    for (const side of ['player', 'enemy']) {
+      const s    = screens?.[side] ?? {};
+      const plat = PLATFORM[side];
+      const slots = this._hazardSlots[side];
+      let bx = plat.x - ((HAZARDS.length * (BW + BGAP)) / 2) + BW / 2;
+
+      for (const slot of slots) {
+        const value = s[slot.hcfg.key] ?? 0;
+        const active = slot.hcfg.maxLayers > 1 ? value > 0 : !!value;
+
+        if (!active) {
+          slot.bg.setVisible(false);
+          slot.text.setVisible(false);
+          bx += BW + BGAP;
+          continue;
+        }
+
+        const cx = bx;
+        const cy = plat.y + 6;
+
+        slot.bg.clear();
+        slot.bg.fillStyle(slot.hcfg.color, 0.85);
+        slot.bg.fillRoundedRect(cx - BW / 2, cy - BH / 2, BW, BH, 2);
+        slot.bg.setVisible(true);
+
+        const label = slot.hcfg.maxLayers > 1 ? `${slot.hcfg.label}×${value}` : slot.hcfg.label;
+        slot.text.setText(label);
+        slot.text.setPosition(cx, cy);
+        slot.text.setVisible(true);
+
+        bx += BW + BGAP;
       }
     }
   }

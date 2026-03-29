@@ -53,6 +53,7 @@ export default class BattleScene2 extends Phaser.Scene {
       BATTLE_WON:                'battleWon',
       BATTLE_LOST:               'battleLost',
       LEARN_MOVE:                'learnMove',
+      EVOLVE:                    'evolve',
     };
 
     this.stateMachine = new StateMachine(this)
@@ -70,6 +71,7 @@ export default class BattleScene2 extends Phaser.Scene {
       .addState(this.stateDef.BATTLE_WON,                 new State.BattleWon)
       .addState(this.stateDef.BATTLE_LOST,                new State.BattleLost)
       .addState(this.stateDef.LEARN_MOVE,                 new State.LearnMove)
+      .addState(this.stateDef.EVOLVE,                     new State.Evolution)
     ;
 
     this.currentMenu = null;
@@ -207,10 +209,10 @@ export default class BattleScene2 extends Phaser.Scene {
   onKeyInput(event) {
     // Active menu — route all navigation to it.
     switch (event.code) {
-      case 'ArrowUp':    this.currentMenu.moveSelectionUp(); break;
-      case 'ArrowDown':  this.currentMenu.moveSelectionDown(); break;
-      case 'ArrowLeft':  this.currentMenu.moveSelectionLeft(); break;
-      case 'ArrowRight': this.currentMenu.moveSelectionRight(); break;
+      case 'ArrowUp':    this.currentMenu?.moveSelectionUp(); break;
+      case 'ArrowDown':  this.currentMenu?.moveSelectionDown(); break;
+      case 'ArrowLeft':  this.currentMenu?.moveSelectionLeft(); break;
+      case 'ArrowRight': this.currentMenu?.moveSelectionRight(); break;
       case 'KeyL':       this.logger.toggle(); break;
       case 'PageUp':     this.logger.scrollUp(); break;
       case 'PageDown':   this.logger.scrollDown(); break;
@@ -224,6 +226,7 @@ export default class BattleScene2 extends Phaser.Scene {
         break;
       case 'Escape':
       case 'KeyX': {
+        if (!this.currentMenu) break;
         if (typeof this.currentMenu.back === 'function' && this.currentMenu.back()) break;
         const items = this.currentMenu.config.menuItems;
         const last  = items[items.length - 1];
@@ -309,20 +312,24 @@ export default class BattleScene2 extends Phaser.Scene {
       // Award EXP for this faint immediately.
       this.applyExperienceGains();
 
-      const hasPending = this.config.player.team.pokemon.some(
+      const hasEvolving = this.config.player.team.pokemon.some(p => p.readyToEvolve != null);
+      const hasPending  = this.config.player.team.pokemon.some(
         p => p.pendingMovesToLearn?.length > 0
       );
+      const nextPostBattle = hasEvolving ? this.stateDef.EVOLVE
+        : hasPending                     ? this.stateDef.LEARN_MOVE
+        : null;
 
       if (!this.config.enemy.team.switchToNextLivingPokemon()) {
         this.logger.addItem('The enemy has no more Pokémon left!');
         this.remapActivePokemon();
-        return hasPending ? this.stateDef.LEARN_MOVE : this.stateDef.BATTLE_WON;
+        return nextPostBattle ?? this.stateDef.BATTLE_WON;
       }
       const newMon = this.config.enemy.team.getActivePokemon();
       newMon.isFirstTurn = true;
       this.logger.addItem(`${this.config.enemy.getName()} sent out ${newMon.getName()}!`);
       this.remapActivePokemon();
-      if (hasPending) return this.stateDef.LEARN_MOVE;
+      if (nextPostBattle) return nextPostBattle;
     }
 
     return null;

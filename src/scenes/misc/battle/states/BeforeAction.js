@@ -3,8 +3,19 @@ import { ActionTypes } from '../../../../objects';
 import { getAbilitySpeedModifier } from '../applyAbilityEffects.js';
 
 const ATTACK_ACTION_TYPES = [ActionTypes.ATTACK, ActionTypes.NPC_ATTACK];
-const actionPriority = action =>
-  ATTACK_ACTION_TYPES.includes(action.type) ? (action.config?.move?.priority ?? 0) : Infinity;
+const actionPriority = (action, opponentAction = null) => {
+  if (ATTACK_ACTION_TYPES.includes(action.type)) {
+    // Pursuit intercepts a switching opponent: +8 (above switch priority 7).
+    if (action.config?.move?.name?.toLowerCase() === 'pursuit' &&
+        opponentAction?.type === ActionTypes.SWITCH_POKEMON) {
+      return 8;
+    }
+    return action.config?.move?.priority ?? 0;
+  }
+  if (action.type === ActionTypes.USE_ITEM)       return 6;
+  if (action.type === ActionTypes.SWITCH_POKEMON) return 7;
+  return Infinity; // run
+};
 
 export default class BeforeAction {
   onEnter() {
@@ -29,10 +40,10 @@ export default class BeforeAction {
     const paralyzed = mon => (mon.status?.[STATUS.PARALYZE] ?? 0) > 0;
     let playerSpeed = playerActiveMon.stats[STATS.SPEED] *
       (paralyzed(playerActiveMon) ? 0.5 : 1) *
-      getAbilitySpeedModifier(playerActiveMon, this.weather);
+      getAbilitySpeedModifier(playerActiveMon, this.weather, enemyActiveMon);
     let enemySpeed  = enemyActiveMon.stats[STATS.SPEED] *
       (paralyzed(enemyActiveMon)  ? 0.5 : 1) *
-      getAbilitySpeedModifier(enemyActiveMon,  this.weather);
+      getAbilitySpeedModifier(enemyActiveMon,  this.weather, playerActiveMon);
     let speedOrder;
     if (playerSpeed > enemySpeed)       { speedOrder = ['player', 'enemy']; }
     else if (playerSpeed < enemySpeed)  { speedOrder = ['enemy',  'player']; }
@@ -60,8 +71,8 @@ export default class BeforeAction {
 
     if (actionCount > 1) {
       // Priority tier: higher number goes first; non-attack actions get Infinity.
-      const playerPriority = actionPriority(this.actions.player);
-      const enemyPriority  = actionPriority(this.actions.enemy);
+      const playerPriority = actionPriority(this.actions.player, this.actions.enemy);
+      const enemyPriority  = actionPriority(this.actions.enemy,  this.actions.player);
 
       let first;
       if (playerPriority > enemyPriority)      { first = 'player'; }

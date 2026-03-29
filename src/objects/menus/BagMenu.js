@@ -14,12 +14,13 @@ const MAX_VIS = Math.floor((PANEL_H - PAD_Y - 10) / CELL_H);
  * Exported so PlayerBag can import the same array rather than duplicating it.
  */
 export const BAG_TABS = [
-  { label: 'Med',    category: 'medicine' },
-  { label: 'Balls',  category: 'balls'    },
-  { label: 'Battle', category: 'battle'   },
-  { label: 'Berry',  category: 'berries'  },
-  { label: 'Key',    category: 'key'      },
-  { label: 'Other',  category: 'other'    },
+  { label: 'Med',   category: 'medicine' },
+  { label: 'Items', category: 'items'    },
+  { label: 'Balls', category: 'balls'    },
+  { label: 'Battle',category: 'battle'   },
+  { label: 'Berry', category: 'berries'  },
+  { label: 'Key',   category: 'key'      },
+  { label: 'Other', category: 'other'    },
 ];
 
 /** Single-column item list with category tabs at the top. @extends Menu */

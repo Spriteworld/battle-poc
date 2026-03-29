@@ -25,11 +25,6 @@ describe('EnemyAction', () => {
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('beforeAction');
   });
 
-  test('logs the enemy turn message', () => {
-    const ctx = makeContext();
-    new EnemyAction().onEnter.call(ctx);
-    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('turn'));
-  });
 });
 
 // ─── Locked move (charge turn auto-continue) ──────────────────────────────────

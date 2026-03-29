@@ -61,6 +61,8 @@ export default class PlayerNewActivePokemon {
             outgoing.volatileStatus.grudge           = false;
             outgoing.volatileStatus.uproaring        = null;
             outgoing.volatileStatus.biding           = null;
+            outgoing.volatileStatus.defenseCurled    = false;
+            outgoing.volatileStatus.transformed      = false;
           }
           // Natural Cure: cure outgoing Pokémon's status on switch-out (baton pass path).
           if (outgoing.hasAbility?.(Abilities.NATURAL_CURE)) {
@@ -108,7 +110,6 @@ export default class PlayerNewActivePokemon {
           }
         }
 
-        this.remapActivePokemon();
         delete this.actions.player;
 
         this.logger.addItem(this.config.player.getName() + ' sent out ' + pokemon.getName() + '!');
@@ -116,7 +117,10 @@ export default class PlayerNewActivePokemon {
         const opponent = this.config.enemy.team.getActivePokemon();
         applySwitchInAbilities(pokemon, opponent, this.weather, this.logger, this.generation);
 
-        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
+        this.logger.flush(() => {
+          this.remapActivePokemon();
+          this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
+        });
       });
     });
 

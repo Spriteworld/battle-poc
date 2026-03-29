@@ -16,6 +16,7 @@ jest.mock('@spriteworld/pokemon-data', () => ({
     ARENA_TRAP:  'Arena Trap',
     SHADOW_TAG:  'Shadow Tag',
     MAGNET_PULL: 'Magnet Pull',
+    RUN_AWAY:    'Run Away',
   },
   Moves: {
     rollHitCount:    jest.fn(() => 2),
@@ -125,28 +126,62 @@ describe('ApplyActions — RUN', () => {
   test('increments escapeAttempts', () => {
     pokemonData.calcEscape.mockReturnValue(true);
     const ctx = makeRunCtx();
-    new ApplyActions().onEnter.call(ctx);
+    ApplyActions.prototype._applyRun.call(ctx, ctx.currentAction);
     expect(ctx.escapeAttempts).toBe(1);
   });
 
   test('on successful escape → BATTLE_END', () => {
     pokemonData.calcEscape.mockReturnValue(true);
     const ctx = makeRunCtx();
-    new ApplyActions().onEnter.call(ctx);
+    ApplyActions.prototype._applyRun.call(ctx, ctx.currentAction);
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('battleEnd');
   });
 
   test('on failed escape → schedules BEFORE_ACTION', () => {
     pokemonData.calcEscape.mockReturnValue(false);
     const ctx = makeRunCtx();
-    new ApplyActions().onEnter.call(ctx);
+    ApplyActions.prototype._applyRun.call(ctx, ctx.currentAction);
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('beforeAction');
   });
 
   test('on failed escape logs a failure message', () => {
     pokemonData.calcEscape.mockReturnValue(false);
     const ctx = makeRunCtx();
-    new ApplyActions().onEnter.call(ctx);
+    ApplyActions.prototype._applyRun.call(ctx, ctx.currentAction);
     expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('escape'));
+  });
+});
+
+// ─── ApplyActions — RUN — Run Away ─────────────────────────────────────────
+
+describe('ApplyActions — RUN — Run Away ability', () => {
+  beforeEach(() => {
+    pokemonData.calcEscape.mockReset();
+  });
+
+  function makeRunAwayCtx() {
+    const ctx = makeContext();
+    const escapingMon = ctx.config.player.team.getActivePokemon();
+    escapingMon.hasAbility.mockImplementation(name => name === pokemonData.Abilities.RUN_AWAY);
+    ctx.currentAction = {
+      type:   ActionTypes.RUN,
+      player: ctx.config.player,
+      target: ctx.config.enemy,
+      config: {},
+    };
+    return { ctx, escapingMon };
+  }
+
+  test('guarantees escape without consulting calcEscape', () => {
+    const { ctx } = makeRunAwayCtx();
+    ApplyActions.prototype._applyRun.call(ctx, ctx.currentAction);
+    expect(pokemonData.calcEscape).not.toHaveBeenCalled();
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('battleEnd');
+  });
+
+  test('still increments escapeAttempts when Run Away fires', () => {
+    const { ctx } = makeRunAwayCtx();
+    ApplyActions.prototype._applyRun.call(ctx, ctx.currentAction);
+    expect(ctx.escapeAttempts).toBe(1);
   });
 });

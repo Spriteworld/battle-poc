@@ -5,7 +5,13 @@ jest.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
 jest.mock('@Objects', () => {
   function BattleTeam(team) {
     this.pokemon = team || [];
-    this.getActivePokemon = () => this.pokemon[0] || null;
+    this.getActivePokemon = () => {
+      const p = this.pokemon[0] || null;
+      if (p && !p.hasAbility) p.hasAbility = () => false;
+      if (p && !p.isAlive)    p.isAlive    = () => true;
+      if (p && !p.getName)    p.getName    = () => p.name || '???';
+      return p;
+    };
   }
   function BattleTrainer(config) {
     Object.assign(this, config);
@@ -144,6 +150,13 @@ describe('BattleStart', () => {
       const ctx = makeContext({ field: { weather: 'rain' } });
       new BattleStart().onEnter.call(ctx);
       expect(ctx.config.field).toEqual({ weather: 'rain' });
+    });
+
+    test('field weather is initialised with Infinity turnsLeft so it never expires', () => {
+      const ctx = makeContext({ field: { weather: 'rain' } });
+      new BattleStart().onEnter.call(ctx);
+      expect(ctx.weather.type).toBe('rain');
+      expect(ctx.weather.turnsLeft).toBe(Infinity);
     });
 
     test('resets escapeAttempts to 0', () => {

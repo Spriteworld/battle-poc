@@ -8,7 +8,7 @@ describe('PlayerAction', () => {
   test('logs "What will X do?"', () => {
     const ctx = makeContext();
     new PlayerAction().onEnter.call(ctx);
-    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('Bulbasaur'));
+    expect(ctx.logger.showText).toHaveBeenCalledWith(expect.stringContaining('Bulbasaur'));
   });
 
   test('calls BattleMenu.remap with the four options', () => {

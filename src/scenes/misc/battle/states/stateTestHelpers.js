@@ -132,7 +132,7 @@ export function makeContext(overrides = {}) {
 
   const ctx = {
     game:         { events: makeEvents() },
-    logger:       { addItem: jest.fn(), flush: jest.fn(cb => cb?.()) },
+    logger:       { addItem: jest.fn(), flush: jest.fn(cb => cb?.()), showText: jest.fn() },
     stateMachine: { setState: jest.fn() },
     stateDef: {
       BATTLE_IDLE:               'battleIdle',

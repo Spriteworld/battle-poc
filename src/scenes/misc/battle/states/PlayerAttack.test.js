@@ -34,13 +34,6 @@ describe('PlayerAttack', () => {
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('enemyAction');
   });
 
-  test('selecting a move logs the selection', () => {
-    const ctx = makeContext();
-    new PlayerAttack().onEnter.call(ctx);
-    ctx.events.emit('attackmenu-select-option-0');
-    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('selected'));
-  });
-
   test('Cancel (last option) transitions to PLAYER_ACTION', () => {
     const ctx = makeContext();
     const moves = ctx.config.player.team.getActivePokemon().getMoves();

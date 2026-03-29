@@ -1,8 +1,9 @@
-import { CalcDamage, BasePokemon, TYPES, Moves, STATS, calcTypeEffectiveness } from '@spriteworld/pokemon-data';
+import { CalcDamage, BasePokemon, TYPES, Moves, STATS, calcTypeEffectiveness, calcStat, Pokedex } from '@spriteworld/pokemon-data';
+import { isWeatherSuppressed } from '../../scenes/misc/battle/applyAbilityEffects.js';
 
 const {
   STAT_STAGE_MULTIPLIERS, ACC_STAGE_MULTIPLIERS, STAT_DISPLAY_NAMES,
-  getMovesByGen,
+  getMovesByGen, rollHitCount,
 } = Moves;
 
 // Moves that cannot be called by Metronome (Gen 3).
@@ -25,8 +26,10 @@ import { v4 as uuidv4 } from 'uuid';
  * @param {object|null} [generation] - Active generation config (needed for move category and gen number)
  * @return {number}
  */
-function getWeatherMultiplier(move, weather, target = null, generation = null) {
+function getWeatherMultiplier(move, weather, target = null, generation = null, attacker = null) {
   if (!weather?.type || !move?.type) return 1;
+  // Cloud Nine / Air Lock suppress all weather effects.
+  if (isWeatherSuppressed(attacker, target)) return 1;
   const w = weather.type;
   const t = move.type;
   if (w === 'rain') {
@@ -92,7 +95,8 @@ export default class extends BasePokemon {
       moves: config.moves || [],
     });
 
-    this.currentHp = config.currentHp || this.currentHp;
+    this.currentHp = config.currentHp != null ? config.currentHp : this.currentHp;
+    if (config.exp != null) this.exp = config.exp;
     this.moves = this.moves.map(move => new Move(move, config));
     this.id = config.id || uuidv4();
 
@@ -210,6 +214,10 @@ export default class extends BasePokemon {
       flashFire:       false,
       /** True on the "loafing" turn for a Pokémon with Truant; alternates each turn */
       truantLoaf:      false,
+      /** True after using Defense Curl; doubles Rollout/Ice Ball power (Gen 3) */
+      defenseCurled:   false,
+      /** True while transformed via Transform; cleared on switch-out */
+      transformed:     false,
     };
 
     // Huge Power / Pure Power: permanently double the Attack stat at construction time.
@@ -239,6 +247,65 @@ export default class extends BasePokemon {
      * @type {boolean}
      */
     this.isFirstTurn = true;
+
+    // ── Config overrides for pre-seeded battle state ──────────────────────
+    if (config.status)
+      Object.assign(this.status, config.status);
+    if (config.stages) {
+      for (const [stat, value] of Object.entries(config.stages)) {
+        if (value !== 0) this.applyStageChange(stat, value);
+      }
+    }
+    if (config.volatileStatus)
+      Object.assign(this.volatileStatus, config.volatileStatus);
+    if (config.toxicCount  != null) this.toxicCount  = config.toxicCount;
+    if (config.isShiny     != null) this.isShiny     = config.isShiny;
+    if (config.pokerus     != null) this.pokerus     = config.pokerus;
+  }
+
+  /**
+   * Updates this Pokémon in-place to the specified evolved form.
+   * Recalculates all base stats and battle stats using the new species' data
+   * while preserving level, nature, IVs, EVs, moves, and current stage modifiers.
+   * Max HP increases are applied to currentHp so the Pokémon gains the difference.
+   * @param {number} newNatDexId - nat_dex_id of the evolved form
+   */
+  evolve(newNatDexId) {
+    const newEntry = new Pokedex(this.game).getPokemonById(newNatDexId);
+    this.pokemon = newEntry;
+    this.species = newEntry.species;
+    this.types   = newEntry.types;
+
+    const oldMaxHp = this.maxHp;
+
+    // Recalculate the 6 base stats for the new species.
+    const BASE_STAT_KEYS = [
+      STATS.HP, STATS.ATTACK, STATS.DEFENSE,
+      STATS.SPECIAL_ATTACK, STATS.SPECIAL_DEFENSE, STATS.SPEED,
+    ];
+    for (const key of BASE_STAT_KEYS) {
+      const newBase = calcStat(key, this.level, this.nature, newEntry.base_stats, this.ivs, this.evs);
+      this._baseStats[key] = newBase;
+      if (key === STATS.HP) {
+        this.stats[key] = newBase;
+      } else {
+        // Re-apply the current stage multiplier so in-battle boosts are preserved.
+        const stage = this.stages[key] ?? 0;
+        this.stats[key] = stage !== 0
+          ? Math.floor(newBase * STAT_STAGE_MULTIPLIERS[stage + 6])
+          : newBase;
+      }
+    }
+
+    // Re-apply Huge Power / Pure Power doubling if the ability is active.
+    const abilityName = this.ability?.name?.toLowerCase() ?? '';
+    if (abilityName === 'huge power' || abilityName === 'pure power') {
+      this._baseStats[STATS.ATTACK] = Math.floor(this._baseStats[STATS.ATTACK] * 2);
+      this.stats[STATS.ATTACK]      = Math.floor(this.stats[STATS.ATTACK] * 2);
+    }
+
+    this.maxHp     = this._baseStats[STATS.HP];
+    this.currentHp = Math.min(this.maxHp, this.currentHp + (this.maxHp - oldMaxHp));
   }
 
   /**
@@ -305,9 +372,16 @@ export default class extends BasePokemon {
       return this.useMetronome(target, move, generation, fieldState, weather);
     }
 
-    if (typeof move === 'undefined' || !(move instanceof Move)) {
-      console.warn('BattlePokemon: attack called without a move');
-      return;
+    if (typeof move === 'undefined' || move === null || !(move instanceof Move)) {
+      console.warn('BattlePokemon: attack called without a valid Move instance', move);
+      return {
+        player:   this.getName(),
+        enemy:    target.getName(),
+        move:     move?.name ?? '???',
+        accuracy: 0,
+        damage:   0,
+        failed:   true,
+      };
     }
 
     move.pp.current = Math.max(0, move.pp.current - 1);
@@ -388,8 +462,12 @@ export default class extends BasePokemon {
         }
       }
 
-      const weatherMult = getWeatherMultiplier(move, weather, target, generation);
-      info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
+      const weatherMult = getWeatherMultiplier(move, weather, target, generation, this);
+      // Pursuit doubles its base power when the opponent is switching out (Gen 3).
+      const calcMove = (fieldState?.pursuiting && move?.power != null)
+        ? { ...move, power: move.power * 2 }
+        : move;
+      info = CalcDamage.calculate(this, target, calcMove, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
 
       // Restore temporarily modified stats.
       if (origAttack !== null) this.stats[STATS.ATTACK]         = origAttack;
@@ -553,7 +631,7 @@ export default class extends BasePokemon {
           damage: 0,
         };
       }
-      const weatherMult = getWeatherMultiplier(move, weather, target, generation);
+      const weatherMult = getWeatherMultiplier(move, weather, target, generation, this);
       info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
 
@@ -626,16 +704,28 @@ export default class extends BasePokemon {
   attackMultiHit(target, move, generation, hitCount, powers = null, fieldState = null, weather = null) {
     move.pp.current = Math.max(0, move.pp.current - 1);
 
-    // Single accuracy check for all hits (Gen 3+).
-    if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation) && !(Math.random() * 100 < move.accuracy)) {
-      return {
-        player: this.getName(),
-        enemy: target.getName(),
-        move: move.name,
-        accuracy: 0,
-        damage: 0,
-        hits: 0,
-      };
+    // Single accuracy check for all hits (Gen 3+) — mirrors the stage/ability logic in attack().
+    if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation)) {
+      const isPhysical = (generation?.getCategory?.(move) ?? move.category) === Moves.MOVE_CATEGORIES.PHYSICAL;
+      let accAbilityMult = 1;
+      if (typeof this.hasAbility === 'function') {
+        if (this.hasAbility('Compound Eyes')) accAbilityMult *= 1.3;
+        if (this.hasAbility('Hustle') && isPhysical) accAbilityMult *= 0.8;
+      }
+      const accStageDelta = Math.max(-6, Math.min(6,
+        (this.stages?.ACCURACY ?? 0) - (target.stages?.EVASION ?? 0)
+      ));
+      const effectiveAcc = move.accuracy * ACC_STAGE_MULTIPLIERS[accStageDelta + 6] * accAbilityMult;
+      if (!(Math.random() * 100 < effectiveAcc)) {
+        return {
+          player: this.getName(),
+          enemy: target.getName(),
+          move: move.name,
+          accuracy: 0,
+          damage: 0,
+          hits: 0,
+        };
+      }
     }
 
     let totalDamage = 0;
@@ -644,7 +734,7 @@ export default class extends BasePokemon {
     let substituteBroke = false;
     const hitResults = [];
 
-    const weatherMult = getWeatherMultiplier(move, weather, target, generation);
+    const weatherMult = getWeatherMultiplier(move, weather, target, generation, this);
     for (let i = 0; i < hitCount; i++) {
       const effectiveMove = (powers && powers[i] !== undefined) ? { ...move, power: powers[i] } : move;
       const info = CalcDamage.calculate(this, target, effectiveMove, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
@@ -726,6 +816,10 @@ export default class extends BasePokemon {
     }
     const available = this.moves.filter(m => m.pp.current > 0);
     const move = available[Math.floor(Math.random() * available.length)];
+    if (move?.multiHit) {
+      const hitCount = rollHitCount(move.multiHit.minHits, move.multiHit.maxHits);
+      return this.attackMultiHit(target, move, generation, hitCount, move.multiHit.powers ?? null, fieldState, weather);
+    }
     return this.attack(target, move, generation, fieldState, weather);
   }
 
@@ -770,6 +864,10 @@ export default class extends BasePokemon {
     // 30% chance to act randomly (Gen 3 AI imperfection)
     if (usable.length === 0 || Math.random() < 0.3) {
       const move = available[Math.floor(Math.random() * available.length)];
+      if (move?.multiHit) {
+        const hitCount = rollHitCount(move.multiHit.minHits, move.multiHit.maxHits);
+        return this.attackMultiHit(target, move, generation, hitCount, move.multiHit.powers ?? null, fieldState, weather);
+      }
       return this.attack(target, move, generation, fieldState, weather);
     }
 
@@ -777,6 +875,10 @@ export default class extends BasePokemon {
     const topScore = usable[0].score;
     const topMoves = usable.filter(s => s.score === topScore);
     const chosen = topMoves[Math.floor(Math.random() * topMoves.length)];
+    if (chosen.move?.multiHit) {
+      const hitCount = rollHitCount(chosen.move.multiHit.minHits, chosen.move.multiHit.maxHits);
+      return this.attackMultiHit(target, chosen.move, generation, hitCount, chosen.move.multiHit.powers ?? null, fieldState, weather);
+    }
     return this.attack(target, chosen.move, generation, fieldState, weather);
   }
 

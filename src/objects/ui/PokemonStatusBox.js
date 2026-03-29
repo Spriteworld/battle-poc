@@ -20,11 +20,7 @@ const STATUS_BADGE = {
 };
 
 /** Badge configs for volatile / Pokérus conditions (shown next to name). */
-const VOLATILE_BADGE = {
-  infatuated:  { label: 'INF', bg: 0xe060a0, text: '#ffffff' },
-  yawnCounter: { label: 'DRW', bg: 0xd4a010, text: '#181818' },
-  encored:     { label: 'ENC', bg: 0xe07018, text: '#ffffff' },
-};
+const VOLATILE_BADGE = {};
 const POKERUS_BADGE = { label: 'PkRs', bg: 0x9040c0, text: '#ffffff' };
 
 /** Maximum number of simultaneous condition badges (primary + volatile + pokerus). */
@@ -71,6 +67,14 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._isEnemy = config.isEnemy ?? false;
     this._width = config.width ?? 220;
     this._height = this._showHpNumbers ? 84 : 56;
+
+    // Animation tracking
+    this._displayExpRatio = null; // null = not yet seeded; animate from 0 on first remap
+    this._displayLevel    = null;
+    this._expTween        = null;
+    this._hpNumTween      = null;
+    this._displayHp       = null;
+
     scene.add.existing(this);
     this._build();
   }
@@ -125,7 +129,6 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._nameText = this.scene.add.text(10, 8, '', {
       ...FONT,
       fontSize: '14px',
-      fontStyle: 'bold',
     });
     this.add(this._nameText);
 
@@ -133,7 +136,6 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._genderText = this.scene.add.text(0, 8, '', {
       fontFamily: 'Gen3',
       fontSize: '13px',
-      fontStyle: 'bold',
     });
     this._genderText.setVisible(false);
     this.add(this._genderText);
@@ -151,12 +153,12 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       this._hpBar = new HpBar(this.scene, 10, 26, { width: w - 20, barHeight: 14 });
       this.add(this._hpBar);
 
-      const hpInLabel = this.scene.add.text(16, 33, 'HP', {
-        fontFamily: 'Gen3', fontSize: '10px', fontStyle: 'bold', color: '#ffffff',
+      const hpInLabel = this.scene.add.text(16, 25, 'HP', {
+        fontFamily: 'Gen3', fontSize: '10px', color: '#ffffff',
       });
       this.add(hpInLabel);
 
-      this._hpNumText = this.scene.add.text(w - 14, 33, '', {
+      this._hpNumText = this.scene.add.text(w - 14, 25, '', {
         fontFamily: 'Gen3', fontSize: '10px', color: '#ffffff',
       });
       this._hpNumText.setOrigin(1, 0);
@@ -168,7 +170,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
 
     } else {
       // Enemy: label + thin bar
-      const hpLabel = this.scene.add.text(10, 31, 'HP', {
+      const hpLabel = this.scene.add.text(10, 28, 'HP', {
         ...FONT,
         fontSize: '10px',
         fontStyle: 'bold',
@@ -235,45 +237,154 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
   remap({ name, level, currentHp, maxHp, exp, growth, status, stages, gender, volatileStatus, pokerus }) {
     this._nameText.setText(name);
     this._levelText.setText(`Lv.${level}`);
+
+    // Animate HP bar
     this._hpBar.update(currentHp, maxHp);
+
+    // Animate HP number text (player side only)
     if (this._hpNumText) {
-      this._hpNumText.setText(`${currentHp}/${maxHp}`);
+      this._animateHpNumber(currentHp, maxHp);
     }
+
+    // Animate EXP bar (player side only)
     if (this._expBarGfx) {
-      this._drawExpBar(level, exp, growth);
+      this._animateExpBar(level, exp, growth);
     }
+
     this._updateGenderSymbol(gender);
     this._updateStatusBadge(status, volatileStatus, pokerus);
     this._updateStageBadges(stages, volatileStatus);
   }
 
-  _drawExpBar(level, exp, growth) {
+  _expRatioFor(level, exp, growth) {
+    const table = EXPERIENCE_TABLES[growth ?? GROWTH.MEDIUM_FAST] ?? EXPERIENCE_TABLES[GROWTH.MEDIUM_FAST];
+    if ((level ?? 1) >= 100) return 1;
+    const lo = table[(level ?? 1) - 1] ?? 0;
+    const hi = table[level ?? 1]       ?? lo + 1;
+    return hi > lo ? Math.max(0, Math.min(1, ((exp ?? lo) - lo) / (hi - lo))) : 0;
+  }
+
+  _drawExpBarRatio(ratio) {
     const g = this._expBarGfx;
     g.clear();
-
     const W = this._width - 20;
     const x = 10;
     const y = 46;
     const H = 4;
-
-    const table = EXPERIENCE_TABLES[growth ?? GROWTH.MEDIUM_FAST] ?? EXPERIENCE_TABLES[GROWTH.MEDIUM_FAST];
-    let ratio = 1;
-    if ((level ?? 1) < 100) {
-      const lo = table[(level ?? 1) - 1] ?? 0;
-      const hi = table[level ?? 1]       ?? lo + 1;
-      ratio = hi > lo ? Math.max(0, Math.min(1, ((exp ?? lo) - lo) / (hi - lo))) : 0;
-    }
-
-    // Track
     g.fillStyle(0xa8a8a8);
     g.fillRect(x, y, W, H);
-
-    // Fill (blue)
     const fillW = Math.max(0, Math.floor(W * ratio));
     if (fillW > 0) {
       g.fillStyle(0x4848f8);
       g.fillRect(x, y, fillW, H);
     }
+  }
+
+  _animateExpBar(level, exp, growth) {
+    const targetRatio = this._expRatioFor(level, exp, growth);
+
+    // First call — seed display state without animation.
+    if (this._displayExpRatio === null) {
+      this._displayExpRatio = targetRatio;
+      this._displayLevel    = level;
+      this._drawExpBarRatio(targetRatio);
+      return;
+    }
+
+    // If the pokemon levelled up the bar should wrap: animate to full,
+    // then snap to 0 and animate to the new ratio.
+    if (this._displayLevel !== null && level > this._displayLevel) {
+      if (this._expTween) { this._expTween.stop(); this._expTween = null; }
+
+      const proxy = { ratio: this._displayExpRatio };
+      this._expTween = this.scene.tweens.add({
+        targets:  proxy,
+        ratio:    1,
+        duration: Math.max(100, (1 - this._displayExpRatio) * 600),
+        ease:     'Linear',
+        onUpdate: () => {
+          this._displayExpRatio = proxy.ratio;
+          this._drawExpBarRatio(proxy.ratio);
+        },
+        onComplete: () => {
+          // Snap to 0, then animate to new level's progress.
+          this._displayExpRatio = 0;
+          this._displayLevel    = level;
+          proxy.ratio = 0;
+          this._expTween = this.scene.tweens.add({
+            targets:  proxy,
+            ratio:    targetRatio,
+            duration: Math.max(100, targetRatio * 600),
+            ease:     'Linear',
+            onUpdate: () => {
+              this._displayExpRatio = proxy.ratio;
+              this._drawExpBarRatio(proxy.ratio);
+            },
+            onComplete: () => {
+              this._displayExpRatio = targetRatio;
+              this._expTween = null;
+            },
+          });
+        },
+      });
+      return;
+    }
+
+    this._displayLevel = level;
+
+    if (this._expTween) { this._expTween.stop(); this._expTween = null; }
+
+    if (Math.abs(this._displayExpRatio - targetRatio) < 0.001) {
+      this._displayExpRatio = targetRatio;
+      this._drawExpBarRatio(targetRatio);
+      return;
+    }
+
+    const proxy = { ratio: this._displayExpRatio };
+    this._expTween = this.scene.tweens.add({
+      targets:  proxy,
+      ratio:    targetRatio,
+      duration: Math.min(800, Math.max(150, Math.abs(targetRatio - this._displayExpRatio) * 1000)),
+      ease:     'Linear',
+      onUpdate: () => {
+        this._displayExpRatio = proxy.ratio;
+        this._drawExpBarRatio(proxy.ratio);
+      },
+      onComplete: () => {
+        this._displayExpRatio = targetRatio;
+        this._expTween = null;
+      },
+    });
+  }
+
+  _animateHpNumber(currentHp, maxHp) {
+    const startHp = this._displayHp ?? currentHp;
+
+    if (this._hpNumTween) { this._hpNumTween.stop(); this._hpNumTween = null; }
+
+    if (startHp === currentHp) {
+      this._displayHp = currentHp;
+      this._hpNumText.setText(`${currentHp}/${maxHp}`);
+      return;
+    }
+
+    const proxy = { hp: startHp };
+    const duration = Math.min(800, Math.max(150, Math.abs(currentHp - startHp) / maxHp * 1200));
+    this._hpNumTween = this.scene.tweens.add({
+      targets:  proxy,
+      hp:       currentHp,
+      duration,
+      ease:     'Linear',
+      onUpdate: () => {
+        this._displayHp = Math.round(proxy.hp);
+        this._hpNumText.setText(`${this._displayHp}/${maxHp}`);
+      },
+      onComplete: () => {
+        this._displayHp = currentHp;
+        this._hpNumText.setText(`${currentHp}/${maxHp}`);
+        this._hpNumTween = null;
+      },
+    });
   }
 
   /**
@@ -311,6 +422,16 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     if (volatileStatus?.confusedTurns) {
       entries.push({ label: 'CNF', color: 0xc030c0, textColor: '#ffffff' });
     }
+    if (volatileStatus?.yawnCounter) {
+      entries.push({ label: 'DRW', color: 0x908060, textColor: '#ffffff' });
+    }
+    if (volatileStatus?.infatuated) {
+      entries.push({ label: 'INF', color: 0xe060a0, text: '#ffffff' });
+    }
+    if (volatileStatus?.encored) {
+      entries.push({ label: 'ENC', color: 0xe07018, text: '#ffffff' });
+    }
+    
     for (const [stat, value] of Object.entries(stages)) {
       if (value !== 0) {
         const label = STAGE_LABELS[stat] ?? stat.slice(0, 3);

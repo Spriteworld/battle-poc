@@ -3,7 +3,11 @@ import { ActionTypes, Action } from '@Objects';
 export default class PlayerPokemon {
   onEnter() {
     const playerTeam = this.config.player.team;
-    const pokemon    = Object.values(playerTeam.pokemon);
+    const raw        = playerTeam.pokemon;
+    const activeIdx  = playerTeam.active;
+    // Show the active Pokémon in the hero (first) slot so the ordering reflects
+    // the current battle state after any prior switches.
+    const pokemon = [raw[activeIdx], ...raw.slice(0, activeIdx), ...raw.slice(activeIdx + 1)];
 
     this.logger.addItem('Choose a Pokémon.');
     this.BattleMenu.select(2);

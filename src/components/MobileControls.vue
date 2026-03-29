@@ -52,14 +52,20 @@ const KEY_CODE_STR = {
 
 export default {
   name: 'MobileControls',
+  props: {
+    target: { default: null },
+  },
   methods: {
+    _target() {
+      return this.target ?? window;
+    },
     press(key) {
-      window.dispatchEvent(new KeyboardEvent('keydown', {
+      this._target().dispatchEvent(new KeyboardEvent('keydown', {
         key, code: KEY_CODE_STR[key], keyCode: KEY_CODES[key], bubbles: true, cancelable: true,
       }));
     },
     release(key) {
-      window.dispatchEvent(new KeyboardEvent('keyup', {
+      this._target().dispatchEvent(new KeyboardEvent('keyup', {
         key, code: KEY_CODE_STR[key], keyCode: KEY_CODES[key], bubbles: true,
       }));
     },

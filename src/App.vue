@@ -15,7 +15,8 @@ export default {
   name: 'App',
   components: { MobileControls },
 
-  mounted() {
+  async mounted() {
+    await document.fonts.ready;
     createGame();
   },
 };

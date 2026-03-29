@@ -18,22 +18,11 @@ export default class EnemyAction {
       return;
     }
 
-    this.logger.addItem([
-      '[Enemy]',
-      this.config.enemy.getName() + '\'s turn!',
-      'What will ' + activeMon.getName() + ' do?',
-    ].join(' '));
-
     this.actions.enemy = new Action({
       type: ActionTypes.NPC_ATTACK,
       player: this.config.enemy,
       target: this.config.player.team.getActivePokemon(),
     });
-    this.logger.addItem([
-      '[Enemy]',
-      this.config.enemy.getName(),
-      'is preparing to attack!',
-    ].join(' '));
 
     this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
   }

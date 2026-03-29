@@ -16,9 +16,12 @@ export default class PlayerAttack {
         config: { move },
       });
 
-      this.logger.addItem(
-        `${this.config.player.getName()} selected ${move ? move.name : 'Struggle'}!`
-      );
+      if (!move) {
+        this.logger.addItem(
+          `${this.config.player.getName()} has no moves left! It must use Struggle!`
+        );
+      }
+
       this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
     };
 

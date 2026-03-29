@@ -1,4 +1,4 @@
-import { STATUS } from '@spriteworld/pokemon-data';
+import { STATUS, Abilities } from '@spriteworld/pokemon-data';
 import { makeContext } from './states/stateTestHelpers.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 
@@ -331,5 +331,59 @@ describe('applyEndOfTurnStatus — leech seed', () => {
     playerMon.volatileStatus.leechSeed = true;
     call(ctx);
     expect(playerMon.takeDamage).toHaveBeenCalledWith(1);
+  });
+});
+
+// ─── Weather damage — Cloud Nine / Air Lock suppression ───────────────────────
+
+describe('applyEndOfTurnStatus — Cloud Nine / Air Lock suppresses weather damage', () => {
+  test('sandstorm deals no damage when a mon has Cloud Nine', () => {
+    const ctx = makeContext();
+    ctx.weather = { type: 'sandstorm', turnsLeft: 3 };
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+    playerMon.hasAbility.mockImplementation(name => name === Abilities.CLOUD_NINE);
+    call(ctx);
+    expect(playerMon.takeDamage).not.toHaveBeenCalled();
+    expect(enemyMon.takeDamage).not.toHaveBeenCalled();
+  });
+
+  test('sandstorm deals no damage when a mon has Air Lock', () => {
+    const ctx = makeContext();
+    ctx.weather = { type: 'sandstorm', turnsLeft: 3 };
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+    enemyMon.hasAbility.mockImplementation(name => name === Abilities.AIR_LOCK);
+    call(ctx);
+    expect(playerMon.takeDamage).not.toHaveBeenCalled();
+    expect(enemyMon.takeDamage).not.toHaveBeenCalled();
+  });
+
+  test('sandstorm still deals damage when no suppression ability is active', () => {
+    const ctx = makeContext();
+    ctx.weather = { type: 'sandstorm', turnsLeft: 3 };
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    playerMon.maxHp = 160;
+    call(ctx);
+    expect(playerMon.takeDamage).toHaveBeenCalledWith(10); // floor(160/16)
+  });
+
+  test('field weather (turnsLeft: Infinity) does not expire after a turn', () => {
+    const ctx = makeContext();
+    ctx.weather = { type: 'sandstorm', turnsLeft: Infinity };
+    call(ctx);
+    expect(ctx.weather.type).toBe('sandstorm');
+    expect(ctx.weather.turnsLeft).toBe(Infinity);
+  });
+
+  test('hail deals no damage when a mon has Cloud Nine', () => {
+    const ctx = makeContext();
+    ctx.weather = { type: 'hail', turnsLeft: 3 };
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+    playerMon.hasAbility.mockImplementation(name => name === Abilities.CLOUD_NINE);
+    call(ctx);
+    expect(playerMon.takeDamage).not.toHaveBeenCalled();
+    expect(enemyMon.takeDamage).not.toHaveBeenCalled();
   });
 });

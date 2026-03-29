@@ -126,6 +126,18 @@ export default class BattleLogger {
     return this._flushing;
   }
 
+  /**
+   * Directly sets the dialog text without queuing or requiring acknowledgment.
+   * Used for contextual prompts (e.g. "What will X do?") that should display
+   * alongside an interactive menu rather than as a flushed, acknowledged message.
+   * Safe to call only when the logger is idle (not currently flushing).
+   * @param {string} text
+   */
+  showText(text) {
+    this._textObj.setText(String(text));
+    this._indicator.setVisible(false);
+  }
+
   /** Toggle the full-history overlay (L key). */
   toggle() {
     this._overlayVisible = !this._overlayVisible;

@@ -28,7 +28,7 @@ export default class PlayerBag {
         this.PokemonTeamMenu.setVisible(false);
         this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
       });
-      this.PokemonTeamMenu.populate(alivePokemon);
+      this.PokemonTeamMenu.populate(alivePokemon, { actionItems: ['Use', 'Cancel'] });
       this.activateMenu(this.PokemonTeamMenu);
     };
 

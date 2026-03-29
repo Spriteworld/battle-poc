@@ -1,5 +1,5 @@
 import { Abilities, STATUS, TYPES } from '@spriteworld/pokemon-data';
-import { applyAbilityEOT } from './applyAbilityEffects.js';
+import { applyAbilityEOT, isWeatherSuppressed } from './applyAbilityEffects.js';
 
 const WEATHER_END = {
   rain:      'The rain stopped.',
@@ -223,7 +223,9 @@ export default function applyEndOfTurnStatus() {
     const { type } = this.weather;
     const gen = this.generation?.gen ?? 3;
     const hailActive = type === 'hail' && gen >= 3;
-    if (type === 'sandstorm' || hailActive) {
+    const weatherDamageActive = (type === 'sandstorm' || hailActive) &&
+      !isWeatherSuppressed(mons[0], mons[1]);
+    if (weatherDamageActive) {
       const immuneSet = type === 'sandstorm' ? SANDSTORM_IMMUNE : HAIL_IMMUNE;
       for (const mon of mons) {
         if (!mon.isAlive()) continue;
@@ -295,8 +297,9 @@ export default function applyEndOfTurnStatus() {
   }
 
   // EOT ability effects (Speed Boost, Rain Dish, Dry Skin, Shed Skin).
-  for (const mon of mons) {
-    applyAbilityEOT(mon, this.weather, this.logger);
+  const [eotPlayer, eotEnemy] = mons;
+  for (const [mon, opponent] of [[eotPlayer, eotEnemy], [eotEnemy, eotPlayer]]) {
+    applyAbilityEOT(mon, this.weather, this.logger, opponent);
     if (!mon.isAlive?.()) continue;
     // Clear sleep status for Insomnia/Vital Spirit holders (covers edge cases like Trace).
     if ((mon.status?.[STATUS.SLEEP] ?? 0) > 0 &&

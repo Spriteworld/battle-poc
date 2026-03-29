@@ -93,8 +93,9 @@ export default function applyExperienceGains() {
       e.value <= newLevel
     );
     if (evo) {
-      p.readyToEvolve = evo.target; // nat_dex_id of the evolved form
-      this.logger.addItem(`What? ${name} is evolving!`);
+      if (!p.heldItem?.preventsEvolution) {
+        p.readyToEvolve = evo.target; // nat_dex_id of the evolved form — handled by the EVOLVE state
+      }
     }
 
     // Check for level-up moves.
@@ -116,7 +117,6 @@ export default function applyExperienceGains() {
         if (!p.pendingMovesToLearn.some(m => m.name === moveName)) {
           p.pendingMovesToLearn.push({ name: moveName, pp });
         }
-        this.logger.addItem(`${name} wants to learn ${moveName}!`);
       }
     }
   }

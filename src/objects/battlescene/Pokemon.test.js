@@ -198,10 +198,12 @@ describe('attack', () => {
     expect(info.move).toBe('Struggle');
   });
 
-  test('logs a warning and returns undefined when move is missing', () => {
+  test('logs a warning and returns a failed info object when move is missing', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const result = bulbasaur.attack(charmander, undefined, GEN_3);
-    expect(result).toBeUndefined();
+    expect(result).toBeDefined();
+    expect(result.accuracy).toBe(0);
+    expect(result.failed).toBe(true);
     warn.mockRestore();
   });
 

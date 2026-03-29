@@ -233,9 +233,12 @@ export function applyColorChange(defender, move, logger) {
  * @param {object} weather - Current weather { type, turnsLeft }.
  * @param {object} logger  - Logger.
  */
-export function applyAbilityEOT(mon, weather, logger) {
+export function applyAbilityEOT(mon, weather, logger, opponent) {
   if (!mon.isAlive?.()) return;
   if (typeof mon.hasAbility !== 'function') return;
+
+  // Suppress weather effects if Cloud Nine / Air Lock is active.
+  const effectiveWeather = isWeatherSuppressed(mon, opponent) ? null : weather;
 
   // Speed Boost: raise Speed by 1 each turn (cap at +6).
   if (mon.hasAbility(Abilities.SPEED_BOOST)) {
@@ -246,7 +249,7 @@ export function applyAbilityEOT(mon, weather, logger) {
   }
 
   // Rain Dish: heal 1/16 HP in rain.
-  if (mon.hasAbility(Abilities.RAIN_DISH) && weather?.type === 'rain') {
+  if (mon.hasAbility(Abilities.RAIN_DISH) && effectiveWeather?.type === 'rain') {
     const heal = Math.max(1, Math.floor(mon.maxHp / 16));
     mon.currentHp = Math.min(mon.maxHp, mon.currentHp + heal);
     logger.addItem(`${mon.getName()}'s Rain Dish restored its HP!`);
@@ -254,11 +257,11 @@ export function applyAbilityEOT(mon, weather, logger) {
 
   // Dry Skin: heal 1/8 in rain, take 1/8 damage in sun.
   if (mon.hasAbility(Abilities.DRY_SKIN)) {
-    if (weather?.type === 'rain') {
+    if (effectiveWeather?.type === 'rain') {
       const heal = Math.max(1, Math.floor(mon.maxHp / 8));
       mon.currentHp = Math.min(mon.maxHp, mon.currentHp + heal);
       logger.addItem(`${mon.getName()}'s Dry Skin absorbed moisture!`);
-    } else if (weather?.type === 'sun') {
+    } else if (effectiveWeather?.type === 'sun') {
       const dmg = Math.max(1, Math.floor(mon.maxHp / 8));
       mon.takeDamage(dmg);
       logger.addItem(`${mon.getName()}'s Dry Skin was dried out!`);
@@ -266,7 +269,8 @@ export function applyAbilityEOT(mon, weather, logger) {
   }
 
   // Shed Skin: 30% chance to cure any primary status condition.
-  if (mon.hasAbility(Abilities.SHED_SKIN)) {
+  // Guard against Pokémon fainted earlier this turn (e.g. from sandstorm damage).
+  if (mon.isAlive?.() && mon.hasAbility(Abilities.SHED_SKIN)) {
     const hasStatus = Object.values(mon.status ?? {}).some(v => v > 0);
     if (hasStatus && Math.random() < 0.3) {
       for (const key of Object.keys(mon.status)) mon.status[key] = 0;
@@ -277,13 +281,31 @@ export function applyAbilityEOT(mon, weather, logger) {
   }
 }
 
+// ─── Weather suppression ──────────────────────────────────────────────────────
+
+/**
+ * Returns true if Cloud Nine or Air Lock is active on either battler,
+ * suppressing all weather effects for this turn.
+ * @param {object} mon1 - First active BattlePokemon.
+ * @param {object} [mon2] - Second active BattlePokemon (optional).
+ */
+export function isWeatherSuppressed(mon1, mon2) {
+  const suppresses = m => typeof m?.hasAbility === 'function' &&
+    (m.hasAbility(Abilities.CLOUD_NINE) || m.hasAbility(Abilities.AIR_LOCK));
+  return suppresses(mon1) || suppresses(mon2);
+}
+
 // ─── Speed modifier ───────────────────────────────────────────────────────────
 
 /**
  * Returns the speed multiplier from the Pokémon's ability and current weather.
  * Used in BeforeAction to compute effective turn order speed.
+ * @param {object} mon      - Active BattlePokemon.
+ * @param {object} weather  - Current weather { type, turnsLeft }.
+ * @param {object} [opponent] - Opposing active BattlePokemon (for Cloud Nine / Air Lock check).
  */
-export function getAbilitySpeedModifier(mon, weather) {
+export function getAbilitySpeedModifier(mon, weather, opponent) {
+  if (isWeatherSuppressed(mon, opponent)) return 1;
   if (mon.hasAbility(Abilities.SWIFT_SWIM)  && weather?.type === 'rain')      return 2;
   if (mon.hasAbility(Abilities.CHLOROPHYLL) && weather?.type === 'sun')       return 2;
   return 1;
