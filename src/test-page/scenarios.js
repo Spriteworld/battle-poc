@@ -523,6 +523,37 @@ const SCENARIOS = [
   },
 
   {
+    id: 'stockpile',
+    category: 'status',
+    title: 'Stockpile / Spit Up / Swallow',
+    description: 'Player lead has all three Stockpile moves. Use Stockpile 1–3 times then test Spit Up (100/200/300 power) or Swallow (¼/½/full HP heal). Switch out to verify stockpileCount resets.',
+    color: 'bg-teal-700',
+    tags: ['stockpile', 'spit-up', 'swallow', 'lv50'],
+    buildData() {
+      const { allSpecies, movePool } = getDexAndMoves();
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          team: [
+            monWithMoves(50, 1, ['Stockpile', 'Spit Up', 'Swallow', 'Tackle']),
+            randomPokemon(allSpecies, movePool, 50, 2),
+            randomPokemon(allSpecies, movePool, 50, 3),
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Trainer',
+          team: Array.from({ length: 3 }, (_, i) =>
+            randomPokemon(allSpecies, movePool, 40, i + 1)
+          ),
+        },
+      };
+    },
+  },
+
+  {
     id: 'volatile-confusion',
     category: 'status',
     title: 'Confusion',

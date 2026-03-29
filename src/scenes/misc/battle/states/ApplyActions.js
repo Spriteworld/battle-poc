@@ -83,13 +83,24 @@ export default class ApplyActions {
     }
 
     const enemyActivePokemon = this.config.enemy.team.getActivePokemon();
-    const canStopSwitch = [
-      enemyActivePokemon.hasAbility(Abilities.ARENA_TRAP),
-      enemyActivePokemon.hasAbility(Abilities.SHADOW_TAG),
-      enemyActivePokemon.hasAbility(Abilities.MAGNET_PULL),
-    ].includes(true);
+    const playerTypes = playerActivePokemon?.types ?? [];
+    const playerFlying = playerTypes.includes(TYPES.FLYING);
+    const playerLevitate = typeof playerActivePokemon?.hasAbility === 'function' &&
+      playerActivePokemon.hasAbility(Abilities.LEVITATE);
 
-    if (canStopSwitch) {
+    let trapAbility = null;
+    if (enemyActivePokemon.hasAbility(Abilities.ARENA_TRAP) && !playerFlying && !playerLevitate) {
+      trapAbility = 'Arena Trap';
+    } else if (enemyActivePokemon.hasAbility(Abilities.SHADOW_TAG) &&
+               !playerActivePokemon?.hasAbility?.(Abilities.SHADOW_TAG)) {
+      trapAbility = 'Shadow Tag';
+    } else if (enemyActivePokemon.hasAbility(Abilities.MAGNET_PULL) &&
+               playerTypes.some(t => t === TYPES.STEEL)) {
+      trapAbility = 'Magnet Pull';
+    }
+
+    if (trapAbility) {
+      this.logger.addItem(`${playerActivePokemon.getName()} can't switch out! ${enemyActivePokemon.getName()}'s ${trapAbility} prevents it!`);
       this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
       return;
     }
@@ -126,6 +137,7 @@ export default class ApplyActions {
       outgoing.volatileStatus.biding          = null;
       outgoing.volatileStatus.defenseCurled   = false;
       outgoing.volatileStatus.transformed     = false;
+      outgoing.volatileStatus.stockpileCount  = 0;
     }
 
     // Natural Cure: cure the outgoing Pokémon's status on switch-out.
@@ -322,23 +334,26 @@ export default class ApplyActions {
       activeMon.volatileStatus.confusedTurns = 0;
     }
     if ((activeMon.volatileStatus?.confusedTurns ?? 0) > 0) {
+      this.logger.addItem(`${activeMon.getName()} is confused!`);
+      if (Math.random() < 0.5) {
+        const selfInfo = CalcDamage.calculate(activeMon, activeMon, CONFUSION_HIT, { stab: 1, typeEffectiveness: 1 }, this.generation);
+        const selfDmg  = Math.max(1, selfInfo.damage || 0);
+        activeMon.takeDamage(selfDmg);
+        this.logger.addItem(`It hurt itself in its confusion! (${selfDmg} damage)`);
+        activeMon.volatileStatus.confusedTurns--;
+        if (activeMon.volatileStatus.confusedTurns === 0) {
+          this.logger.addItem(`${activeMon.getName()} snapped out of its confusion!`);
+        }
+        this.currentAction = null;
+        this.logger.flush(() => {
+          this.remapActivePokemon();
+          this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
+        });
+        return;
+      }
       activeMon.volatileStatus.confusedTurns--;
       if (activeMon.volatileStatus.confusedTurns === 0) {
-        this.logger.addItem(`${activeMon.getName()} snapped out of confusion!`);
-      } else {
-        this.logger.addItem(`${activeMon.getName()} is confused!`);
-        if (Math.random() < 0.5) {
-          const selfInfo = CalcDamage.calculate(activeMon, activeMon, CONFUSION_HIT, { stab: 1, typeEffectiveness: 1 }, this.generation);
-          const selfDmg  = Math.max(1, selfInfo.damage || 0);
-          activeMon.takeDamage(selfDmg);
-          this.logger.addItem(`It hurt itself in its confusion! (${selfDmg} damage)`);
-          this.currentAction = null;
-          this.logger.flush(() => {
-            this.remapActivePokemon();
-            this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
-          });
-          return;
-        }
+        this.logger.addItem(`${activeMon.getName()} snapped out of its confusion!`);
       }
     }
 

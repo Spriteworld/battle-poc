@@ -339,7 +339,7 @@ export default class extends BasePokemon {
     if (move?.name?.toLowerCase() === 'fury cutter') {
       const wasConsecutive = this.lastUsedMove?.name?.toLowerCase() === 'fury cutter';
       this.volatileStatus.furyCutterCount = wasConsecutive
-        ? Math.min((this.volatileStatus.furyCutterCount ?? 0) + 1, 4)
+        ? Math.min((this.volatileStatus.furyCutterCount ?? 0) + 1, 5)
         : 1;
     } else if (this.volatileStatus?.furyCutterCount) {
       this.volatileStatus.furyCutterCount = 0;
@@ -390,8 +390,42 @@ export default class extends BasePokemon {
     let info;
     if (typeof move.onAttack === 'function') {
       // Custom damage calculation (fixed damage, OHKO, etc.).
-      // onAttack is responsible for its own accuracy logic; the standard roll is skipped.
+      // For moves whose onAttack does its own raw accuracy roll (Fury Cutter, Rollout, etc.),
+      // we apply the stage-aware accuracy multiplier as a pre-check so that acc/evasion stages
+      // are respected. The onAttack's own roll then acts as the final confirmation.
+      if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation)) {
+        const isPhysical = (generation?.getCategory?.(move) ?? move.category) === Moves.MOVE_CATEGORIES.PHYSICAL;
+        let accAbilityMult = 1;
+        if (typeof this.hasAbility === 'function') {
+          if (this.hasAbility('Compound Eyes')) accAbilityMult *= 1.3;
+          if (this.hasAbility('Hustle') && isPhysical) accAbilityMult *= 0.8;
+        }
+        const accStageDelta = Math.max(-6, Math.min(6,
+          (this.stages?.ACCURACY ?? 0) - (target.stages?.EVASION ?? 0)
+        ));
+        const stageMult = ACC_STAGE_MULTIPLIERS[accStageDelta + 6];
+        if (stageMult !== 1 || accAbilityMult !== 1) {
+          // Only apply a modifier when stages/ability actually deviate from neutral, so that
+          // moves which already roll their own accuracy at 100% baseline aren't affected.
+          const effectiveAcc = move.accuracy * stageMult * accAbilityMult;
+          if (!(Math.random() * 100 < effectiveAcc)) {
+            return {
+              player: this.getName(),
+              enemy:  target.getName(),
+              move:   move.name,
+              accuracy: 0,
+              damage:   0,
+            };
+          }
+        }
+      }
       info = move.onAttack(this, target, generation);
+      // Defense Curl bonus: if the user used Defense Curl, Rollout and Ice Ball deal double damage.
+      const moveLc = move.name?.toLowerCase();
+      if ((moveLc === 'rollout' || moveLc === 'ice ball') &&
+          this.volatileStatus?.defenseCurled && (info?.damage ?? 0) > 0) {
+        info = { ...info, damage: info.damage * 2 };
+      }
     } else {
       // Standard accuracy check — null means the move always hits (e.g. Swift, Aerial Ace).
       // Weather can also force a bypass (Thunder in rain, Blizzard in hail).

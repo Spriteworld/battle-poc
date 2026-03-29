@@ -99,8 +99,8 @@ describe('PlayerBag', () => {
     new PlayerBag().onEnter.call(ctx);
     ctx.BagMenu.addMenuItem.mockClear();
 
-    // Simulate right-arrow tab change to Balls (index 1)
-    ctx.events.emit('bagmenu-tab-change', 1);
+    // Simulate right-arrow tab change to Balls (index 2 — Med, Items, Balls, …)
+    ctx.events.emit('bagmenu-tab-change', 2);
 
     // Now balls item + Cancel should appear
     expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2);

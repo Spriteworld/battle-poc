@@ -63,6 +63,7 @@ export default class PlayerNewActivePokemon {
             outgoing.volatileStatus.biding           = null;
             outgoing.volatileStatus.defenseCurled    = false;
             outgoing.volatileStatus.transformed      = false;
+            outgoing.volatileStatus.stockpileCount   = 0;
           }
           // Natural Cure: cure outgoing Pokémon's status on switch-out (baton pass path).
           if (outgoing.hasAbility?.(Abilities.NATURAL_CURE)) {

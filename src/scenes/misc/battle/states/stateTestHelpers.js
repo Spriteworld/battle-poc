@@ -44,8 +44,10 @@ export function makeMenu(name) {
   };
 }
 
+let _monCounter = 0;
 export function makeMon(overrides = {}) {
   const base = {
+    id:        `mock-mon-${++_monCounter}`,
     pid:       'mock-pid',
     currentHp: 100,
     maxHp:     100,
@@ -112,6 +114,7 @@ export function makeContext(overrides = {}) {
     isTrainer: true,
     team: {
       pokemon:          [playerMon],
+      active:           0,
       getActivePokemon: jest.fn(() => playerMon),
       setActivePokemon: jest.fn(),
       hasLivingPokemon: jest.fn(() => true),
