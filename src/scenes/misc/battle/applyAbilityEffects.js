@@ -10,9 +10,10 @@ import { Abilities, STATUS, TYPES, STATS } from '@spriteworld/pokemon-data';
  * @param {object} opponent   - The currently active opposing Pokémon.
  * @param {object} weather    - Mutable weather object { type, turnsLeft }.
  * @param {object} logger     - Logger instance with addItem().
- * @param {object} generation - Generation config.
+ * @param {object}   generation - Generation config.
+ * @param {Function} [toast]    - Optional (mon, abilityName) => void callback for visual toasts.
  */
-export function applySwitchInAbilities(incoming, opponent, weather, logger, generation) {
+export function applySwitchInAbilities(incoming, opponent, weather, logger, generation, toast) {
   if (!incoming) return;
 
   // Intimidate — lower opponent's Attack by 1 stage.
@@ -27,6 +28,7 @@ export function applySwitchInAbilities(incoming, opponent, weather, logger, gene
       if (typeof opponent.applyStageChange === 'function') {
         opponent.applyStageChange(STATS.ATTACK, -1);
       }
+      toast?.(incoming, 'Intimidate');
       logger.addItem(`${incoming.getName()}'s Intimidate lowered ${opponent.getName()}'s Attack!`);
     }
   }
@@ -39,15 +41,17 @@ export function applySwitchInAbilities(incoming, opponent, weather, logger, gene
         weather.type      = type;
         weather.turnsLeft = 5;
         logger.addItem(message);
+        return true;
       }
+      return false;
     };
     if (gen >= 2) {
-      if (incoming.hasAbility(Abilities.DRIZZLE))     setWeather('rain',      'It started to rain!');
-      if (incoming.hasAbility(Abilities.DROUGHT))     setWeather('sun',       'The sunlight turned harsh!');
-      if (incoming.hasAbility(Abilities.SAND_STREAM)) setWeather('sandstorm', 'A sandstorm brewed!');
+      if (incoming.hasAbility(Abilities.DRIZZLE)     && setWeather('rain',      'It started to rain!'))      toast?.(incoming, 'Drizzle');
+      if (incoming.hasAbility(Abilities.DROUGHT)     && setWeather('sun',       'The sunlight turned harsh!')) toast?.(incoming, 'Drought');
+      if (incoming.hasAbility(Abilities.SAND_STREAM) && setWeather('sandstorm', 'A sandstorm brewed!'))       toast?.(incoming, 'Sand Stream');
     }
     if (gen >= 3) {
-      if (incoming.hasAbility(Abilities.SNOW_WARNING)) setWeather('hail', 'It started to hail!');
+      if (incoming.hasAbility(Abilities.SNOW_WARNING) && setWeather('hail', 'It started to hail!')) toast?.(incoming, 'Snow Warning');
     }
   }
 
@@ -56,19 +60,21 @@ export function applySwitchInAbilities(incoming, opponent, weather, logger, gene
     const oppAbilityName = opponent.ability.name.toLowerCase();
     if (oppAbilityName !== 'trace') {
       incoming.ability = { ...opponent.ability };
+      toast?.(incoming, 'Trace');
       logger.addItem(`${incoming.getName()} traced ${opponent.getName()}'s ${opponent.ability.name}!`);
       // Only trigger weather-setter side effects of the traced ability to avoid double-Intimidate etc.
       if (weather) {
         const gen = generation?.gen ?? 3;
         const setWeather = (type, message) => {
-          if (weather.type !== type) { weather.type = type; weather.turnsLeft = 5; logger.addItem(message); }
+          if (weather.type !== type) { weather.type = type; weather.turnsLeft = 5; logger.addItem(message); return true; }
+          return false;
         };
         if (gen >= 2) {
-          if (incoming.hasAbility(Abilities.DRIZZLE))     setWeather('rain',      'It started to rain!');
-          if (incoming.hasAbility(Abilities.DROUGHT))     setWeather('sun',       'The sunlight turned harsh!');
-          if (incoming.hasAbility(Abilities.SAND_STREAM)) setWeather('sandstorm', 'A sandstorm brewed!');
+          if (incoming.hasAbility(Abilities.DRIZZLE)     && setWeather('rain',      'It started to rain!'))      toast?.(incoming, 'Drizzle');
+          if (incoming.hasAbility(Abilities.DROUGHT)     && setWeather('sun',       'The sunlight turned harsh!')) toast?.(incoming, 'Drought');
+          if (incoming.hasAbility(Abilities.SAND_STREAM) && setWeather('sandstorm', 'A sandstorm brewed!'))       toast?.(incoming, 'Sand Stream');
         }
-        if (gen >= 3 && incoming.hasAbility(Abilities.SNOW_WARNING)) setWeather('hail', 'It started to hail!');
+        if (gen >= 3 && incoming.hasAbility(Abilities.SNOW_WARNING) && setWeather('hail', 'It started to hail!')) toast?.(incoming, 'Snow Warning');
       }
     }
   }
@@ -138,10 +144,11 @@ function isContact(move, generation) {
  * @param {object} defender   - BattlePokemon that was hit.
  * @param {object} move       - The move used.
  * @param {object} info       - Attack result (needs info.damage > 0).
- * @param {object} logger     - Logger.
- * @param {object} generation - Generation config.
+ * @param {object}   logger     - Logger.
+ * @param {object}   generation - Generation config.
+ * @param {Function} [toast]    - Optional (mon, abilityName) => void callback for visual toasts.
  */
-export function applyContactAbilityEffects(attacker, defender, move, info, logger, generation) {
+export function applyContactAbilityEffects(attacker, defender, move, info, logger, generation, toast) {
   if (!info || info.damage <= 0) return;
   if (!isContact(move, generation)) return;
 
@@ -153,6 +160,7 @@ export function applyContactAbilityEffects(attacker, defender, move, info, logge
   if (defender.hasAbility(Abilities.STATIC)) {
     if (Math.random() < 0.3 && noStatus(attacker) && !attacker.hasAbility(Abilities.LIMBER)) {
       attacker.status[STATUS.PARALYZE] = 1;
+      toast?.(defender, 'Static');
       logger.addItem(`${attacker.getName()} was paralyzed by Static!`);
     }
   }
@@ -163,6 +171,7 @@ export function applyContactAbilityEffects(attacker, defender, move, info, logge
         !(attacker.types ?? []).includes(TYPES.FIRE)) {
       attacker.status[STATUS.BURN] = 1;
       if (attacker.modifiers) attacker.modifiers.burn = true;
+      toast?.(defender, 'Flame Body');
       logger.addItem(`${attacker.getName()} was burned by Flame Body!`);
     }
   }
@@ -173,6 +182,7 @@ export function applyContactAbilityEffects(attacker, defender, move, info, logge
       (attacker.types ?? []).some(t => t === TYPES.POISON || t === TYPES.STEEL);
     if (Math.random() < 0.3 && noStatus(attacker) && !immuneToPoison) {
       attacker.status[STATUS.POISON] = 1;
+      toast?.(defender, 'Poison Point');
       logger.addItem(`${attacker.getName()} was poisoned by Poison Point!`);
     }
   }
@@ -181,6 +191,7 @@ export function applyContactAbilityEffects(attacker, defender, move, info, logge
   if (defender.hasAbility(Abilities.ROUGH_SKIN)) {
     const dmg = Math.max(1, Math.floor(attacker.maxHp / 8));
     attacker.takeDamage(dmg);
+    toast?.(defender, 'Rough Skin');
     logger.addItem(`${attacker.getName()} was hurt by Rough Skin! (${dmg} damage)`);
   }
 
@@ -189,16 +200,19 @@ export function applyContactAbilityEffects(attacker, defender, move, info, logge
     const roll = Math.random();
     if (roll < 0.1 && !attacker.hasAbility(Abilities.INSOMNIA) && !attacker.hasAbility(Abilities.VITAL_SPIRIT)) {
       attacker.status[STATUS.SLEEP] = Math.floor(Math.random() * 7) + 1;
+      toast?.(defender, 'Effect Spore');
       logger.addItem(`${attacker.getName()} fell asleep due to Effect Spore!`);
     } else if (roll < 0.2) {
       const immuneToPoison = attacker.hasAbility(Abilities.IMMUNITY) ||
         (attacker.types ?? []).some(t => t === TYPES.POISON || t === TYPES.STEEL);
       if (!immuneToPoison) {
         attacker.status[STATUS.POISON] = 1;
+        toast?.(defender, 'Effect Spore');
         logger.addItem(`${attacker.getName()} was poisoned by Effect Spore!`);
       }
     } else if (roll < 0.3 && !attacker.hasAbility(Abilities.LIMBER)) {
       attacker.status[STATUS.PARALYZE] = 1;
+      toast?.(defender, 'Effect Spore');
       logger.addItem(`${attacker.getName()} was paralyzed by Effect Spore!`);
     }
   }
@@ -207,6 +221,7 @@ export function applyContactAbilityEffects(attacker, defender, move, info, logge
   if (defender.hasAbility(Abilities.CUTE_CHARM)) {
     if (Math.random() < 0.3 && !attacker.volatileStatus?.infatuated && !attacker.hasAbility(Abilities.OBLIVIOUS)) {
       if (attacker.volatileStatus) attacker.volatileStatus.infatuated = true;
+      toast?.(defender, 'Cute Charm');
       logger.addItem(`${attacker.getName()} fell in love due to Cute Charm!`);
     }
   }
@@ -229,11 +244,13 @@ export function applyColorChange(defender, move, logger) {
  * Applies end-of-turn ability effects for one Pokémon.
  * Handles: Speed Boost, Rain Dish, Dry Skin, Shed Skin.
  *
- * @param {object} mon     - BattlePokemon.
- * @param {object} weather - Current weather { type, turnsLeft }.
- * @param {object} logger  - Logger.
+ * @param {object}   mon      - BattlePokemon.
+ * @param {object}   weather  - Current weather { type, turnsLeft }.
+ * @param {object}   logger   - Logger.
+ * @param {object}   opponent - Opposing active BattlePokemon (for weather suppression).
+ * @param {Function} [toast]  - Optional (mon, abilityName) => void callback for visual toasts.
  */
-export function applyAbilityEOT(mon, weather, logger, opponent) {
+export function applyAbilityEOT(mon, weather, logger, opponent, toast) {
   if (!mon.isAlive?.()) return;
   if (typeof mon.hasAbility !== 'function') return;
 
@@ -244,6 +261,7 @@ export function applyAbilityEOT(mon, weather, logger, opponent) {
   if (mon.hasAbility(Abilities.SPEED_BOOST)) {
     if ((mon.stages?.[STATS.SPEED] ?? 0) < 6 && typeof mon.applyStageChange === 'function') {
       mon.applyStageChange(STATS.SPEED, 1);
+      toast?.(mon, 'Speed Boost');
       logger.addItem(`${mon.getName()}'s Speed Boost raised its Speed!`);
     }
   }
@@ -252,6 +270,7 @@ export function applyAbilityEOT(mon, weather, logger, opponent) {
   if (mon.hasAbility(Abilities.RAIN_DISH) && effectiveWeather?.type === 'rain') {
     const heal = Math.max(1, Math.floor(mon.maxHp / 16));
     mon.currentHp = Math.min(mon.maxHp, mon.currentHp + heal);
+    toast?.(mon, 'Rain Dish');
     logger.addItem(`${mon.getName()}'s Rain Dish restored its HP!`);
   }
 
@@ -260,10 +279,12 @@ export function applyAbilityEOT(mon, weather, logger, opponent) {
     if (effectiveWeather?.type === 'rain') {
       const heal = Math.max(1, Math.floor(mon.maxHp / 8));
       mon.currentHp = Math.min(mon.maxHp, mon.currentHp + heal);
+      toast?.(mon, 'Dry Skin');
       logger.addItem(`${mon.getName()}'s Dry Skin absorbed moisture!`);
     } else if (effectiveWeather?.type === 'sun') {
       const dmg = Math.max(1, Math.floor(mon.maxHp / 8));
       mon.takeDamage(dmg);
+      toast?.(mon, 'Dry Skin');
       logger.addItem(`${mon.getName()}'s Dry Skin was dried out!`);
     }
   }
@@ -276,6 +297,7 @@ export function applyAbilityEOT(mon, weather, logger, opponent) {
       for (const key of Object.keys(mon.status)) mon.status[key] = 0;
       if (mon.modifiers) mon.modifiers.burn = false;
       mon.toxicCount = 0;
+      toast?.(mon, 'Shed Skin');
       logger.addItem(`${mon.getName()} shed its skin and cured its status!`);
     }
   }

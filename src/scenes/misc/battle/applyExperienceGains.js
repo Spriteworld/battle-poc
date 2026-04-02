@@ -99,7 +99,8 @@ export default function applyExperienceGains() {
     }
 
     // Check for level-up moves.
-    const learnset   = dexId != null ? (FRLG_LEARNSETS[dexId] ?? []) : [];
+    const speciesKey = (p.pokemon?.species ?? '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const learnset   = speciesKey ? (FRLG_LEARNSETS[speciesKey] ?? []) : [];
     const movesAtLvl = learnset.filter(([lvl]) => lvl === newLevel);
 
     for (const [, moveName] of movesAtLvl) {

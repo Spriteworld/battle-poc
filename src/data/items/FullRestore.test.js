@@ -1,5 +1,6 @@
 import FullRestore from './FullRestore.js';
-import { makeMon, makeAction } from './testHelpers.js';
+import { makeMon, makeAction, makeStatus } from './testHelpers.js';
+import { STATUS } from '@spriteworld/pokemon-data';
 
 describe('FullRestore', () => {
   test('getName returns "Full Restore"', () => {
@@ -12,10 +13,15 @@ describe('FullRestore', () => {
     expect(mon.currentHp).toBe(100);
   });
 
-  test('clears status condition', () => {
-    const mon = makeMon({ currentHp: 50, status: 'poison' });
+  test('clears all status conditions', () => {
+    const mon = makeMon({
+      currentHp: 50,
+      status: makeStatus({ [STATUS.BURN]: 1, [STATUS.TOXIC]: 3 }),
+      toxicCount: 3,
+    });
     new FullRestore().onUse(mon, makeAction());
-    expect(mon.status).toBeNull();
+    expect(Object.values(mon.status).every(v => v === 0)).toBe(true);
+    expect(mon.toxicCount).toBe(0);
   });
 
   test('does not heal a fainted pokemon', () => {
@@ -29,5 +35,11 @@ describe('FullRestore', () => {
     const result = new FullRestore().onUse(mon, makeAction());
     expect(result).toBeDefined();
     expect(result.message).toBeDefined();
+  });
+
+  test('message includes trainer name', () => {
+    const mon = makeMon({ currentHp: 50, maxHp: 100 });
+    const result = new FullRestore().onUse(mon, makeAction('Blue'));
+    expect(result.message).toContain('Blue');
   });
 });

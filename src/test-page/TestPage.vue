@@ -5,45 +5,109 @@
       <p class="text-gray-400 text-sm mt-1">Click a scenario to launch a live battle.</p>
     </header>
 
-    <!-- Tabs -->
-    <div class="flex flex-wrap gap-1 mb-4 border-b border-gray-800">
-      <div
-        v-for="cat in CATEGORIES"
-        :key="cat.id"
-        class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium rounded-t transition cursor-pointer whitespace-nowrap"
-        :class="{
-          'bg-gray-800 text-white': activeTab === cat.id,
-          'text-gray-500 hover:text-gray-300 hover:bg-gray-900': activeTab !== cat.id
-        }"
-        @click="activeTab = cat.id"
-      >
-        {{ cat.label }}
-      </div>
+    <!-- Scenarios grouped by category -->
+    <div class="space-y-6 sm:space-y-8">
+      <section v-for="cat in CATEGORIES" :key="cat.id">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3">{{ cat.label }}</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <template v-for="s in byCategory[cat.id]" :key="s.id">
+            <div
+              v-if="s.disabled !== true"
+              class="rounded-xl p-2 text-left transition hover:scale-[1.02] active:scale-100 cursor-pointer"
+              :class="s.color"
+              @click="launch(s)"
+            >
+              <div class="font-bold text-base mb-1">{{ s.title }}</div>
+              <p class="text-xs text-white/70 leading-snug line-clamp-3">{{ s.description }}</p>
+              <div class="mt-2 flex flex-wrap gap-1">
+                <span
+                  v-for="tag in s.tags"
+                  :key="tag"
+                  class="text-[10px] bg-black/30 rounded px-1.5 py-0.5 font-mono"
+                >
+                  {{ tag }}
+                </span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
     </div>
+  </div>
 
-    <!-- Scenario grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-      <div
-        v-for="s in visibleScenarios"
-        :key="s.id"
-        class="rounded-xl p-2 text-left transition hover:scale-[1.02] active:scale-100 cursor-pointer"
-        :class="s.color"
-        @click="launch(s)"
-      >
-        <div class="font-bold text-base mb-1">{{ s.title }}</div>
-        <p class="text-xs text-white/70 leading-snug line-clamp-3">{{ s.description }}</p>
-        <div class="mt-2 flex flex-wrap gap-1">
-          <span
-            v-for="tag in s.tags"
-            :key="tag"
-            class="text-[10px] bg-black/30 rounded px-1.5 py-0.5 font-mono"
+  <!-- Showdown import modal -->
+  <Teleport to="body">
+    <div
+      v-if="showdownModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      @keydown.esc="showdownModal = false"
+    >
+      <div class="bg-gray-900 rounded-2xl w-full max-w-5xl flex flex-col gap-4 p-6 shadow-2xl">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white">Showdown Team Import</h2>
+          <button
+            class="text-gray-400 hover:text-white text-xl leading-none"
+            @click="showdownModal = false"
+          >✕</button>
+        </div>
+
+        <p class="text-xs text-gray-400">
+          Paste two Showdown team exports below. Use the Export button on
+          <span class="font-mono text-gray-300">pokemonshowdown.com/teambuilder</span> to get the format.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-gray-300 uppercase tracking-wide">Your Team</label>
+            <textarea
+              v-model="playerTeamText"
+              class="bg-gray-800 text-gray-100 font-mono text-xs rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              rows="18"
+              placeholder="Paste Showdown export here…"
+              spellcheck="false"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-gray-300 uppercase tracking-wide">Opponent's Team</label>
+            <textarea
+              v-model="enemyTeamText"
+              class="bg-gray-800 text-gray-100 font-mono text-xs rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              rows="18"
+              placeholder="Paste Showdown export here…"
+              spellcheck="false"
+            />
+          </div>
+        </div>
+
+        <!-- Opponent AI selector -->
+        <div class="flex items-center gap-3">
+          <label class="text-xs font-semibold text-gray-300 uppercase tracking-wide shrink-0">Opponent AI</label>
+          <select
+            v-model="selectedAI"
+            class="bg-gray-800 text-gray-100 font-mono text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            {{ tag }}
-          </span>
+            <option v-for="opt in AI_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+        </div>
+
+        <!-- Error display -->
+        <div v-if="showdownErrors.length" class="rounded-lg bg-red-900/50 border border-red-700 p-3 text-xs text-red-300 space-y-1">
+          <p v-for="e in showdownErrors" :key="e">⚠ {{ e }}</p>
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <button
+            class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-700 transition"
+            @click="showdownModal = false"
+          >Cancel</button>
+          <button
+            class="px-5 py-2 rounded-lg text-sm font-semibold bg-emerald-700 hover:bg-emerald-600 text-white transition"
+            @click="startShowdownBattle"
+          >Start Battle →</button>
         </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 
   <!-- Expanded battle overlay -->
   <Teleport to="body">
@@ -58,7 +122,6 @@
           @click="close"
         >← Back</button>
         <span class="font-semibold text-white">{{ active.scenario.title }}</span>
-        <span class="text-gray-500 text-sm ml-1">— {{ active.scenario.description }}</span>
         <div class="ml-auto flex gap-1">
           <span
             v-for="tag in active.scenario.tags"
@@ -91,19 +154,46 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import Phaser from 'phaser';
 import BattleScene2 from '@Scenes/misc/battle/Scene2.js';
-import SCENARIOS, { CATEGORIES } from './scenarios.js';
+import BattleUI from '@Scenes/misc/battle/UI.js';
+import EvolutionScene from '@Scenes/misc/EvolutionScene.js';
+import SCENARIOS, { CATEGORIES, SHOWDOWN_EXAMPLE_PLAYER, SHOWDOWN_EXAMPLE_ENEMY } from './scenarios.js';
 import MobileControls from '@/components/MobileControls.vue';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-const activeTab = ref(CATEGORIES[0].id);
-const visibleScenarios = computed(() =>
-  SCENARIOS.filter(s => s.category === activeTab.value)
-);
+const byCategory = computed(() => {
+  const map = {};
+  for (const cat of CATEGORIES) map[cat.id] = [];
+  for (const s of SCENARIOS) (map[s.category] ??= []).push(s);
+  return map;
+});
 
 const active = ref(null);   // { scenario, gameInstance }
 const gameCanvas = ref(null);
 let phaserGame = null;
+
+// Showdown import modal state
+const showdownModal    = ref(false);
+const pendingScenario  = ref(null);
+const playerTeamText   = ref(SHOWDOWN_EXAMPLE_PLAYER);
+const enemyTeamText    = ref(SHOWDOWN_EXAMPLE_ENEMY);
+const showdownErrors   = ref([]);
+const selectedAI       = ref('trainer');
+
+const AI_OPTIONS = [
+  { value: 'trainer',    label: 'Trainer      — 30% random' },
+  { value: 'gym_leader', label: 'Gym Leader   — 10% random' },
+  { value: 'elite_four', label: 'Elite Four   —  0% random' },
+  { value: 'gen_1',      label: 'Gen 1        — 50% random (type bug)' },
+  { value: 'gen_2',      label: 'Gen 2        — 40% random' },
+  { value: 'gen_3',      label: 'Gen 3        — 30% random' },
+  { value: 'gen_4',      label: 'Gen 4        — 20% random' },
+  { value: 'gen_5',      label: 'Gen 5        — 10% random' },
+  { value: 'gen_6',      label: 'Gen 6        —  5% random' },
+  { value: 'gen_7',      label: 'Gen 7        —  2% random' },
+  { value: 'gen_8',      label: 'Gen 8        —  0% random' },
+  { value: 'champions',  label: 'Champions    —  0% random (all Pokémon & moves)' },
+];
 
 // ─── Hash helpers ─────────────────────────────────────────────────────────────
 
@@ -114,13 +204,20 @@ function scenarioFromHash() {
 
 // ─── Core actions ─────────────────────────────────────────────────────────────
 
-async function launch(scenario) {
+async function launch(scenario, battleData = null) {
+  // Showdown scenarios need team text input before we can build the data.
+  if (scenario.type === 'showdown' && battleData === null) {
+    pendingScenario.value = scenario;
+    showdownErrors.value  = [];
+    showdownModal.value   = true;
+    return;
+  }
+
   if (phaserGame) {
     phaserGame.destroy(true);
     phaserGame = null;
   }
   active.value = { scenario, gameInstance: null };
-  activeTab.value = scenario.category;
 
   // Sync the URL fragment; no-op if already set (e.g. called from hashchange or onMounted).
   if (location.hash !== '#' + scenario.id) {
@@ -129,13 +226,16 @@ async function launch(scenario) {
 
   await nextTick();
 
-  const battleData = scenario.buildData();
+  const data = battleData ?? scenario.buildData();
+  console.log('Launching scenario', scenario.id, { data });
 
   class QuickPreload extends Phaser.Scene {
     constructor() { super({ key: 'QuickPreload' }); }
     create() {
       this.scene.add(BattleScene2.name, BattleScene2, false);
-      this.scene.start(BattleScene2.name, battleData);
+      this.scene.add(BattleUI.name, BattleUI, false);
+      this.scene.add(EvolutionScene.name, EvolutionScene, false);
+      this.scene.start(BattleScene2.name, data);
     }
   }
 
@@ -153,10 +253,36 @@ async function launch(scenario) {
         game.canvas.style.width = '100%';
         game.canvas.style.height = '100%';
         game.canvas.style['object-fit'] = 'contain';
+        game.canvas.setAttribute('tabindex', '0');
+        game.canvas.focus();
         gameCanvas.value = game.canvas;
       },
     },
   });
+}
+
+async function startShowdownBattle() {
+  showdownErrors.value = [];
+  const scenario = pendingScenario.value;
+
+  let battleData;
+  try {
+    battleData = scenario.buildData(playerTeamText.value, enemyTeamText.value, selectedAI.value);
+  } catch (err) {
+    showdownErrors.value = [err.message ?? String(err)];
+    return;
+  }
+
+  const errors = [];
+  if (!battleData.player.team.length) errors.push('Player team: no valid Pokémon found. Check species names.');
+  if (!battleData.enemy.team.length)  errors.push('Opponent team: no valid Pokémon found. Check species names.');
+  if (errors.length) {
+    showdownErrors.value = errors;
+    return;
+  }
+
+  showdownModal.value = false;
+  await launch(scenario, battleData);
 }
 
 function close() {

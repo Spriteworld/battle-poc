@@ -76,16 +76,47 @@ export default class BattleStart {
 
     this.events.emit('battle-start', this.data);
 
-    // Fire switch-in abilities for both leads (Intimidate, weather setters, Trace, etc.).
-    // Player's lead triggers first, then enemy's — matching Gen 3 speed-order convention
-    // at battle start where both sides send out simultaneously.
+    // Set up background, weather, platforms, and status boxes — but no sprites yet.
+    this.ActivePokemonMenu.remap([
+      this.config.player.team.getActivePokemon(),
+      this.config.enemy.team.getActivePokemon(),
+    ]);
+    this.FieldScreens.update(this.screens);
+    this.WeatherDisplay.setWeather(this.weather);
+    this._updateBackground(this.weather?.type ?? null);
+    this._updatePlatforms(this.weather?.type ?? null);
+
     const playerLead = this.config.player.team.getActivePokemon();
     const enemyLead  = this.config.enemy.team.getActivePokemon();
-    applySwitchInAbilities(playerLead, enemyLead, this.weather, this.logger, this.generation);
-    applySwitchInAbilities(enemyLead,  playerLead, this.weather, this.logger, this.generation);
+    const toast      = this.showAbilityToast?.bind(this);
+    const isWild     = this.config.enemy instanceof WildTrainer;
 
-    this.remapActivePokemon();
-    this.logger.flush(() => this.stateMachine.setState(this.stateDef.PLAYER_ACTION));
+    // Flush any weather / generation messages queued during setup.
+    this.logger.flush(() => {
+
+      // 1. Enemy Pokémon enters.
+      this._spawnEnemySpriteAnimated(() => {
+        const enemyMsg = isWild
+          ? `A wild ${enemyLead.getName()} appeared!`
+          : `${this.config.enemy.getName()} sent out ${enemyLead.getName()}!`;
+        this.logger.addItem(enemyMsg);
+        applySwitchInAbilities(enemyLead, playerLead, this.weather, this.logger, this.generation, toast);
+
+        this.logger.flush(() => {
+
+          // 2. Player sends out their lead.
+          this._spawnPlayerSpriteAnimated(() => {
+            this.logger.addItem(`Go, ${playerLead.getName()}!`);
+            applySwitchInAbilities(playerLead, enemyLead, this.weather, this.logger, this.generation, toast);
+
+            this.logger.flush(() => {
+              this.remapActivePokemon();
+              this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+            });
+          });
+        });
+      });
+    });
   }
   
 }

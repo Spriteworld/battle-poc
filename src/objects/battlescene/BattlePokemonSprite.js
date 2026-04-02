@@ -15,14 +15,15 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
   constructor(scene, x, y, { species, shiny = false, gender = null, isBack = false, size = 96, tilesetBaseUrl }) {
     super(scene, x, y);
 
-    this._size = size;
+    this._size   = size;
+    this._isBack = isBack;
     const dir  = isBack ? 'back/' : 'front/';
     const base = String(species);
 
     this._key  = `pkmn-battle-${isBack ? 'back' : 'front'}-${base}${shiny ? '-shiny' : ''}`;
-    this._path = tilesetBaseUrl + dir + (shiny ? 'shiny/' : '') + base + '.png';
+    this._path = tilesetBaseUrl + 'tileset/pokemon/' + dir + (shiny ? 'shiny/' : '') + base + '.png';
     this._unknownKey  = 'pkmn-battle-unknown';
-    this._unknownPath = tilesetBaseUrl + 'front/0.png';
+    this._unknownPath = tilesetBaseUrl + 'tileset/pokemon/front/0.png';
 
     // Placeholder shown while loading
     this._placeholder = scene.add.graphics();
@@ -32,6 +33,26 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
 
     this._loadAndShow(scene);
     scene.add.existing(this);
+  }
+
+  /**
+   * Slides the sprite in from off-screen to its current position.
+   * Player (back sprite) enters from the left; enemy (front sprite) from the right.
+   * @param {Function} [callback] - Called when the tween completes.
+   */
+  slideIn(callback) {
+    const targetX = this.x;
+    const startX  = this._isBack ? targetX - 350 : targetX + 250;
+    this.setX(startX);
+    this.setAlpha(0);
+    this.scene.tweens.add({
+      targets:  this,
+      x:        targetX,
+      alpha:    1,
+      duration: 400,
+      ease:     'Power2.easeOut',
+      onComplete: () => callback?.(),
+    });
   }
 
   _loadAndShow(scene) {

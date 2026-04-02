@@ -19,9 +19,12 @@ import BagMenu from './menus/BagMenu.js';
 import HpBar from './ui/HpBar.js';
 import PokemonStatusBox from './ui/PokemonStatusBox.js';
 import DialogBox from './ui/DialogBox.js';
+import Window from './ui/Window.js';
+import ConfirmDialog from './ui/ConfirmDialog.js';
 
 import Action from './misc/Action.js';
 import * as ActionTypes from './enums/ActionTypes.js';
+import * as TrainerClass from './enums/TrainerClass.js';
 
 export {
   Game,
@@ -45,7 +48,10 @@ export {
   HpBar,
   PokemonStatusBox,
   DialogBox,
+  Window,
+  ConfirmDialog,
 
   Action,
   ActionTypes,
+  TrainerClass,
 };

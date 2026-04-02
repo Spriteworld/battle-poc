@@ -1,6 +1,6 @@
 import BaseItem from './BaseItem.js';
 
-/** Fully restores HP. Also cures status conditions when the status system is implemented. */
+/** Fully restores HP and cures all primary status conditions. */
 export default class FullRestore extends BaseItem {
   constructor() {
     super({
@@ -15,9 +15,12 @@ export default class FullRestore extends BaseItem {
         const restoredHp = target.maxHp - target.currentHp;
         target.currentHp = target.maxHp;
 
-        // Clear status condition when status system is available.
+        // Clear all primary status conditions.
         if (target.status) {
-          target.status = null;
+          for (const key of Object.keys(target.status)) {
+            target.status[key] = 0;
+          }
+          target.toxicCount = 0;
         }
 
         const hpMsg = restoredHp > 0

@@ -39,3 +39,6 @@ export { default as Preload } from '@Scenes/misc/Preload.js';
 export { default as BattleScene } from '@Scenes/misc/battle/Scene2.js';
 export { default as BattleUI } from '@Scenes/misc/battle/UI.js';
 export { default as EvolutionScene } from '@Scenes/misc/EvolutionScene.js';
+
+// Test harness — scenario definitions for the battle test page
+export { default as SCENARIOS, CATEGORIES } from './test-page/scenarios.js';

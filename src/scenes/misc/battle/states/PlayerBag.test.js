@@ -112,8 +112,8 @@ describe('PlayerBag', () => {
     new PlayerBag().onEnter.call(ctx);
     ctx.BagMenu.addMenuItem.mockClear();
 
-    // Switch to Balls tab (index 1) — no balls in inventory
-    ctx.events.emit('bagmenu-tab-change', 1);
+    // Switch to Balls tab (index 2) — no balls in inventory
+    ctx.events.emit('bagmenu-tab-change', 2);
 
     expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(1);
     expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledWith('Cancel');
@@ -128,6 +128,20 @@ describe('PlayerBag', () => {
     new PlayerBag().onEnter.call(ctx);
     // Only the quantity=1 item + Cancel (not the exhausted one)
     expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2);
+  });
+
+  test('items with canUseInBattle=false are excluded', () => {
+    const ctx = makeContext();
+    const battleItem   = makeItem('medicine');
+    const noBattleItem = { ...makeItem('medicine'), canUseInBattle: false };
+    ctx.data.player.inventory.items = [
+      { item: battleItem,   quantity: 1 },
+      { item: noBattleItem, quantity: 2 },
+    ];
+    new PlayerBag().onEnter.call(ctx);
+    // Only the battle-usable item + Cancel should appear
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenCalledTimes(2);
+    expect(ctx.BagMenu.addMenuItem).toHaveBeenNthCalledWith(1, expect.stringContaining('x1'));
   });
 
   test('_bagTabIndex persists across re-entries', () => {

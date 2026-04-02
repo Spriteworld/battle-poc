@@ -13,66 +13,63 @@ import { Pokedex, GAMES } from '@spriteworld/pokemon-data';
  */
 export default class Evolution {
   onEnter() {
-    const p = this.config.player.team.pokemon.find(mon => mon.readyToEvolve != null);
+    // Local recursive function — avoids calling setState(EVOLVE) while already
+    // in EVOLVE, which the state machine's same-state guard would silently drop.
+    const processNext = () => {
+      const p = this.config.player.team.pokemon.find(mon => mon.readyToEvolve != null);
 
-    if (!p) {
-      this._finish();
-      return;
-    }
+      if (!p) {
+        const hasPending = this.config.player.team.pokemon.some(
+          mon => mon.pendingMovesToLearn?.length > 0
+        );
+        if (hasPending) {
+          this.stateMachine.setState(this.stateDef.LEARN_MOVE);
+          return;
+        }
+        const enemyAlive = this.config.enemy.team.pokemon.some(
+          mon => mon.isAlive?.() ?? mon.currentHp > 0
+        );
+        this.stateMachine.setState(
+          enemyAlive ? this.stateDef.BEFORE_ACTION : this.stateDef.BATTLE_WON
+        );
+        return;
+      }
 
-    const fromName = p.getName?.() ?? String(p.species);
-    const targetId = p.readyToEvolve;
+      const fromName = p.getName?.() ?? String(p.species);
+      const targetId = p.readyToEvolve;
 
-    // Look up the evolved form's display name before applying the change.
-    let toName;
-    try {
-      const entry = new Pokedex(p.game ?? GAMES.POKEMON_FIRE_RED).getPokemonById(targetId);
-      toName = (entry.species ?? `#${targetId}`).replace(/\b\w/g, c => c.toUpperCase());
-    } catch {
-      toName = `#${targetId}`;
-    }
+      let toName;
+      try {
+        const entry = new Pokedex(p.game ?? GAMES.POKEMON_FIRE_RED).getPokemonById(targetId);
+        toName = (entry.species ?? `#${targetId}`).replace(/\b\w/g, c => c.toUpperCase());
+      } catch {
+        toName = `#${targetId}`;
+      }
 
-    // Flush any pending log messages (exp gain, level up text) before the
-    // animation takes over the screen.
-    this.logger.flush(() => {
-      this.scene.launch('EvolutionScene', {
-        fromSpecies:    p.species,
-        toSpecies:      targetId,
-        fromName,
-        toName,
-        shiny:          p.isShiny  ?? false,
-        gender:         p.gender   ?? null,
-        tilesetBaseUrl: this.data?.tilesetBaseUrl ?? '',
-        canCancel:      false,
-        onComplete: (didEvolve) => {
-          if (didEvolve) {
-            p.evolve(targetId);
-            this.remapActivePokemon();
-          }
-          p.readyToEvolve = null;
-          // Loop — handles multiple simultaneous evolutions (e.g. EXP Share later)
-          this.stateMachine.setState(this.stateDef.EVOLVE);
-        },
+      // Flush any pending log messages before the animation takes over.
+      this.logger.flush(() => {
+        this.scene.launch('EvolutionScene', {
+          fromSpecies:    p.species,
+          toSpecies:      targetId,
+          fromName,
+          toName,
+          shiny:          p.isShiny  ?? false,
+          gender:         p.gender   ?? null,
+          tilesetBaseUrl: this.data?.tilesetBaseUrl ?? '',
+          canCancel:      false,
+          onComplete: (didEvolve) => {
+            if (didEvolve) {
+              p.evolve(targetId);
+              this.remapActivePokemon();
+            }
+            p.readyToEvolve = null;
+            processNext();
+          },
+        });
       });
-    });
-  }
+    };
 
-  _finish() {
-    const hasPending = this.config.player.team.pokemon.some(
-      mon => mon.pendingMovesToLearn?.length > 0
-    );
-    if (hasPending) {
-      this.stateMachine.setState(this.stateDef.LEARN_MOVE);
-      return;
-    }
-    const enemyAlive = this.config.enemy.team.pokemon.some(
-      p => p.isAlive?.() ?? p.currentHp > 0
-    );
-    if (enemyAlive) {
-      this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
-    } else {
-      this.stateMachine.setState(this.stateDef.BATTLE_WON);
-    }
+    processNext();
   }
 
   onExit() {}

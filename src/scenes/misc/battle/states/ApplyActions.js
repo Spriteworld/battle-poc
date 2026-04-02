@@ -201,7 +201,7 @@ export default class ApplyActions {
 
     const switchOppSide = switchingSideKey === 'player' ? 'enemy' : 'player';
     const switchOpponent = this.config[switchOppSide].team.getActivePokemon();
-    applySwitchInAbilities(pokemon, switchOpponent, this.weather, this.logger, this.generation);
+    applySwitchInAbilities(pokemon, switchOpponent, this.weather, this.logger, this.generation, this.showAbilityToast?.bind(this));
 
     this.logger.addItem(`${player.getName()} sent out ${pokemon.getName()}!`);
 
@@ -600,6 +600,7 @@ export default class ApplyActions {
         if ((move.power ?? 0) > 0) {
           const immunityMsg = checkAbilityImmunity(target, move, weather);
           if (immunityMsg) {
+            this.showAbilityToast?.(target, target.ability?.name);
             this.logger.addItem(`${activeMon.getName()} uses ${move.name} against ${target.getName()}`);
             this.logger.addItem(immunityMsg);
             if (move.pp) move.pp.current = Math.max(0, move.pp.current - 1);
@@ -643,17 +644,22 @@ export default class ApplyActions {
         break;
       }
       case ActionTypes.NPC_ATTACK:
-        info = activeMon.attackWithAI(target, this.generation, fieldState, weather);
+        info = action.player.ai.selectMove(activeMon, target, this.generation, fieldState, weather);
         break;
     }
 
     // ── Post-attack resolution ────────────────────────────────────────────────
 
+    const resolveAttack = () => {
     let attackMessage = [];
+    const _hpType = info.move?.toLowerCase() === 'hidden power' && activeMon.hiddenPowerType
+      ? activeMon.hiddenPowerType[0] + activeMon.hiddenPowerType.slice(1).toLowerCase()
+      : null;
+    const _moveLabel = _hpType ? `Hidden Power [${_hpType}]` : info.move;
     attackMessage.push(
       config?.move?.selfTarget
-        ? `${activeMon.getName()} uses ${info.move}`
-        : [activeMon.getName(), 'uses', info.move, 'against', info.enemy].join(' ')
+        ? `${activeMon.getName()} uses ${_moveLabel}`
+        : [activeMon.getName(), 'uses', _moveLabel, 'against', info.enemy].join(' ')
     );
 
     if (info.reflected) {
@@ -730,12 +736,13 @@ export default class ApplyActions {
     // Pressure — opponent's move costs an extra PP.
     if (target.hasAbility(Abilities.PRESSURE) && config?.move?.pp) {
       config.move.pp.current = Math.max(0, config.move.pp.current - 1);
+      this.showAbilityToast?.(target, 'Pressure');
       this.logger.addItem(`${target.getName()}'s Pressure reduced PP!`);
     }
 
     // Contact ability effects (Static, Flame Body, Poison Point, Rough Skin, etc.).
     if ((info.damage ?? 0) > 0 && config?.move) {
-      applyContactAbilityEffects(activeMon, target, config.move, info, this.logger, this.generation);
+      applyContactAbilityEffects(activeMon, target, config.move, info, this.logger, this.generation, this.showAbilityToast?.bind(this));
       applyColorChange(target, config.move, this.logger);
     }
 
@@ -996,6 +1003,7 @@ export default class ApplyActions {
               [STATUS.PARALYZE]:'paralyzed',
               [STATUS.TOXIC]:   'poisoned',
             }[key];
+            this.showAbilityToast?.(target, 'Synchronize');
             this.logger.addItem(`${activeMon.getName()} was ${statusName} by ${target.getName()}'s Synchronize!`);
           }
           break;
@@ -1008,5 +1016,13 @@ export default class ApplyActions {
       this.remapActivePokemon();
       this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
     });
+    }; // end resolveAttack
+
+    // Play the lunge animation for damaging hits; skip it for misses, fails, and status moves.
+    if (info && info.accuracy !== 0 && (info.damage ?? 0) > 0) {
+      this.playAttackAnimation(activeMon, target, resolveAttack);
+    } else {
+      resolveAttack();
+    }
   }
 }

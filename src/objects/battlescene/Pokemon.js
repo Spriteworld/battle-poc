@@ -6,6 +6,53 @@ const {
   getMovesByGen, rollHitCount,
 } = Moves;
 
+/**
+ * Moves with a naturally elevated critical-hit stage (stage 2 = ~12.5 % in Gen 2–6,
+ * or the high-speed threshold in Gen 1).  The move data package stores this only as
+ * flavour text, so we maintain the authoritative list here.
+ *
+ * Storm Throw and Frost Breath (Gen 5) always land critical hits — they are included
+ * here so they receive at minimum the elevated stage; a future "always-crit" flag can
+ * override this further.
+ */
+const HIGH_CRIT_MOVES = new Set([
+  // Gen 1
+  'karate chop', 'razor leaf', 'slash', 'crabhammer', 'razor wind',
+  // Gen 2
+  'aeroblast', 'cross chop', 'sky attack',
+  // Gen 3
+  'air cutter', 'blaze kick', 'leaf blade', 'poison tail',
+  // Gen 4
+  'night slash', 'psycho cut', 'shadow claw', 'spacial rend', 'stone edge',
+  // Gen 5
+  'drill run', 'frost breath', 'storm throw',
+]);
+
+/**
+ * Returns the appropriate critical-hit stage for a move and attacker.
+ *
+ * Stage meanings (fed into CalcDamage as `modifiers.critical`):
+ *   1 — base rate (6.25 % in Gen 2–6; speed-based in Gen 1)
+ *   2 — high-crit move or Focus Energy active (12.5 % in Gen 2–6; ×8 speed in Gen 1)
+ *
+ * Gen 1 Focus Energy note: in the original games it was bugged and quartered the
+ * crit rate instead of raising it.  We leave the stage at 1 when gen < 2 so the
+ * base speed-based formula fires, which is a fair approximation of the buggy result.
+ *
+ * @param {object} attacker - BattlePokemon
+ * @param {object} move     - Move instance
+ * @param {object} generation - Active GenerationConfig
+ * @return {number} crit stage (1 or 2)
+ */
+function critStageFor(attacker, move, generation) {
+  let stage = 1;
+  if (HIGH_CRIT_MOVES.has(move?.name?.toLowerCase())) stage = 2;
+  if (attacker.volatileStatus?.focusEnergy && (generation?.gen ?? 3) >= 2) {
+    stage = Math.max(stage, 2);
+  }
+  return stage;
+}
+
 // Moves that cannot be called by Metronome (Gen 3).
 const METRONOME_BANNED = new Set([
   'counter', 'covet', 'destiny bond', 'detect', 'endure', 'focus punch',
@@ -99,6 +146,9 @@ export default class extends BasePokemon {
     if (config.exp != null) this.exp = config.exp;
     this.moves = this.moves.map(move => new Move(move, config));
     this.id = config.id || uuidv4();
+
+    /** Type override for Hidden Power (e.g. 'ICE', 'FIRE'). null if not set. */
+    this.hiddenPowerType = config.hiddenPowerType ?? null;
 
     /** The item currently held by this Pokémon. null if not holding anything. */
     this.heldItem = config.heldItem ?? null;
@@ -501,7 +551,11 @@ export default class extends BasePokemon {
       const calcMove = (fieldState?.pursuiting && move?.power != null)
         ? { ...move, power: move.power * 2 }
         : move;
+      // Temporarily elevate the crit stage for high-crit moves and Focus Energy.
+      const savedCritStage = this.modifiers.critical;
+      this.modifiers.critical = critStageFor(this, move, generation);
       info = CalcDamage.calculate(this, target, calcMove, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
+      this.modifiers.critical = savedCritStage;
 
       // Restore temporarily modified stats.
       if (origAttack !== null) this.stats[STATS.ATTACK]         = origAttack;
@@ -666,7 +720,10 @@ export default class extends BasePokemon {
         };
       }
       const weatherMult = getWeatherMultiplier(move, weather, target, generation, this);
+      const savedCritStageLocked = this.modifiers.critical;
+      this.modifiers.critical = critStageFor(this, move, generation);
       info = CalcDamage.calculate(this, target, move, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
+      this.modifiers.critical = savedCritStageLocked;
       if (!('damage' in info) || info.damage < 0) info.damage = 0;
 
       // Screen modifier — halves damage; critical hits bypass screens (Gen 3+).
@@ -769,6 +826,8 @@ export default class extends BasePokemon {
     const hitResults = [];
 
     const weatherMult = getWeatherMultiplier(move, weather, target, generation, this);
+    const savedCritStageMulti = this.modifiers.critical;
+    this.modifiers.critical = critStageFor(this, move, generation);
     for (let i = 0; i < hitCount; i++) {
       const effectiveMove = (powers && powers[i] !== undefined) ? { ...move, power: powers[i] } : move;
       const info = CalcDamage.calculate(this, target, effectiveMove, weatherMult !== 1 ? { weather: weatherMult } : undefined, generation);
@@ -802,6 +861,7 @@ export default class extends BasePokemon {
       hitResults.push({ damage: dmg, critical: info.critical });
       lastInfo = info;
     }
+    this.modifiers.critical = savedCritStageMulti;
 
     if (totalDamage > 0) {
       target._lastReceivedDamage = { damage: totalDamage, category: generation?.getCategory(move) ?? move.category };
@@ -858,14 +918,15 @@ export default class extends BasePokemon {
   }
 
   /**
-   * Selects and executes the best move against the target using basic trainer AI.
+   * Selects and executes the best move against the target using scored AI.
    *
    * Scoring:
    *   - Immune moves (typeEffectiveness 0) are excluded.
    *   - Damaging moves: score = power × typeEffectiveness.
    *   - Status moves: score = 40 when the target has no status condition, else 0.
    *   - Moves with equal top scores are chosen randomly among themselves.
-   *   - 30% chance to pick a random available move instead (Gen 3 AI imperfection).
+   *   - `randomChance` controls the probability of ignoring the score and picking
+   *     a random available move instead (Gen 3 AI imperfection, default 30 %).
    *
    * Falls back to Struggle when all moves are at 0 PP.
    *
@@ -873,9 +934,14 @@ export default class extends BasePokemon {
    * @param {import('@spriteworld/pokemon-data').GenerationConfig} [generation]
    * @param {{ lightScreen: number, reflect: number }|null} [fieldState] - Defender's active screens
    * @param {{ type: string|null, turnsLeft: number }|null} [weather] - Current field weather
+   * @param {number} [randomChance=0.3] - Probability (0–1) of picking a random move.
+   * @param {object} [options={}]
+   * @param {boolean} [options.useAttackerType=false] - If true, score every move as if its
+   *   type were the attacker's primary type instead of the actual move type.  This replicates
+   *   the infamous Generation I AI bug where the engine read the wrong type slot.
    * @return {object}
    */
-  attackWithAI(target, generation, fieldState = null, weather = null) {
+  attackWithAI(target, generation, fieldState = null, weather = null, randomChance = 0.3, options = {}) {
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
@@ -888,15 +954,18 @@ export default class extends BasePokemon {
       if (category === Moves.MOVE_CATEGORIES.STATUS) {
         return { move, score: targetHasStatus ? 0 : 40 };
       }
-      const typeEff = calcTypeEffectiveness(move.type, target.types, generation.typeChart);
+      // Gen 1 AI bug: the engine reads the attacker's primary type slot rather than the
+      // move's own type when looking up type effectiveness.
+      const scoreType = options.useAttackerType ? (this.types?.[0] ?? move.type) : move.type;
+      const typeEff = calcTypeEffectiveness(scoreType, target.types, generation.typeChart);
       if (typeEff === 0) return { move, score: 0 };
       return { move, score: (move.power || 0) * typeEff };
     });
 
     const usable = scored.filter(s => s.score > 0);
 
-    // 30% chance to act randomly (Gen 3 AI imperfection)
-    if (usable.length === 0 || Math.random() < 0.3) {
+    // Chance to act randomly (Gen 3 AI imperfection — rate controlled by caller)
+    if (usable.length === 0 || Math.random() < randomChance) {
       const move = available[Math.floor(Math.random() * available.length)];
       if (move?.multiHit) {
         const hitCount = rollHitCount(move.multiHit.minHits, move.multiHit.maxHits);

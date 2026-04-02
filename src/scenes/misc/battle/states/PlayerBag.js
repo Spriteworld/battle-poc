@@ -58,7 +58,9 @@ export default class PlayerBag {
 
       const { category } = BAG_TABS[this._bagTabIndex];
       const filtered = this.data.player.inventory.items.filter(
-        s => (s.item.getCategory?.() ?? 'other') === category && s.quantity > 0
+        s => (s.item.getCategory?.() ?? 'other') === category &&
+             s.quantity > 0 &&
+             s.item.canUseInBattle !== false
       );
 
       this.BagMenu.clear();

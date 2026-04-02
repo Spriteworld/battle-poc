@@ -37,9 +37,13 @@ export default class PlayerAttack {
 
     Object.values(moves).forEach((move, idx) => {
       const prefix = move.implemented === false ? '[N] ' : move.implemented === 'partial' ? '[P] ' : '';
+      const hpType = move.name?.toLowerCase() === 'hidden power' && activeMon.hiddenPowerType
+        ? activeMon.hiddenPowerType[0] + activeMon.hiddenPowerType.slice(1).toLowerCase()
+        : null;
+      const moveName = hpType ? `Hidden Power [${hpType}]` : move.name;
 
       this.AttackMenu.addMenuItem(
-        `${prefix}${move.name} (${move.pp.current}/${move.pp.max}pp)`
+        `${prefix}${moveName} (${move.pp.current}/${move.pp.max}pp)`
       );
       this.events.once('attackmenu-select-option-' + idx, () => {
         this._lastMoveIndex = idx;

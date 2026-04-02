@@ -88,6 +88,7 @@ function makeStone(stoneName) {
           };
         },
       });
+      this.canUseInBattle = false;
     }
   };
 }

@@ -116,7 +116,7 @@ export default class PlayerNewActivePokemon {
         this.logger.addItem(this.config.player.getName() + ' sent out ' + pokemon.getName() + '!');
 
         const opponent = this.config.enemy.team.getActivePokemon();
-        applySwitchInAbilities(pokemon, opponent, this.weather, this.logger, this.generation);
+        applySwitchInAbilities(pokemon, opponent, this.weather, this.logger, this.generation, this.showAbilityToast?.bind(this));
 
         this.logger.flush(() => {
           this.remapActivePokemon();

@@ -4,6 +4,7 @@ import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import applyExperienceGains from './applyExperienceGains.js';
 import BattleLogger from '@Objects/ui/BattleLogger.js';
+import AbilityToast from '@Objects/ui/AbilityToast.js';
 import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
 import WeatherDisplay from '@Objects/ui/WeatherDisplay.js';
 import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
@@ -93,7 +94,10 @@ export default class BattleScene2 extends Phaser.Scene {
   }
 
   init(data) {
-    this.data = data;
+    this.data = {
+      ...data,
+      tilesetBaseUrl: data?.tilesetBaseUrl ?? import.meta.env.VITE_ASSETS_URL,
+    };
   }
 
   create() {
@@ -256,6 +260,71 @@ export default class BattleScene2 extends Phaser.Scene {
     this._updatePokemonSprites();
   }
 
+  /**
+   * Shows a floating ability-name toast over the given Pokémon's sprite.
+   * @param {object} mon         - BattlePokemon instance.
+   * @param {string} abilityName - Display name of the ability.
+   */
+  showAbilityToast(mon, abilityName) {
+    if (!mon || !abilityName) return;
+    const isPlayer = mon === this.config?.player?.team?.getActivePokemon();
+    const x = isPlayer ? 190 : 610;
+    const y = isPlayer ? UI_Y - 150 : UI_Y - 196;
+    new AbilityToast(this, x, y, abilityName);
+  }
+
+  /**
+   * Plays a basic physical-contact (tackle) animation: the attacker lunges
+   * toward the target, the target flashes on impact, then the attacker returns.
+   * Falls back to calling callback immediately if sprites aren't ready.
+   *
+   * @param {object}   attackerMon - BattlePokemon that is attacking.
+   * @param {object}   defenderMon - BattlePokemon that is defending.
+   * @param {Function} callback    - Called when the animation finishes.
+   */
+  playAttackAnimation(attackerMon, defenderMon, callback) {
+    const isPlayerAttacking = attackerMon === this.config?.player?.team?.getActivePokemon();
+    const attackerSprite    = isPlayerAttacking ? this._playerSprite : this._enemySprite;
+    const defenderSprite    = isPlayerAttacking ? this._enemySprite  : this._playerSprite;
+
+    if (!attackerSprite || !defenderSprite) {
+      callback?.();
+      return;
+    }
+
+    const originX = attackerSprite.x;
+    const lungeX  = isPlayerAttacking ? originX + 120 : originX - 120;
+
+    // 1. Attacker lunges toward the target.
+    this.tweens.add({
+      targets:  attackerSprite,
+      x:        lungeX,
+      duration: 120,
+      ease:     'Power2.easeIn',
+      onComplete: () => {
+        // 2. Target flashes on impact.
+        this.tweens.add({
+          targets:  defenderSprite,
+          alpha:    0,
+          duration: 60,
+          ease:     'Linear',
+          yoyo:     true,
+          repeat:   2,
+          onComplete: () => {
+            // 3. Attacker returns to its resting position.
+            this.tweens.add({
+              targets:  attackerSprite,
+              x:        originX,
+              duration: 150,
+              ease:     'Power2.easeOut',
+              onComplete: () => callback?.(),
+            });
+          },
+        });
+      },
+    });
+  }
+
   _updatePokemonSprites() {
     const tilesetBaseUrl = this.data?.tilesetBaseUrl;
     if (!tilesetBaseUrl || !this.config?.player) return;
@@ -290,6 +359,52 @@ export default class BattleScene2 extends Phaser.Scene {
   }
 
   /**
+   * Creates the enemy sprite and plays its slide-in animation.
+   * Destroys any existing enemy sprite first.
+   * @param {Function} [callback] - Called when the animation completes.
+   */
+  _spawnEnemySpriteAnimated(callback) {
+    const tilesetBaseUrl = this.data?.tilesetBaseUrl;
+    const enemy = this.config?.enemy?.team?.getActivePokemon();
+    if (!enemy || !tilesetBaseUrl) { callback?.(); return; }
+
+    if (this._enemySprite) { this._enemySprite.destroy(); this._enemySprite = null; }
+
+    this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 196, {
+      species:        enemy.pokemon?.nat_dex_id ?? enemy.species,
+      shiny:          enemy.isShiny  ?? false,
+      gender:         enemy.gender   ?? null,
+      isBack:         false,
+      size:           128,
+      tilesetBaseUrl,
+    });
+    this._enemySprite.slideIn(callback);
+  }
+
+  /**
+   * Creates the player sprite and plays its slide-in animation.
+   * Destroys any existing player sprite first.
+   * @param {Function} [callback] - Called when the animation completes.
+   */
+  _spawnPlayerSpriteAnimated(callback) {
+    const tilesetBaseUrl = this.data?.tilesetBaseUrl;
+    const player = this.config?.player?.team?.getActivePokemon();
+    if (!player || !tilesetBaseUrl) { callback?.(); return; }
+
+    if (this._playerSprite) { this._playerSprite.destroy(); this._playerSprite = null; }
+
+    this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 150, {
+      species:        player.pokemon?.nat_dex_id ?? player.species,
+      shiny:          player.isShiny  ?? false,
+      gender:         player.gender   ?? null,
+      isBack:         true,
+      size:           192,
+      tilesetBaseUrl,
+    });
+    this._playerSprite.slideIn(callback);
+  }
+
+  /**
    * @return {string|null} Next state key if a side has fainted, otherwise null.
    */
   checkForDeadActivePokemon() {
@@ -316,19 +431,19 @@ export default class BattleScene2 extends Phaser.Scene {
       const hasPending  = this.config.player.team.pokemon.some(
         p => p.pendingMovesToLearn?.length > 0
       );
-      const nextPostBattle = hasEvolving ? this.stateDef.EVOLVE
-        : hasPending                     ? this.stateDef.LEARN_MOVE
-        : null;
+      const nextPostBattle = hasEvolving 
+        ? this.stateDef.EVOLVE
+          : hasPending                     
+            ? this.stateDef.LEARN_MOVE
+            : null;
 
       if (!this.config.enemy.team.switchToNextLivingPokemon()) {
         this.logger.addItem('The enemy has no more Pokémon left!');
-        this.remapActivePokemon();
         return nextPostBattle ?? this.stateDef.BATTLE_WON;
       }
       const newMon = this.config.enemy.team.getActivePokemon();
       newMon.isFirstTurn = true;
       this.logger.addItem(`${this.config.enemy.getName()} sent out ${newMon.getName()}!`);
-      this.remapActivePokemon();
       if (nextPostBattle) return nextPostBattle;
     }
 

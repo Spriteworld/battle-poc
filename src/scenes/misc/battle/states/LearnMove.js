@@ -5,74 +5,70 @@
  * player team.  For each pending move the player is shown the Pokémon's
  * current 4 moves plus a "Don't learn" option and picks a slot to replace.
  *
- * When all pending moves have been resolved the state emits `battle-complete`
- * and transitions to BATTLE_IDLE, exactly as BattleWon would have done.
+ * When all pending moves have been resolved routes to BEFORE_ACTION or BATTLE_WON.
  */
 export default class LearnMove {
   onEnter() {
-    // Find the first pokemon that still has moves queued up
-    const p = this.config.player.team.pokemon.find(
-      mon => mon.pendingMovesToLearn?.length > 0
-    );
+    // Local recursive function — avoids calling setState(LEARN_MOVE) while already
+    // in LEARN_MOVE, which the state machine's same-state guard would silently drop.
+    const processNext = () => {
+      const p = this.config.player.team.pokemon.find(
+        mon => mon.pendingMovesToLearn?.length > 0
+      );
 
-    if (!p) {
-      this._finish();
-      return;
-    }
-
-    const pending  = p.pendingMovesToLearn[0];
-    const monName  = p.getName ? p.getName() : String(p.species);
-
-    this.logger.addItem(`${monName} wants to learn ${pending.name}!`);
-    this.logger.addItem(`But ${monName} already knows 4 moves.`);
-    this.logger.addItem(`Choose a move to replace, or cancel.`);
-
-    // Show messages first, then display the move-choice menu.
-    this.logger.flush(() => {
-      // Build the 5-item list: current 4 moves + cancel
-      const items = [
-        ...p.moves.map(m => `${m.name}  (${m.pp.current}/${m.pp.max} PP)`),
-        `Don't learn ${pending.name}`,
-      ];
-      this.AttackMenu.remap(items);
-      this.activateMenu(this.AttackMenu);
-
-      for (let i = 0; i < items.length; i++) {
-        this.events.once(`attackmenu-select-option-${i}`, () => {
-          this._handleChoice(p, pending, i);
-        });
+      if (!p) {
+        const enemyAlive = this.config.enemy.team.pokemon.some(
+          mon => mon.isAlive?.() ?? mon.currentHp > 0
+        );
+        this.stateMachine.setState(
+          enemyAlive ? this.stateDef.BEFORE_ACTION : this.stateDef.BATTLE_WON
+        );
+        return;
       }
-    });
-  }
 
-  _handleChoice(p, pending, slotIndex) {
-    const monName = p.getName ? p.getName() : String(p.species);
+      const pending = p.pendingMovesToLearn[0];
+      const monName = p.getName ? p.getName() : String(p.species);
 
-    if (slotIndex < p.moves.length) {
-      const forgotten = p.moves[slotIndex].name;
-      p.moves[slotIndex] = { name: pending.name, pp: { max: pending.pp, current: pending.pp } };
-      this.logger.addItem(`${monName} forgot ${forgotten}!`);
-      this.logger.addItem(`${monName} learned ${pending.name}!`);
-    } else {
-      this.logger.addItem(`${monName} did not learn ${pending.name}.`);
-    }
+      this.logger.addItem(`${monName} wants to learn ${pending.name}!`);
+      this.logger.addItem(`But ${monName} already knows 4 moves.`);
+      this.logger.addItem(`Choose a move to replace, or cancel.`);
 
-    p.pendingMovesToLearn.shift();
-    // Show the result message, then re-enter to process the next pending move (or finish).
-    this.logger.flush(() => this.stateMachine.setState(this.stateDef.LEARN_MOVE));
-  }
+      this.logger.flush(() => {
+        const items = [
+          ...p.moves.map(m => `${m.name}  (${m.pp.current}/${m.pp.max} PP)`),
+          `Don't learn ${pending.name}`,
+        ];
+        this.AttackMenu.remap(items);
+        this.activateMenu(this.AttackMenu);
 
-  _finish() {
-    const enemyAlive = this.config.enemy.team.pokemon.some(p => p.isAlive?.() ?? p.currentHp > 0);
-    if (enemyAlive) {
-      this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
-    } else {
-      this.stateMachine.setState(this.stateDef.BATTLE_WON);
-    }
+        for (let i = 0; i < items.length; i++) {
+          this.events.once(`attackmenu-select-option-${i}`, () => {
+            // Clean up remaining listeners for this round before processing.
+            for (let j = 0; j < items.length; j++) {
+              this.events.off(`attackmenu-select-option-${j}`);
+            }
+            this.AttackMenu.setVisible(false);
+
+            if (i < p.moves.length) {
+              const forgotten = p.moves[i].name;
+              p.moves[i] = { name: pending.name, pp: { max: pending.pp, current: pending.pp } };
+              this.logger.addItem(`${monName} forgot ${forgotten}!`);
+              this.logger.addItem(`${monName} learned ${pending.name}!`);
+            } else {
+              this.logger.addItem(`${monName} did not learn ${pending.name}.`);
+            }
+
+            p.pendingMovesToLearn.shift();
+            this.logger.flush(() => processNext());
+          });
+        }
+      });
+    };
+
+    processNext();
   }
 
   onExit() {
-    // Remove any unresolved listeners from this round
     for (let i = 0; i < 5; i++) {
       this.events.off(`attackmenu-select-option-${i}`);
     }

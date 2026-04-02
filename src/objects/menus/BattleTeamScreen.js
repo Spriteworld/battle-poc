@@ -303,7 +303,7 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
 
   /** Renders the team slots with a given slot index highlighted. */
   _buildListSlots(cursorIdx) {
-    if (!this.dex) this.dex = new Pokedex(GAMES.POKEMON_FIRE_RED);
+    if (!this.dex) this.dex = new Pokedex(GAMES.POKEMON_CHAMPIONS);
     const { scene, reg } = this;
 
     reg(scene.add.text(SX + TEAM_PAD_X, SY + 14, 'POKÉMON', TEXT_STYLE_BOLD));
@@ -356,9 +356,12 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
 
     if (tilesetUrl) {
       reg(new BattlePokemonSprite(scene, x + 8 + HERO_SPRITE / 2, y + 8 + HERO_SPRITE / 2, {
-        species: speciesId, shiny: bMon.isShiny ?? false,
-        gender: bMon.gender, isBack: false,
-        size: HERO_SPRITE, tilesetBaseUrl: tilesetUrl,
+        species: speciesId, 
+        shiny: bMon.isShiny ?? false,
+        gender: bMon.gender, 
+        isBack: false,
+        size: HERO_SPRITE, 
+        tilesetBaseUrl: tilesetUrl,
       }));
     }
 

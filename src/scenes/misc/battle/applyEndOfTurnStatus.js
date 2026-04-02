@@ -299,7 +299,7 @@ export default function applyEndOfTurnStatus() {
   // EOT ability effects (Speed Boost, Rain Dish, Dry Skin, Shed Skin).
   const [eotPlayer, eotEnemy] = mons;
   for (const [mon, opponent] of [[eotPlayer, eotEnemy], [eotEnemy, eotPlayer]]) {
-    applyAbilityEOT(mon, this.weather, this.logger, opponent);
+    applyAbilityEOT(mon, this.weather, this.logger, opponent, this.showAbilityToast?.bind(this));
     if (!mon.isAlive?.()) continue;
     // Clear sleep status for Insomnia/Vital Spirit holders (covers edge cases like Trace).
     if ((mon.status?.[STATUS.SLEEP] ?? 0) > 0 &&

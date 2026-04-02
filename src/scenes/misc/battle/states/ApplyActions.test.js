@@ -205,6 +205,47 @@ describe('ApplyActions — ATTACK', () => {
   });
 });
 
+// ─── Hidden Power type label ──────────────────────────────────────────────────
+
+describe('ApplyActions — Hidden Power type label', () => {
+  function makeHiddenPowerCtx(hiddenPowerType) {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+    playerMon.hiddenPowerType = hiddenPowerType;
+    playerMon.attack.mockReturnValue({
+      move: 'hidden power', enemy: 'Pikachu',
+      damage: 50, accuracy: 1, critical: 1, typeEffectiveness: 1,
+    });
+    ctx.currentAction = {
+      type:   ActionTypes.ATTACK,
+      player: ctx.config.player,
+      target: enemyMon,
+      config: { move: { name: 'hidden power', pp: { current: 15, max: 15 } } },
+    };
+    return { ctx, playerMon };
+  }
+
+  test('shows the type in brackets when hiddenPowerType is set', () => {
+    const { ctx } = makeHiddenPowerCtx('ICE');
+    applyAttack(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(
+      expect.stringContaining('Hidden Power [Ice]')
+    );
+  });
+
+  test('falls back to plain "hidden power" when hiddenPowerType is not set', () => {
+    const { ctx } = makeHiddenPowerCtx(undefined);
+    applyAttack(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(
+      expect.stringContaining('hidden power')
+    );
+    expect(ctx.logger.addItem).not.toHaveBeenCalledWith(
+      expect.stringContaining('[')
+    );
+  });
+});
+
 // ─── Invulnerability ───────────────────────────────────────────────────────────
 
 describe('ApplyActions — invulnerable target', () => {

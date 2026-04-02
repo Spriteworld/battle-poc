@@ -1,6 +1,8 @@
 import Items from '@Data/items/';
 import * as staticPokemon from '@Data/pokemon/';
 import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves, Abilities, EXPERIENCE_TABLES, GROWTH, FRLG_LEARNSETS } from '@spriteworld/pokemon-data';
+import { TrainerClass } from '@Objects';
+import { parseTeam } from '@/utilities/showdownParser.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,7 +21,7 @@ function pickUnique(arr, n) {
 }
 
 function buildMovePool() {
-  return Moves.getMovesByGameId(GAMES.POKEMON_FIRE_RED).filter(
+  return Moves.getMovesByGameId(GAMES.POKEMON_CHAMPIONS).filter(
     m => m.pp > 0 && (m.power !== null || m.category === Moves.MOVE_CATEGORIES.STATUS)
   );
 }
@@ -28,8 +30,8 @@ let _cachedDex = null;
 let _cachedMovePool = null;
 function getDexAndMoves() {
   if (!_cachedDex) {
-    const dex = new Pokedex(GAMES.POKEMON_FIRE_RED);
-    _cachedDex = Object.values(dex.pokedex);
+    const dex = new Pokedex(GAMES.POKEMON_CHAMPIONS);
+    _cachedDex = Object.values(dex.pokedex).filter(p => p.types?.length > 0);
     _cachedMovePool = buildMovePool();
   }
   return { allSpecies: _cachedDex, movePool: _cachedMovePool };
@@ -62,7 +64,7 @@ function monWithMoves(level, pid, moveNames, ability = null) {
   const ivs = Object.fromEntries(STAT_KEYS.map(s => [s, 31]));
   const evs = Object.fromEntries(STAT_KEYS.map(s => [s, 0]));
   return {
-    game: GAMES.POKEMON_FIRE_RED,
+    game: GAMES.POKEMON_CHAMPIONS,
     pid,
     species: entry.nat_dex_id,
     level,
@@ -82,7 +84,7 @@ function randomPokemon(allSpecies, movePool, level, pid, ability = null) {
   const ivs = Object.fromEntries(STAT_KEYS.map(s => [s, 31]));
   const evs = Object.fromEntries(STAT_KEYS.map(s => [s, 0]));
   return {
-    game: GAMES.POKEMON_FIRE_RED,
+    game: GAMES.POKEMON_CHAMPIONS,
     pid,
     species: entry.nat_dex_id,
     level,
@@ -121,7 +123,7 @@ function monNearLevelUp(level, pid) {
   const exp       = nextLvlXp - 1;
 
   return {
-    game: GAMES.POKEMON_FIRE_RED,
+    game: GAMES.POKEMON_CHAMPIONS,
     pid,
     species: entry.nat_dex_id,
     level,
@@ -148,7 +150,8 @@ function monForMoveLearn(pid) {
   let entry, targetLevel, learnMoveName;
   for (let attempt = 0; attempt < 100; attempt++) {
     const candidate = pick(allSpecies);
-    const learnset  = FRLG_LEARNSETS[candidate.nat_dex_id] ?? [];
+    const speciesKey = candidate.species.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const learnset  = FRLG_LEARNSETS[speciesKey] ?? [];
     // Find a level-up move in a range where the mon plausibly has 4 moves already.
     const match = learnset.find(([lvl]) => lvl >= 10 && lvl <= 50);
     if (match) {
@@ -180,7 +183,7 @@ function monForMoveLearn(pid) {
   const evs = Object.fromEntries(STAT_KEYS.map(s => [s, 0]));
 
   return {
-    game: GAMES.POKEMON_FIRE_RED,
+    game: GAMES.POKEMON_CHAMPIONS,
     pid,
     species: entry.nat_dex_id,
     level,
@@ -214,7 +217,17 @@ function defaultInventory() {
       { item: new Items.MaxPotion(),    quantity: 1 },
       { item: new Items.FullRestore(),  quantity: 1 },
       { item: new Items.Ether(),        quantity: 2 },
+      { item: new Items.MaxEther(),     quantity: 1 },
+      { item: new Items.Elixir(),       quantity: 1 },
+      { item: new Items.MaxElixir(),    quantity: 1 },
       { item: new Items.Revive(),       quantity: 2 },
+      { item: new Items.MaxRevive(),    quantity: 1 },
+      { item: new Items.Antidote(),     quantity: 3 },
+      { item: new Items.BurnHeal(),     quantity: 3 },
+      { item: new Items.IceHeal(),      quantity: 3 },
+      { item: new Items.Awakening(),    quantity: 3 },
+      { item: new Items.ParalyzHeal(),  quantity: 3 },
+      { item: new Items.FullHeal(),     quantity: 2 },
     ],
     pokeballs: [],
     tms: [],
@@ -224,13 +237,82 @@ function defaultInventory() {
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export const CATEGORIES = [
-  { id: 'basics',    label: 'Basics'    },
-  { id: 'weather',   label: 'Weather'   },
-  { id: 'status',    label: 'Status'    },
-  { id: 'field',     label: 'Field'     },
-  { id: 'abilities', label: 'Abilities' },
-  { id: 'endgame',   label: 'Endgame'   },
+  { id: 'basics',      label: 'Basics'            },
+  { id: 'weather',     label: 'Weather'           },
+  { id: 'status',      label: 'Status'            },
+  { id: 'field',       label: 'Field'             },
+  { id: 'abilities',   label: 'Abilities'         },
+  { id: 'endgame',     label: 'Endgame'           },
+  { id: 'ai',          label: 'AI Generations'    },
+  { id: 'generations', label: 'Battle Generations'},
+  { id: 'import',      label: 'Import'            },
 ];
+
+// ─── Scenarios ────────────────────────────────────────────────────────────────
+
+// ── Showdown example teams (pre-filled into the import modal) ─────────────────
+
+export const SHOWDOWN_EXAMPLE_PLAYER = `\
+Charizard @ Charcoal
+Ability: Blaze
+Level: 50
+EVs: 252 SpA / 4 SpD / 252 Spe
+Timid Nature
+- Flamethrower
+- Fire Blast
+- Air Slash
+- Dragon Claw
+
+Vaporeon @ Leftovers
+Ability: Water Absorb
+Level: 50
+EVs: 252 HP / 252 Def / 4 SpA
+Bold Nature
+- Surf
+- Ice Beam
+- Acid Armor
+- Recover
+
+Alakazam @ Lum Berry
+Ability: Synchronize
+Level: 50
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Psychic
+- Shadow Ball
+- Calm Mind
+- Recover`;
+
+export const SHOWDOWN_EXAMPLE_ENEMY = `\
+Tyranitar @ Leftovers
+Ability: Sand Stream
+Level: 50
+EVs: 252 HP / 4 Atk / 252 SpD
+Careful Nature
+- Rock Slide
+- Crunch
+- Earthquake
+- Thunder Wave
+
+Salamence @ Choice Band
+Ability: Intimidate
+Level: 50
+EVs: 4 HP / 252 Atk / 252 Spe
+Adamant Nature
+- Dragon Claw
+- Earthquake
+- Aerial Ace
+- Fire Blast
+
+Starmie @ Leftovers
+Ability: Natural Cure
+Level: 50
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Surf
+- Ice Beam
+- Thunderbolt
+- Recover`;
 
 // ─── Scenarios ────────────────────────────────────────────────────────────────
 
@@ -302,7 +384,7 @@ const SCENARIOS = [
           team: [randomPokemon(allSpecies, movePool, 30, 1)],
           inventory: defaultInventory(),
         },
-        enemy: { isTrainer: true, name: 'Rival', team: [staticPokemon.trainer_pikachu] },
+        enemy: { isTrainer: true, name: 'Rival', trainerClass: TrainerClass.TRAINER, team: [staticPokemon.trainer_pikachu] },
       };
     },
   },
@@ -322,7 +404,7 @@ const SCENARIOS = [
           team: randomTeam(3, 50),
           inventory: defaultInventory(),
         },
-        enemy: { isTrainer: true, name: 'Trainer', team: randomTeam(3, 50) },
+        enemy: { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -340,7 +422,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'rain', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -356,7 +438,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'sun', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -372,7 +454,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'sandstorm', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -388,7 +470,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'hail', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -410,7 +492,8 @@ const SCENARIOS = [
         },
         enemy: {
           isTrainer: true,
-          name: 'Trainer',
+          name: 'Blaine',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Flamethrower', 'Solar Beam', 'Fire Blast', 'Sunny Day'], Abilities.DROUGHT),
         },
       };
@@ -437,6 +520,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: randomTeam(3, 50),
         },
       };
@@ -461,6 +545,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: teamWithLead(3, 50, ['Thunder Wave', 'Body Slam', 'Tackle', 'Protect']),
         },
       };
@@ -485,6 +570,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: teamWithLead(3, 50, ['Hypnosis', 'Dream Eater', 'Psychic', 'Calm Mind']),
         },
       };
@@ -514,6 +600,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: Array.from({ length: 3 }, (_, i) =>
             randomPokemon(allSpecies, movePool, 60, i + 1)
           ),
@@ -545,6 +632,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: Array.from({ length: 3 }, (_, i) =>
             randomPokemon(allSpecies, movePool, 40, i + 1)
           ),
@@ -576,6 +664,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: [
             { ...monWithMoves(50, 1, ['Confuse Ray', 'Supersonic', 'Tackle', 'Flatter']), volatileStatus: confused },
             monWithMoves(50, 2, ['Confuse Ray', 'Psybeam', 'Flail', 'Protect']),
@@ -612,6 +701,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Nightmare', 'Dream Eater', 'Hypnosis', 'Psychic']),
         },
       };
@@ -643,6 +733,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: teamWithLead(3, 50, ['Wrap', 'Bind', 'Leech Seed', 'Earthquake']),
         },
       };
@@ -669,6 +760,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Spikes', 'Toxic Spikes', 'Stealth Rock', 'Earthquake']),
         },
       };
@@ -693,6 +785,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Reflect', 'Light Screen', 'Earthquake', 'Fire Blast']),
         },
       };
@@ -722,6 +815,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.ELITE_FOUR,
           team: [
             monWithMoves(50, 1, ['Spikes', 'Stealth Rock', 'Toxic Spikes', 'Protect']),
             monWithMoves(50, 2, ['Reflect', 'Light Screen', 'Earthquake', 'Ice Beam']),
@@ -757,6 +851,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: teamWithLead(3, 50, ['Tackle', 'Earthquake', 'Thunder Wave', 'Fire Blast']),
         },
       };
@@ -783,6 +878,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Earthquake', 'Iron Head', 'Crunch', 'Roar'], Abilities.INTIMIDATE),
         },
       };
@@ -812,6 +908,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: [
             monWithMoves(50, 1, ['Surf', 'Hydro Pump', 'Waterfall', 'Rain Dance']),
             monWithMoves(50, 2, ['Flamethrower', 'Fire Blast', 'Heat Wave', 'Sunny Day']),
@@ -844,6 +941,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: [
             monWithMoves(50, 1, ['Earthquake', 'Dig', 'Rock Slide', 'Iron Tail']),
             monWithMoves(50, 2, ['Earthquake', 'Stone Edge', 'Crunch', 'Bulldoze']),
@@ -876,6 +974,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
           team: [
             monWithMoves(50, 1, ['Thunder Wave', 'Thunderbolt', 'Quick Attack', 'Protect'], Abilities.STATIC),
             monWithMoves(50, 2, ['Ember', 'Will-O-Wisp', 'Fire Spin', 'Protect'],          Abilities.FLAME_BODY),
@@ -904,6 +1003,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Thunder Wave', 'Icy Wind', 'Psychic', 'Thunderbolt']),
         },
       };
@@ -928,6 +1028,7 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: [
             monWithMoves(50, 1, ['Earthquake', 'Crunch', 'Ice Fang', 'Roar'],           Abilities.INTIMIDATE),
             monWithMoves(50, 2, ['Flamethrower', 'Fire Blast', 'Will-O-Wisp', 'Sunny Day'], Abilities.FLASH_FIRE),
@@ -939,51 +1040,6 @@ const SCENARIOS = [
   },
 
   // ── Endgame ──────────────────────────────────────────────────────────────────
-
-  {
-    id: 'evo-stone',
-    category: 'endgame',
-    title: 'Evolution Stone',
-    description: 'Player leads with an Eevee and has Fire Stone, Water Stone, and Thunder Stone in the bag. Use a stone mid-battle to evolve into Flareon, Vaporeon, or Jolteon.',
-    color: 'bg-amber-600',
-    tags: ['evolution', 'item', 'eevee', 'stone'],
-    buildData() {
-      const { allSpecies, movePool } = getDexAndMoves();
-      const ivs = Object.fromEntries(STAT_KEYS.map(s => [s, 31]));
-      const evs = Object.fromEntries(STAT_KEYS.map(s => [s, 0]));
-      return {
-        field: { weather: null, terrain: 'normal' },
-        player: {
-          name: 'Player',
-          team: [
-            {
-              game: GAMES.POKEMON_FIRE_RED, pid: 1, species: 133, level: 25,
-              nature: pick(NATURE_LIST), gender: GENDERS.MALE,
-              ability: { name: 'none' }, ivs, evs,
-              moves: [
-                namedMove('Quick Attack'), namedMove('Bite'),
-                namedMove('Sand Attack'),  namedMove('Growl'),
-              ].filter(Boolean),
-            },
-            randomPokemon(allSpecies, movePool, 25, 2),
-            randomPokemon(allSpecies, movePool, 25, 3),
-          ],
-          inventory: {
-            items: [
-              { item: new Items.FireStone(),    quantity: 1 },
-              { item: new Items.WaterStone(),   quantity: 1 },
-              { item: new Items.ThunderStone(), quantity: 1 },
-              { item: new Items.Potion(),       quantity: 5 },
-              { item: new Items.Revive(),       quantity: 2 },
-            ],
-            pokeballs: [],
-            tms: [],
-          },
-        },
-        enemy: { isTrainer: true, name: 'Trainer', team: randomTeam(3, 25) },
-      };
-    },
-  },
 
   {
     id: 'everstone',
@@ -1141,7 +1197,7 @@ const SCENARIOS = [
     id: 'volatile-perish-song',
     category: 'endgame',
     title: 'Perish Song',
-    description: 'Both leads enter with Perish Song already counting down from 3 — they faint after 3 turns unless switched out. Player has Baton Pass to preserve the boost and escape the countdown.',
+    description: 'Use Perish Song to start the countdown, then escape with Baton Pass before it hits 0. Tests the full lifecycle: setting the count, watching it tick down, and surviving via switch.',
     color: 'bg-purple-900',
     tags: ['volatile', 'perish-song', 'lv50'],
     buildData() {
@@ -1150,10 +1206,7 @@ const SCENARIOS = [
         player: {
           name: 'Player',
           team: [
-            {
-              ...monWithMoves(50, 1, ['Perish Song', 'Baton Pass', 'Calm Mind', 'Protect']),
-              volatileStatus: { perishSongCount: 3 },
-            },
+            monWithMoves(50, 1, ['Perish Song', 'Baton Pass', 'Calm Mind', 'Protect']),
             monWithMoves(50, 2, ['Perish Song', 'Mean Look', 'Psychic', 'Protect']),
             monWithMoves(50, 3, ['Protect', 'Baton Pass', 'Swords Dance', 'Aerial Ace']),
           ],
@@ -1162,11 +1215,9 @@ const SCENARIOS = [
         enemy: {
           isTrainer: true,
           name: 'Trainer',
+          trainerClass: TrainerClass.GYM_LEADER,
           team: [
-            {
-              ...monWithMoves(50, 1, ['Perish Song', 'Mean Look', 'Protect', 'Toxic']),
-              volatileStatus: { perishSongCount: 3 },
-            },
+            monWithMoves(50, 1, ['Perish Song', 'Mean Look', 'Protect', 'Toxic']),
             monWithMoves(50, 2, ['Perish Song', 'Protect', 'Earthquake', 'Ice Beam']),
             monWithMoves(50, 3, ['Protect', 'Earthquake', 'Fire Blast', 'Ice Beam']),
           ],
@@ -1190,11 +1241,380 @@ const SCENARIOS = [
           team: randomTeam(6, 100),
           inventory: defaultInventory(),
         },
-        enemy: { isTrainer: true, name: 'Champion', team: randomTeam(6, 100) },
+        enemy: { isTrainer: true, name: 'Champion', trainerClass: TrainerClass.ELITE_FOUR, team: randomTeam(6, 100) },
       };
     },
   },
 
+  // ── Battle Generations ──────────────────────────────────────────────────────
+
+  {
+    id: 'gen1-rules',
+    category: 'generations',
+    title: 'Gen I Rules (RBY)',
+    description: 'Battle under Generation I mechanics. Move category is determined by the move\'s type (all Fire moves are Special, all Normal moves are Physical, etc.). Critical-hit chance is proportional to the attacker\'s base Speed stat — fast Pokémon can have 20–30 % crit rates. The Gen I type chart is used: no Dark or Steel type, Ghost moves deal no damage to Psychic (a famous bug), and Poison is super-effective vs Bug.',
+    color: 'bg-red-700',
+    tags: ['gen1', 'rules', 'lv50'],
+    buildData() {
+      return {
+        generation: 'GEN_1',
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          // High-speed lead with Slash to showcase speed-based crits.
+          team: [
+            monWithMoves(50, 1, ['Slash', 'Quick Attack', 'Thunderbolt', 'Psychic']),
+            monWithMoves(50, 2, ['Slash', 'Body Slam', 'Earthquake', 'Hyper Beam']),
+            monWithMoves(50, 3, ['Razor Leaf', 'Mega Drain', 'Sleep Powder', 'Stun Spore']),
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Blue',
+          trainerClass: TrainerClass.GEN_1,
+          // Psychic-type lead to demonstrate Ghost immunity / type-chart edge cases.
+          team: [
+            monWithMoves(50, 1, ['Psychic', 'Night Shade', 'Confuse Ray', 'Recover']),
+            monWithMoves(50, 2, ['Slash', 'Hyper Beam', 'Earthquake', 'Body Slam']),
+            monWithMoves(50, 3, ['Blizzard', 'Thunderbolt', 'Fire Blast', 'Psychic']),
+          ],
+        },
+      };
+    },
+  },
+
+  {
+    id: 'gen2-rules',
+    category: 'generations',
+    title: 'Gen II Rules (GSC)',
+    description: 'Battle under Generation II mechanics. The type chart gains Dark and Steel — Psychic is no longer immune to Ghost, and Dark moves are super-effective against it. Move category is still type-based (not per-move). Critical hits still deal ×2 damage. Weather (rain, sun, sandstorm) is fully supported but hail is not yet available.',
+    color: 'bg-yellow-600',
+    tags: ['gen2', 'rules', 'lv50'],
+    buildData() {
+      return {
+        generation: 'GEN_2',
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          // Dark-type moves vs Psychic to show the Gen 2 type-chart fix.
+          team: [
+            monWithMoves(50, 1, ['Crunch', 'Shadow Ball', 'Bite', 'Faint Attack']),
+            monWithMoves(50, 2, ['Steel Wing', 'Iron Tail', 'Flash Cannon', 'Metal Claw']),
+            monWithMoves(50, 3, ['Psychic', 'Thunderbolt', 'Ice Beam', 'Flamethrower']),
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Kris',
+          trainerClass: TrainerClass.GEN_2,
+          team: [
+            monWithMoves(50, 1, ['Psychic', 'Recover', 'Thunder Wave', 'Reflect']),
+            monWithMoves(50, 2, ['Crunch', 'Pursuit', 'Shadow Ball', 'Confuse Ray']),
+            monWithMoves(50, 3, ['Iron Tail', 'Steel Wing', 'Metal Claw', 'Earthquake']),
+          ],
+        },
+      };
+    },
+  },
+
+  {
+    id: 'gen3-rules',
+    category: 'generations',
+    title: 'Gen III Rules (RSE) — default',
+    description: 'Battle under Generation III mechanics — the engine\'s default. Same type-based physical/special split as Gen I/II, same ×2 crit multiplier. Abilities, natures, and EVs are fully active. Hail weather is now available.',
+    color: 'bg-green-700',
+    tags: ['gen3', 'rules', 'lv50'],
+    buildData() {
+      return {
+        generation: 'GEN_3',
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy: {
+          isTrainer: true,
+          name: 'Brendan',
+          trainerClass: TrainerClass.GEN_3,
+          team: randomTeam(3, 50),
+        },
+      };
+    },
+  },
+
+  {
+    id: 'gen4-rules',
+    category: 'generations',
+    title: 'Gen IV Rules (DPPt)',
+    description: 'Battle under Generation IV mechanics — the physical/special split. Every move now has an explicit category (Physical or Special) regardless of its type. Earthquake, Crunch, and Waterfall are Physical; Thunderbolt, Dark Pulse, and Surf are Special. This fundamentally changes which stat is used for damage. Critical hits still deal ×2 damage.',
+    color: 'bg-blue-700',
+    tags: ['gen4', 'rules', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        generation: 'GEN_4',
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          // Mix of moves that change category in Gen 4 vs earlier.
+          // e.g. Bite becomes Physical in Gen 4 (was Special pre-Gen 4 as a Dark move).
+          team: [
+            monWithMoves(50, 1, ['Earthquake', 'Crunch', 'Surf', 'Dark Pulse']),
+            monWithMoves(50, 2, ['Waterfall', 'Ice Punch', 'Thunderbolt', 'Flamethrower']),
+            monWithMoves(50, 3, ['Close Combat', 'Stone Edge', 'Shadow Ball', 'Aura Sphere']),
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Lucas',
+          trainerClass: TrainerClass.GEN_4,
+          team: [
+            monWithMoves(50, 1, ['Earthquake', 'Ice Punch', 'Thunderpunch', 'Fire Punch']),
+            monWithMoves(50, 2, ['Surf', 'Ice Beam', 'Psychic', 'Shadow Ball']),
+            monWithMoves(50, 3, ['Dragon Claw', 'Outrage', 'Draco Meteor', 'Stone Edge']),
+          ],
+        },
+      };
+    },
+  },
+
+  {
+    id: 'gen5-rules',
+    category: 'generations',
+    title: 'Gen V Rules (BW)',
+    description: 'Battle under Generation V mechanics. Same physical/special split as Gen IV — every move carries an explicit category. Same ×2 crit multiplier. Mechanically identical to Gen IV in this engine; Gen V differences (like critical-hit immunity in certain scenarios) are not yet modelled.',
+    color: 'bg-slate-600',
+    tags: ['gen5', 'rules', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        generation: 'GEN_5',
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy: {
+          isTrainer: true,
+          name: 'Hilbert',
+          trainerClass: TrainerClass.GEN_5,
+          team: randomTeam(3, 50),
+        },
+      };
+    },
+  },
+
+  {
+    id: 'gen6-rules',
+    category: 'generations',
+    title: 'Gen VI Rules (XY)',
+    description: 'Battle under Generation VI mechanics. Critical hits now deal only ×1.5 damage instead of ×2, significantly reducing their impact. A crit that used to wipe out 60 % HP now deals 45 %. Use high-crit moves like Slash, Stone Edge, or Night Slash to observe the reduced multiplier against a tanky opponent.',
+    color: 'bg-pink-700',
+    tags: ['gen6', 'rules', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        generation: 'GEN_6',
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          // High-crit moves to make the ×1.5 vs ×2 difference visible.
+          team: [
+            monWithMoves(50, 1, ['Slash', 'Stone Edge', 'Night Slash', 'Leaf Blade']),
+            monWithMoves(50, 2, ['Psycho Cut', 'Cross Chop', 'Air Cutter', 'Razor Leaf']),
+            monWithMoves(50, 3, ['Crabhammer', 'Drill Run', 'Shadow Claw', 'Karate Chop']),
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Calem',
+          trainerClass: TrainerClass.GEN_6,
+          // Bulky team to survive long enough for multiple crits to be observed.
+          team: [
+            monWithMoves(50, 1, ['Slack Off', 'Amnesia', 'Body Slam', 'Earthquake']),
+            monWithMoves(50, 2, ['Recover', 'Calm Mind', 'Psychic', 'Thunderbolt']),
+            monWithMoves(50, 3, ['Rest', 'Synthesis', 'Leech Seed', 'Protect']),
+          ],
+        },
+      };
+    },
+  },
+
+  // ── AI Generations ───────────────────────────────────────────────────────────
+
+  {
+    id: 'ai-gen1',
+    category: 'ai',
+    title: 'Gen I AI (RBY)',
+    description: 'The notoriously poor Red/Blue AI: 50 % random moves plus the infamous type-check bug where the AI scores every move as if it were the attacker\'s primary type. Expect bizarre choices — a Water Pokémon treating Fire Blast as a Water-type move.',
+    color: 'bg-red-700',
+    tags: ['ai', 'gen1', 'lv50'],
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Red', trainerClass: TrainerClass.GEN_1, team: randomTeam(3, 50) },
+      };
+    },
+  },
+
+  {
+    id: 'ai-gen2',
+    category: 'ai',
+    title: 'Gen II AI (GSC)',
+    description: 'Gold/Silver AI: the type-check bug is fixed so moves are scored correctly, but a 40 % random deviation still makes trainers fairly unpredictable. Noticably smarter than Gen I on average.',
+    color: 'bg-yellow-600',
+    tags: ['ai', 'gen2', 'lv50'],
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Ethan', trainerClass: TrainerClass.GEN_2, team: randomTeam(3, 50) },
+      };
+    },
+  },
+
+  {
+    id: 'ai-gen3',
+    category: 'ai',
+    title: 'Gen III AI (RSE)',
+    description: 'Ruby/Sapphire standard trainer AI: type-effective scoring with a 30 % random deviation. The baseline for this engine — equivalent to the TRAINER class.',
+    color: 'bg-green-700',
+    tags: ['ai', 'gen3', 'lv50'],
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Brendan', trainerClass: TrainerClass.GEN_3, team: randomTeam(3, 50) },
+      };
+    },
+  },
+
+  {
+    id: 'ai-gen4',
+    category: 'ai',
+    title: 'Gen IV AI (DPPt)',
+    description: 'Diamond/Pearl score-based flag system: 20 % random deviation. Trainers pick smart moves most of the time but still make occasional surprises.',
+    color: 'bg-blue-700',
+    tags: ['ai', 'gen4', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Lucas', trainerClass: TrainerClass.GEN_4, team: randomTeam(3, 50) },
+      };
+    },
+  },
+
+  {
+    id: 'ai-gen5',
+    category: 'ai',
+    title: 'Gen V AI (BW)',
+    description: 'Black/White competitive AI: 10 % random deviation. Trainers almost always select the most effective move — matches the GYM_LEADER class in difficulty.',
+    color: 'bg-slate-600',
+    tags: ['ai', 'gen5', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Hilbert', trainerClass: TrainerClass.GEN_5, team: randomTeam(3, 50) },
+      };
+    },
+  },
+
+  {
+    id: 'ai-gen6',
+    category: 'ai',
+    title: 'Gen VI AI (XY)',
+    description: 'X/Y AI with only a 5 % random deviation. Highly consistent — expect near-optimal play every turn. Introduced Mega Evolution decision-making (not yet modelled).',
+    color: 'bg-pink-700',
+    tags: ['ai', 'gen6', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Calem', trainerClass: TrainerClass.GEN_6, team: randomTeam(3, 50) },
+      };
+    },
+  },
+
+  {
+    id: 'ai-gen7',
+    category: 'ai',
+    title: 'Gen VII AI (SM)',
+    description: 'Sun/Moon AI at 2 % random deviation — near-perfect and very rare to see a suboptimal move. Z-Move decisions are not yet modelled.',
+    color: 'bg-orange-600',
+    tags: ['ai', 'gen7', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Elio', trainerClass: TrainerClass.GEN_7, team: randomTeam(3, 50) },
+      };
+    },
+  },
+
+  {
+    id: 'ai-gen8',
+    category: 'ai',
+    title: 'Gen VIII AI (SwSh)',
+    description: 'Sword/Shield fully-optimised AI: zero random deviation — always picks the highest-scoring move. When two moves tie, one is chosen at random. Matches the ELITE_FOUR class in behaviour.',
+    color: 'bg-violet-700',
+    tags: ['ai', 'gen8', 'lv50'],
+    disabled: true,
+    buildData() {
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
+        enemy:  { isTrainer: true, name: 'Victor', trainerClass: TrainerClass.GEN_8, team: randomTeam(3, 50) },
+      };
+    },
+  },
+  
+  // ── Import ──────────────────────────────────────────────────────────────────
+
+  {
+    id: 'showdown-import',
+    category: 'import',
+    title: 'Showdown Import',
+    description: 'Paste two Pokémon Showdown team exports and battle them against each other. Supports all Pokémon up to Gen 8. Nickname, ability, level, nature, EVs, IVs, and moves are all parsed.',
+    color: 'bg-emerald-800',
+    tags: ['import', 'showdown', 'custom'],
+    disabled: true,
+    /** Marks this scenario as requiring team-text input before buildData is called. */
+    type: 'showdown',
+    /**
+     * Parses two Showdown team exports and returns the battle data object.
+     *
+     * @param {string} playerTeamText  Showdown export for the player's team.
+     * @param {string} enemyTeamText   Showdown export for the enemy's team.
+     * @param {string} [trainerClass]  TrainerClass for the opponent AI (defaults to TRAINER).
+     * @return {object}
+     */
+    buildData(playerTeamText, enemyTeamText, trainerClass = TrainerClass.TRAINER) {
+      const playerTeam = parseTeam(playerTeamText);
+      const enemyTeam  = parseTeam(enemyTeamText);
+      console.log('Parsed player team:', playerTeam);
+      console.log('Parsed enemy team:', enemyTeam);
+      return {
+        generation: 'all',
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          team: playerTeam,
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Opponent',
+          trainerClass,
+          team: enemyTeam,
+        },
+      };
+    },
+  },
 ];
 
 export default SCENARIOS;

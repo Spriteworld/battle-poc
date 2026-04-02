@@ -104,7 +104,7 @@ function _drawInfoTab(scene, reg, bMon, entry, x, y, w) {
  * @param {number} [opts.tab=0]
  */
 export function drawBattleMonDetail(menu, { bMon, x, y, w, h, tab = 0 }) {
-  if (!menu.dex) menu.dex = new Pokedex(GAMES.POKEMON_FIRE_RED);
+  if (!menu.dex) menu.dex = new Pokedex(GAMES.POKEMON_CHAMPIONS);
 
   const speciesId   = bMon.pokemon?.nat_dex_id ?? null;
   let   entry       = null;
