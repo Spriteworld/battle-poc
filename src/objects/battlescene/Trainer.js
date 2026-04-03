@@ -1,6 +1,7 @@
 import { BattleTeam } from '@Objects';
 import { v4 as uuidv4 } from 'uuid';
-import * as TrainerClass from '../enums/TrainerClass.js';
+import * as TrainerClass    from '../enums/TrainerClass.js';
+import * as TrainerSubclass from '../enums/TrainerSubclass.js';
 import WildAI      from './ai/WildAI.js';
 import TrainerAI   from './ai/TrainerAI.js';
 import GymLeaderAI from './ai/GymLeaderAI.js';
@@ -34,10 +35,11 @@ const AI_BY_CLASS = {
 
 export default class {
   constructor(config) {
-    this.name         = null;
-    this.team         = {};
-    this.isWild       = false;
-    this.trainerClass = TrainerClass.TRAINER;
+    this.name             = null;
+    this.team             = {};
+    this.isWild           = false;
+    this.trainerClass     = TrainerClass.TRAINER;
+    this.trainerSubclass  = TrainerSubclass.NONE;
 
     if (config) {
       Object.assign(this, config);
@@ -50,6 +52,24 @@ export default class {
 
   getName() {
     return this.name || 'Trainer';
+  }
+
+  /**
+   * Returns the subclass title string, or null if none is set.
+   * @returns {string|null}
+   */
+  getTitle() {
+    return this.trainerSubclass ?? null;
+  }
+
+  /**
+   * Returns the full display label combining title and name
+   * (e.g. "GYM LEADER Misty" or "RIVAL Gary").
+   * @returns {string}
+   */
+  getDisplayName() {
+    const title = this.getTitle();
+    return title ? `${title} ${this.getName()}` : this.getName();
   }
 
   debug() {

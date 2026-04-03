@@ -1,9 +1,13 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { resolve } from 'path';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const proxyTarget = env.ASSETS_PROXY_TARGET;
+
+  return {
   plugins: [tailwindcss(), vue()],
   resolve: {
     alias: {
@@ -20,6 +24,11 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 8086,
     allowedHosts: true,
+    ...(proxyTarget ? {
+      proxy: {
+        '/tileset': { target: proxyTarget, changeOrigin: true },
+      },
+    } : {}),
   },
   define: {
     'process.env': {}
@@ -42,4 +51,5 @@ export default defineConfig({
     },
     outDir: 'dist/lib',
   },
+  };
 });

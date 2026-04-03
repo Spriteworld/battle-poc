@@ -1,5 +1,5 @@
-import { BasePokemon } from "@spriteworld/pokemon-data";
-import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
+import { BasePokemon } from '@spriteworld/pokemon-data';
+import { GAMES, NATURES, STATS } from '@spriteworld/pokemon-data';
 
 export default new BasePokemon({
   game: GAMES.POKEMON_FIRE_RED,

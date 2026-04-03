@@ -957,7 +957,13 @@ export default class extends BasePokemon {
       // Gen 1 AI bug: the engine reads the attacker's primary type slot rather than the
       // move's own type when looking up type effectiveness.
       const scoreType = options.useAttackerType ? (this.types?.[0] ?? move.type) : move.type;
-      const typeEff = calcTypeEffectiveness(scoreType, target.types, generation.typeChart);
+      const chartKeys     = Object.keys(generation.typeChart?.TYPES ?? {});
+      const validDefTypes = chartKeys.length
+        ? (target.types ?? []).filter(t => chartKeys.includes(t))
+        : target.types ?? [];
+      const typeEff = (chartKeys.length && chartKeys.includes(scoreType) && validDefTypes.length)
+        ? calcTypeEffectiveness(scoreType, validDefTypes, generation.typeChart)
+        : 1;
       if (typeEff === 0) return { move, score: 0 };
       return { move, score: (move.power || 0) * typeEff };
     });

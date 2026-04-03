@@ -23,7 +23,13 @@ export default class {
     console.assert(this.name?.length, 'Move name is required');
   }
 
-  getName() { return this.name; }
+  /** @returns {string} The move's display name. */
+  getName() {
+    return this.name;
+  }
 
-  debug() { console.log('MOVE', this); }
+  /** Logs the move data to the console for debugging. */
+  debug() {
+    console.log('MOVE', this);
+  }
 }

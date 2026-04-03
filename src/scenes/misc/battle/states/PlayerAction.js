@@ -37,7 +37,7 @@ export default class PlayerAction {
 
     this.events.once('battlemenu-select-option-3', () => {
       if (!this.config.enemy.isWild) {
-        this.logger.addItem("You can't run from a trainer battle!");
+        this.logger.addItem('You can\'t run from a trainer battle!');
         this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
         return;
       }

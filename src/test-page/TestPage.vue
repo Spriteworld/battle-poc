@@ -156,6 +156,7 @@ import Phaser from 'phaser';
 import BattleScene2 from '@Scenes/misc/battle/Scene2.js';
 import BattleUI from '@Scenes/misc/battle/UI.js';
 import EvolutionScene from '@Scenes/misc/EvolutionScene.js';
+import UIShowcaseScene from '@Scenes/misc/battle/UIShowcaseScene.js';
 import SCENARIOS, { CATEGORIES, SHOWDOWN_EXAMPLE_PLAYER, SHOWDOWN_EXAMPLE_ENEMY } from './scenarios.js';
 import MobileControls from '@/components/MobileControls.vue';
 
@@ -232,10 +233,15 @@ async function launch(scenario, battleData = null) {
   class QuickPreload extends Phaser.Scene {
     constructor() { super({ key: 'QuickPreload' }); }
     create() {
-      this.scene.add(BattleScene2.name, BattleScene2, false);
-      this.scene.add(BattleUI.name, BattleUI, false);
-      this.scene.add(EvolutionScene.name, EvolutionScene, false);
-      this.scene.start(BattleScene2.name, data);
+      if (scenario.type === 'showcase') {
+        this.scene.add(UIShowcaseScene.name, UIShowcaseScene, false);
+        this.scene.start(UIShowcaseScene.name, data);
+      } else {
+        this.scene.add(BattleScene2.name, BattleScene2, false);
+        this.scene.add(BattleUI.name, BattleUI, false);
+        this.scene.add(EvolutionScene.name, EvolutionScene, false);
+        this.scene.start(BattleScene2.name, data);
+      }
     }
   }
 

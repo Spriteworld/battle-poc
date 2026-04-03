@@ -143,8 +143,13 @@ export default class Window extends Phaser.GameObjects.Container {
     this._border.strokeRoundedRect(0, 0, width, height, R);
   }
 
-  /** @return {number} */
-  get panelWidth()  { return this._width; }
-  /** @return {number} */
-  get panelHeight() { return this._height; }
+  /** @returns {number} */
+  get panelWidth() {
+    return this._width;
+  }
+
+  /** @returns {number} */
+  get panelHeight() {
+    return this._height;
+  }
 }

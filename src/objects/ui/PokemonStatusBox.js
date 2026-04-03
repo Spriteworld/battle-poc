@@ -13,9 +13,9 @@ const GENDER_SYMBOL = {
 const STATUS_BADGE = {
   'BURNED':    { label: 'BRN', bg: 0xf08030, text: '#ffffff' },
   'POISONED':  { label: 'PSN', bg: 0xa040a0, text: '#ffffff' },
-  'PARALYZED': { label: 'PAR', bg: 0xf8d030, text: '#181818' },
+  'PARALYZED': { label: 'PAR', bg: 0xf8d030, text: '#ffffff' },
   'SLEEP':     { label: 'SLP', bg: 0x909090, text: '#ffffff' },
-  'FROZEN':    { label: 'FRZ', bg: 0x98d8d8, text: '#181818' },
+  'FROZEN':    { label: 'FRZ', bg: 0x98d8d8, text: '#ffffff' },
   'TOXIC':     { label: 'PSN', bg: 0x5828a0, text: '#ffffff' },
 };
 
@@ -126,14 +126,14 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this.add(border);
 
     // Name (bold)
-    this._nameText = this.scene.add.text(10, 8, '', {
+    this._nameText = this.scene.add.text(10, 6, '', {
       ...FONT,
       fontSize: '14px',
     });
     this.add(this._nameText);
 
     // Gender symbol (shown between name and level)
-    this._genderText = this.scene.add.text(0, 8, '', {
+    this._genderText = this.scene.add.text(0, 6, '', {
       fontFamily: 'Gen3',
       fontSize: '13px',
     });
@@ -141,7 +141,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this.add(this._genderText);
 
     // Level (right-aligned)
-    this._levelText = this.scene.add.text(w - 8, 8, '', {
+    this._levelText = this.scene.add.text(w - 8, 6, '', {
       ...FONT,
       fontSize: '12px',
     });
@@ -193,8 +193,10 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
         fontSize: '10px',
         fontStyle: 'bold',
         color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 1,
       });
-      text.setOrigin(0.5, 0);
+      text.setOrigin(0.5, 0.5);
       text.setVisible(false);
       this.add(text);
 
@@ -399,7 +401,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     }
     this._genderText.setText(cfg.label);
     this._genderText.setColor(cfg.color);
-    this._genderText.setPosition(this._nameText.x + this._nameText.width + 3, 8);
+    this._genderText.setPosition(this._nameText.x + this._nameText.width + 3, 6);
     this._genderText.setVisible(true);
   }
 
@@ -417,10 +419,10 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     // Build the list: leech seed first, confusion, then non-zero stat stages.
     const entries = [];
     if (volatileStatus?.leechSeed) {
-      entries.push({ label: 'SED', color: 0x70b000, textColor: '#ffffff' });
+      entries.push({ label: 'SEED', color: 0x70b000, textColor: '#ffffff' });
     }
     if (volatileStatus?.confusedTurns) {
-      entries.push({ label: 'CNF', color: 0xc030c0, textColor: '#ffffff' });
+      entries.push({ label: 'CONF', color: 0xc030c0, textColor: '#ffffff' });
     }
     if (volatileStatus?.yawnCounter) {
       entries.push({ label: 'DRW', color: 0x908060, textColor: '#ffffff' });
@@ -457,7 +459,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
 
       text.setText(entry.label);
       text.setColor(entry.textColor);
-      text.setPosition(x + STAGE_BADGE_W / 2, badgeY + 1);
+      text.setPosition(x + STAGE_BADGE_W / 2, badgeY);
       text.setVisible(true);
     });
   }
@@ -493,7 +495,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       ? this._genderText.x + this._genderText.width + 2
       : nameRight;
     let bx = Math.max(nameRight, genderRight) + 4;
-    const by = 8;
+    const by = 6;
 
     this._statusBadges.forEach(({ bg, text }, i) => {
       if (i >= badges.length) {
@@ -510,7 +512,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
 
       text.setText(badge.label);
       text.setColor(badge.text);
-      text.setPosition(bx + BADGE_W / 2, by + 2);
+      text.setPosition(bx + BADGE_W / 2, by + BADGE_H / 2);
       text.setVisible(true);
 
       bx += BADGE_W + 2;

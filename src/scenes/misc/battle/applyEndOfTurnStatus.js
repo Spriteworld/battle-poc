@@ -250,7 +250,7 @@ export default function applyEndOfTurnStatus() {
   // Screen countdown — Light Screen, Reflect, Mist, and Safeguard last 5 turns.
   if (this.screens) {
     for (const side of ['player', 'enemy']) {
-      const label = side === 'player' ? 'Your' : "The enemy's";
+      const label = side === 'player' ? 'Your' : 'The enemy\'s';
       const s = this.screens[side];
       if (s.lightScreen > 0) {
         s.lightScreen--;

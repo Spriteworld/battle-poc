@@ -22,13 +22,14 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
 
     this._key  = `pkmn-battle-${isBack ? 'back' : 'front'}-${base}${shiny ? '-shiny' : ''}`;
     this._path = tilesetBaseUrl + 'tileset/pokemon/' + dir + (shiny ? 'shiny/' : '') + base + '.png';
+    
     this._unknownKey  = 'pkmn-battle-unknown';
     this._unknownPath = tilesetBaseUrl + 'tileset/pokemon/front/0.png';
 
-    // Placeholder shown while loading
+    // Placeholder shown while loading (bottom-anchored to match sprite origin)
     this._placeholder = scene.add.graphics();
     this._placeholder.fillStyle(0x000000, 0.12);
-    this._placeholder.fillRect(-size / 2, -size / 2, size, size);
+    this._placeholder.fillRect(-size / 2, -size, size, size);
     this.add(this._placeholder);
 
     this._loadAndShow(scene);
@@ -36,7 +37,8 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Slides the sprite in from off-screen to its current position.
+   * Slides the sprite in from off-screen to its current position while growing
+   * from the bottom up (scaleY 0 → 1).
    * Player (back sprite) enters from the left; enemy (front sprite) from the right.
    * @param {Function} [callback] - Called when the tween completes.
    */
@@ -45,10 +47,12 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
     const startX  = this._isBack ? targetX - 350 : targetX + 250;
     this.setX(startX);
     this.setAlpha(0);
+    this.setScale(1, 0);
     this.scene.tweens.add({
       targets:  this,
       x:        targetX,
       alpha:    1,
+      scaleY:   1,
       duration: 400,
       ease:     'Power2.easeOut',
       onComplete: () => callback?.(),
@@ -87,7 +91,7 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
       this._placeholder = null;
     }
     const img = scene.add.image(0, 0, key);
-    img.setOrigin(0.5, 0.5);
+    img.setOrigin(0.5, 1);
     img.setDisplaySize(this._size, this._size);
     this.add(img);
   }

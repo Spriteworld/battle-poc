@@ -2,36 +2,39 @@ import Phaser from 'phaser';
 
 // ─── Battlefield geometry reference ────────────────────────────────────────
 //
-//  Player Pokémon centre: x=190  y=280    (UI_Y−90)
-//  Enemy  Pokémon centre: x=610  y=172    (UI_Y−198)
-//  Player ground level:   x=190  y=342    (UI_Y−28)
-//  Enemy  ground level:   x=610  y=202    (UI_Y−168)
+//  Player Pokémon bottom: x=190  y=342    (UI_Y−28)   — sprite origin, size 192
+//  Enemy  Pokémon bottom: x=610  y=202    (UI_Y−168)  — sprite origin, size 128
+//  Player Pokémon centre: x=190  y=246    (UI_Y−124)
+//  Enemy  Pokémon centre: x=610  y=138    (UI_Y−232)
 //
 //  The ground rises from left to right.  Slope = (202−342)/(610−190) = −1/3.
 //  Barriers are drawn as straight vertical rectangles (TILT = 0).
 
-const TILT = 0;      // no perspective lean — barriers stand straight up
-const BAR_W   = 120;  // width of each screen slab (wider as requested)
-const BAR_GAP = 5;   // gap between two stacked slabs on the same side
+const TILT      = 0;    // no perspective lean — barriers stand straight up
+const BAR_W     = 120;  // width of each screen slab
+const OVERLAP_X = 14;   // x offset for each successive slab (in the glow direction)
+const OVERLAP_Y = 10;   // y offset for each successive slab (rises toward sky)
 
 // The two barrier zones sit at roughly 1/3 and 2/3 of the way between the
 // two Pokémon, on their respective sides of the field.
 const ZONE = {
-  player: {
-    // first bar's bottom-left corner (x, y2); bars stack rightward (+x)
-    x:  290,
-    y1: 160,   // top of slab (sky)
-    y2: 322,   // bottom of slab (into ground)
-    dir: +1,          // index 1 bar is to the right of index 0
-    glowSide: 'right', // bright edge faces the enemy
-  },
   enemy: {
-    // first bar's bottom-right corner; bars stack leftward (−x)
+    // first bar's bottom-right corner; bars stack leftward (−x) and downward (+y)
     x:  500,           // right edge at bottom
     y1:  82,
     y2: 258,
-    dir: -1,           // index 1 bar is to the left of index 0
+    dir:  -1,          // index 1 bar is to the left of index 0
+    yDir: +1,          // successive slabs shift downward
     glowSide: 'left',  // bright edge faces the player
+  },
+  player: {
+    // first bar's bottom-left corner (x, y2); bars stack rightward (+x) and upward (−y)
+    x:  290,
+    y1: 160,   // top of slab (sky)
+    y2: 322,   // bottom of slab (into ground)
+    dir:  +1,          // index 1 bar is to the right of index 0
+    yDir: -1,          // successive slabs shift upward
+    glowSide: 'right', // bright edge faces the enemy
   },
 };
 
@@ -134,18 +137,20 @@ export default class FieldScreensDisplay extends Phaser.GameObjects.Container {
           continue;
         }
 
-        // Compute the bottom-left x of this slab.
+        // Each successive slab shifts diagonally: in the glow direction and per-side vertically.
+        const xShift = drawn * zone.dir  * OVERLAP_X;
+        const yShift = drawn * zone.yDir * OVERLAP_Y;
+
         let xl;
         if (zone.dir === +1) {
-          xl = zone.x + drawn * (BAR_W + BAR_GAP);
+          xl = zone.x + xShift;
         } else {
-          // zone.x is the right edge of the first bar; stack leftward
-          xl = (zone.x - BAR_W) - drawn * (BAR_W + BAR_GAP);
+          xl = (zone.x - BAR_W) + xShift;
         }
 
-        const xr   = xl + BAR_W;
-        const y1   = zone.y1;
-        const y2   = zone.y2;
+        const xr = xl + BAR_W;
+        const y1 = zone.y1 + yShift;
+        const y2 = zone.y2 + yShift;
         const h    = y2 - y1;
         const lean = Math.round(h * TILT);   // top is shifted right by this amount
 

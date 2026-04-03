@@ -1,7 +1,7 @@
 import Items from '@Data/items/';
 import * as staticPokemon from '@Data/pokemon/';
 import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves, Abilities, EXPERIENCE_TABLES, GROWTH, FRLG_LEARNSETS } from '@spriteworld/pokemon-data';
-import { TrainerClass } from '@Objects';
+import { TrainerClass, TrainerSubclass } from '@Objects';
 import { parseTeam } from '@/utilities/showdownParser.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -237,6 +237,7 @@ function defaultInventory() {
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export const CATEGORIES = [
+  { id: 'showcase',    label: 'Showcase'          },
   { id: 'basics',      label: 'Basics'            },
   { id: 'weather',     label: 'Weather'           },
   { id: 'status',      label: 'Status'            },
@@ -318,6 +319,21 @@ Timid Nature
 
 const SCENARIOS = [
 
+  // ── Showcase ────────────────────────────────────────────────────────────────
+
+  {
+    id: 'ui-showcase',
+    category: 'showcase',
+    type: 'showcase',
+    title: 'UI Component Showcase',
+    description: 'Renders all major battle UI components (HP bars, status badges, stat stages, weather, field screens, entry hazards) across four predefined states. Use ← → to cycle.',
+    color: 'bg-sky-800',
+    tags: ['showcase', 'ui', 'static'],
+    buildData() {
+      return {};
+    },
+  },
+
   // ── Basics ──────────────────────────────────────────────────────────────────
 
   {
@@ -384,7 +400,7 @@ const SCENARIOS = [
           team: [randomPokemon(allSpecies, movePool, 30, 1)],
           inventory: defaultInventory(),
         },
-        enemy: { isTrainer: true, name: 'Rival', trainerClass: TrainerClass.TRAINER, team: [staticPokemon.trainer_pikachu] },
+        enemy: { isTrainer: true, name: 'Rival', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.RIVAL, team: [staticPokemon.trainer_pikachu] },
       };
     },
   },
@@ -404,7 +420,7 @@ const SCENARIOS = [
           team: randomTeam(3, 50),
           inventory: defaultInventory(),
         },
-        enemy: { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, team: randomTeam(3, 50) },
+        enemy: { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.ACE_TRAINER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -422,7 +438,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'rain', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.SWIMMER_M, team: randomTeam(3, 50) },
       };
     },
   },
@@ -438,7 +454,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'sun', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.KINDLER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -454,7 +470,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'sandstorm', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, trainerSubclass: TrainerSubclass.GYM_LEADER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -470,7 +486,7 @@ const SCENARIOS = [
       return {
         field: { weather: 'hail', terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, trainerSubclass: TrainerSubclass.GYM_LEADER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -494,6 +510,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Blaine',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Flamethrower', 'Solar Beam', 'Fire Blast', 'Sunny Day'], Abilities.DROUGHT),
         },
       };
@@ -521,6 +538,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.SCIENTIST,
           team: randomTeam(3, 50),
         },
       };
@@ -546,6 +564,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.EXPERT,
           team: teamWithLead(3, 50, ['Thunder Wave', 'Body Slam', 'Tackle', 'Protect']),
         },
       };
@@ -571,6 +590,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.PSYCHIC,
           team: teamWithLead(3, 50, ['Hypnosis', 'Dream Eater', 'Psychic', 'Calm Mind']),
         },
       };
@@ -601,6 +621,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: Array.from({ length: 3 }, (_, i) =>
             randomPokemon(allSpecies, movePool, 60, i + 1)
           ),
@@ -633,6 +654,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.POKEMON_BREEDER,
           team: Array.from({ length: 3 }, (_, i) =>
             randomPokemon(allSpecies, movePool, 40, i + 1)
           ),
@@ -665,6 +687,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.PSYCHIC,
           team: [
             { ...monWithMoves(50, 1, ['Confuse Ray', 'Supersonic', 'Tackle', 'Flatter']), volatileStatus: confused },
             monWithMoves(50, 2, ['Confuse Ray', 'Psybeam', 'Flail', 'Protect']),
@@ -702,6 +725,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Nightmare', 'Dream Eater', 'Hypnosis', 'Psychic']),
         },
       };
@@ -734,6 +758,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.BUG_CATCHER,
           team: teamWithLead(3, 50, ['Wrap', 'Bind', 'Leech Seed', 'Earthquake']),
         },
       };
@@ -761,6 +786,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Spikes', 'Toxic Spikes', 'Stealth Rock', 'Earthquake']),
         },
       };
@@ -786,6 +812,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Reflect', 'Light Screen', 'Earthquake', 'Fire Blast']),
         },
       };
@@ -816,6 +843,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.ELITE_FOUR,
+          trainerSubclass: TrainerSubclass.ELITE_FOUR,
           team: [
             monWithMoves(50, 1, ['Spikes', 'Stealth Rock', 'Toxic Spikes', 'Protect']),
             monWithMoves(50, 2, ['Reflect', 'Light Screen', 'Earthquake', 'Ice Beam']),
@@ -852,6 +880,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.ACE_TRAINER,
           team: teamWithLead(3, 50, ['Tackle', 'Earthquake', 'Thunder Wave', 'Fire Blast']),
         },
       };
@@ -879,6 +908,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Earthquake', 'Iron Head', 'Crunch', 'Roar'], Abilities.INTIMIDATE),
         },
       };
@@ -909,6 +939,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.SCIENTIST,
           team: [
             monWithMoves(50, 1, ['Surf', 'Hydro Pump', 'Waterfall', 'Rain Dance']),
             monWithMoves(50, 2, ['Flamethrower', 'Fire Blast', 'Heat Wave', 'Sunny Day']),
@@ -942,6 +973,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.PSYCHIC,
           team: [
             monWithMoves(50, 1, ['Earthquake', 'Dig', 'Rock Slide', 'Iron Tail']),
             monWithMoves(50, 2, ['Earthquake', 'Stone Edge', 'Crunch', 'Bulldoze']),
@@ -975,6 +1007,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.YOUNGSTER,
           team: [
             monWithMoves(50, 1, ['Thunder Wave', 'Thunderbolt', 'Quick Attack', 'Protect'], Abilities.STATIC),
             monWithMoves(50, 2, ['Ember', 'Will-O-Wisp', 'Fire Spin', 'Protect'],          Abilities.FLAME_BODY),
@@ -1004,6 +1037,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: teamWithLead(3, 50, ['Thunder Wave', 'Icy Wind', 'Psychic', 'Thunderbolt']),
         },
       };
@@ -1029,6 +1063,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: [
             monWithMoves(50, 1, ['Earthquake', 'Crunch', 'Ice Fang', 'Roar'],           Abilities.INTIMIDATE),
             monWithMoves(50, 2, ['Flamethrower', 'Fire Blast', 'Will-O-Wisp', 'Sunny Day'], Abilities.FLASH_FIRE),
@@ -1216,6 +1251,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.GYM_LEADER,
+          trainerSubclass: TrainerSubclass.GYM_LEADER,
           team: [
             monWithMoves(50, 1, ['Perish Song', 'Mean Look', 'Protect', 'Toxic']),
             monWithMoves(50, 2, ['Perish Song', 'Protect', 'Earthquake', 'Ice Beam']),
@@ -1241,7 +1277,7 @@ const SCENARIOS = [
           team: randomTeam(6, 100),
           inventory: defaultInventory(),
         },
-        enemy: { isTrainer: true, name: 'Champion', trainerClass: TrainerClass.ELITE_FOUR, team: randomTeam(6, 100) },
+        enemy: { isTrainer: true, name: 'Lance', trainerClass: TrainerClass.ELITE_FOUR, trainerSubclass: TrainerSubclass.CHAMPION, team: randomTeam(6, 100) },
       };
     },
   },
@@ -1273,6 +1309,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Blue',
           trainerClass: TrainerClass.GEN_1,
+          trainerSubclass: TrainerSubclass.RIVAL,
           // Psychic-type lead to demonstrate Ghost immunity / type-chart edge cases.
           team: [
             monWithMoves(50, 1, ['Psychic', 'Night Shade', 'Confuse Ray', 'Recover']),
@@ -1309,6 +1346,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Kris',
           trainerClass: TrainerClass.GEN_2,
+          trainerSubclass: TrainerSubclass.POKEMON_TRAINER,
           team: [
             monWithMoves(50, 1, ['Psychic', 'Recover', 'Thunder Wave', 'Reflect']),
             monWithMoves(50, 2, ['Crunch', 'Pursuit', 'Shadow Ball', 'Confuse Ray']),
@@ -1335,6 +1373,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Brendan',
           trainerClass: TrainerClass.GEN_3,
+          trainerSubclass: TrainerSubclass.RIVAL,
           team: randomTeam(3, 50),
         },
       };
@@ -1368,6 +1407,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Lucas',
           trainerClass: TrainerClass.GEN_4,
+          trainerSubclass: TrainerSubclass.RIVAL,
           team: [
             monWithMoves(50, 1, ['Earthquake', 'Ice Punch', 'Thunderpunch', 'Fire Punch']),
             monWithMoves(50, 2, ['Surf', 'Ice Beam', 'Psychic', 'Shadow Ball']),
@@ -1395,6 +1435,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Hilbert',
           trainerClass: TrainerClass.GEN_5,
+          trainerSubclass: TrainerSubclass.RIVAL,
           team: randomTeam(3, 50),
         },
       };
@@ -1427,6 +1468,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Calem',
           trainerClass: TrainerClass.GEN_6,
+          trainerSubclass: TrainerSubclass.RIVAL,
           // Bulky team to survive long enough for multiple crits to be observed.
           team: [
             monWithMoves(50, 1, ['Slack Off', 'Amnesia', 'Body Slam', 'Earthquake']),
@@ -1451,7 +1493,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Red', trainerClass: TrainerClass.GEN_1, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Red', trainerClass: TrainerClass.GEN_1, trainerSubclass: TrainerSubclass.CHAMPION, team: randomTeam(3, 50) },
       };
     },
   },
@@ -1467,7 +1509,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Ethan', trainerClass: TrainerClass.GEN_2, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Ethan', trainerClass: TrainerClass.GEN_2, trainerSubclass: TrainerSubclass.POKEMON_TRAINER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -1483,7 +1525,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Brendan', trainerClass: TrainerClass.GEN_3, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Brendan', trainerClass: TrainerClass.GEN_3, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
     },
   },
@@ -1500,7 +1542,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Lucas', trainerClass: TrainerClass.GEN_4, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Lucas', trainerClass: TrainerClass.GEN_4, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
     },
   },
@@ -1517,7 +1559,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Hilbert', trainerClass: TrainerClass.GEN_5, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Hilbert', trainerClass: TrainerClass.GEN_5, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
     },
   },
@@ -1534,7 +1576,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Calem', trainerClass: TrainerClass.GEN_6, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Calem', trainerClass: TrainerClass.GEN_6, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
     },
   },
@@ -1551,7 +1593,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Elio', trainerClass: TrainerClass.GEN_7, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Elio', trainerClass: TrainerClass.GEN_7, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
     },
   },
@@ -1568,7 +1610,7 @@ const SCENARIOS = [
       return {
         field: { weather: null, terrain: 'normal' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
-        enemy:  { isTrainer: true, name: 'Victor', trainerClass: TrainerClass.GEN_8, team: randomTeam(3, 50) },
+        enemy:  { isTrainer: true, name: 'Victor', trainerClass: TrainerClass.GEN_8, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
     },
   },

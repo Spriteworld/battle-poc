@@ -163,7 +163,11 @@ export default class ApplyActions {
       const isPoisonType = monTypes.includes(TYPES.POISON);
 
       if (hazards.stealthRock && pokemon.isAlive()) {
-        const effectiveness = calcTypeEffectiveness(TYPES.ROCK, monTypes, this.generation?.typeChart);
+        const srChartKeys   = Object.keys(this.generation?.typeChart?.TYPES ?? {});
+        const srDefTypes    = srChartKeys.length ? monTypes.filter(t => srChartKeys.includes(t)) : monTypes;
+        const effectiveness = srDefTypes.length
+          ? calcTypeEffectiveness(TYPES.ROCK, srDefTypes, this.generation?.typeChart)
+          : 1;
         const dmg = Math.max(1, Math.floor(pokemon.maxHp * effectiveness / 8));
         pokemon.takeDamage(dmg);
         this.logger.addItem(`Pointed stones dug into ${pokemon.getName()}! (${dmg} damage)`);
@@ -228,7 +232,7 @@ export default class ApplyActions {
       this.logger.addItem('You successfully ran away!');
       this.logger.flush(() => this.stateMachine.setState(this.stateDef.BATTLE_END));
     } else {
-      this.logger.addItem("You can't escape!");
+      this.logger.addItem('You can\'t escape!');
       this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
     }
   }
@@ -868,21 +872,21 @@ export default class ApplyActions {
       if (hazardType === 'spikes') {
         if (hazardSide.spikes < 3) {
           hazardSide.spikes++;
-          this.logger.addItem(`Spikes were scattered on ${defenderKey === 'player' ? 'your' : "the enemy's"} side! (Layer ${hazardSide.spikes})`);
+          this.logger.addItem(`Spikes were scattered on ${defenderKey === 'player' ? 'your' : 'the enemy\'s'} side! (Layer ${hazardSide.spikes})`);
         } else {
           this.logger.addItem('But it failed! Spikes are already at max layers.');
         }
       } else if (hazardType === 'toxicSpikes') {
         if (hazardSide.toxicSpikes < 2) {
           hazardSide.toxicSpikes++;
-          this.logger.addItem(`Toxic spikes were scattered on ${defenderKey === 'player' ? 'your' : "the enemy's"} side! (Layer ${hazardSide.toxicSpikes})`);
+          this.logger.addItem(`Toxic spikes were scattered on ${defenderKey === 'player' ? 'your' : 'the enemy\'s'} side! (Layer ${hazardSide.toxicSpikes})`);
         } else {
           this.logger.addItem('But it failed! Toxic spikes are already at max layers.');
         }
       } else if (hazardType === 'stealthRock') {
         if (!hazardSide.stealthRock) {
           hazardSide.stealthRock = true;
-          this.logger.addItem(`Pointed stones float in the air on ${defenderKey === 'player' ? 'your' : "the enemy's"} side!`);
+          this.logger.addItem(`Pointed stones float in the air on ${defenderKey === 'player' ? 'your' : 'the enemy\'s'} side!`);
         } else {
           this.logger.addItem('But it failed! Stealth Rock is already in place.');
         }
@@ -900,7 +904,8 @@ export default class ApplyActions {
     // Conversion 2 — change user's type to one that resists the last move type they received.
     if (info.effect?.conversion2) {
       const resistedType = info.effect.conversion2;
-      const allTypes     = Object.values(TYPES).filter(t => typeof t === 'string');
+      const chartKeys    = Object.keys(this.generation?.typeChart?.TYPES ?? {});
+      const allTypes     = (chartKeys.length ? chartKeys : Object.values(TYPES).filter(t => typeof t === 'string'));
       const resisting    = allTypes.filter(t => {
         const eff = calcTypeEffectiveness(resistedType, [t], this.generation?.typeChart);
         return eff < 1;

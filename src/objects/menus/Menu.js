@@ -85,8 +85,14 @@ export default class extends Phaser.GameObjects.Container {
     this.add(this._arrowDown);
   }
 
+  /**
+   * Shows or hides the ▲/▼ scroll arrows based on whether there are items
+   * above or below the current scroll window.
+   */
   _updateScrollArrows() {
-    if (!this._arrowUp) return;
+    if (!this._arrowUp) {
+      return;
+    }
     this._arrowUp.setVisible(this._scrollTop > 0);
     this._arrowDown.setVisible(
       this._scrollTop + this.config.maxVisible < this.config.menuItems.length

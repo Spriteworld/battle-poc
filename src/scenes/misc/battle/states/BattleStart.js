@@ -77,10 +77,11 @@ export default class BattleStart {
     this.events.emit('battle-start', this.data);
 
     // Set up background, weather, platforms, and status boxes — but no sprites yet.
-    this.ActivePokemonMenu.remap([
-      this.config.player.team.getActivePokemon(),
-      this.config.enemy.team.getActivePokemon(),
-    ]);
+    this.ActivePokemonMenu.remap({
+      playerPokemon: this.config.player.team.getActivePokemon(),
+      enemyPokemon:  this.config.enemy.team.getActivePokemon(),
+      enemyTrainer:  this.config.enemy,
+    });
     this.FieldScreens.update(this.screens);
     this.WeatherDisplay.setWeather(this.weather);
     this._updateBackground(this.weather?.type ?? null);

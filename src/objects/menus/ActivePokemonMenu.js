@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import PokemonStatusBox from '../ui/PokemonStatusBox.js';
+import EnemyTrainerStatusBox from '../ui/EnemyTrainerStatusBox.js';
 
 /**
  * Holds both Pokémon status boxes (enemy top-left, player bottom-right).
  *
- * remap([enemyPokemon, playerPokemon]) accepts BattlePokemon objects.
- * select(0) highlights the enemy side; select(1) highlights the player side.
+ * remap({ playerPokemon, enemyPokemon, enemyTrainer }) accepts BattlePokemon
+ * objects and the enemy trainer (BattleTrainer | WildTrainer) for the team
+ * pokéball row.
  *
  * @extends Phaser.GameObjects.Container
  */
@@ -23,11 +25,7 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
     this.name = 'ActivePokemonMenu';
     this.config = { selected: false, menuItems: [], menuItemIndex: 0 };
 
-    this._enemyBox = new PokemonStatusBox(scene, enemyX, enemyY, {
-      showHpNumbers: false,
-      isEnemy: true,
-      width: 220,
-    });
+    this._enemyBox = new EnemyTrainerStatusBox(scene, enemyX, enemyY);
 
     this._playerBox = new PokemonStatusBox(scene, playerX, playerY, {
       showHpNumbers: true,
@@ -40,37 +38,32 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
 
   /**
    * Refreshes both status boxes.
-   * @param {Array} pokemon - [playerPokemon, enemyPokemon] BattlePokemon instances
+   * @param {object} opts
+   * @param {object} opts.playerPokemon  - Active player BattlePokemon.
+   * @param {object} opts.enemyPokemon   - Active enemy BattlePokemon (may be null).
+   * @param {object} opts.enemyTrainer   - BattleTrainer | WildTrainer instance.
    */
-  remap([playerPokemon, enemyPokemon]) {
+  remap({ playerPokemon, enemyPokemon, enemyTrainer }) {
     if (playerPokemon) {
       this._playerBox.remap({
-        name: playerPokemon.getName(),
-        level: playerPokemon.level,
-        currentHp: playerPokemon.currentHp,
-        maxHp: playerPokemon.maxHp,
-        exp: playerPokemon.exp ?? 0,
-        growth: playerPokemon.pokemon?.growth,
-        status: playerPokemon.status,
-        stages: playerPokemon.stages,
-        gender: playerPokemon.gender,
+        name:           playerPokemon.getName(),
+        level:          playerPokemon.level,
+        currentHp:      playerPokemon.currentHp,
+        maxHp:          playerPokemon.maxHp,
+        exp:            playerPokemon.exp ?? 0,
+        growth:         playerPokemon.pokemon?.growth,
+        status:         playerPokemon.status,
+        stages:         playerPokemon.stages,
+        gender:         playerPokemon.gender,
         volatileStatus: playerPokemon.volatileStatus,
-        pokerus: playerPokemon.pokerus,
+        pokerus:        playerPokemon.pokerus,
       });
     }
-    if (enemyPokemon) {
-      this._enemyBox.remap({
-        name: enemyPokemon.getName(),
-        level: enemyPokemon.level,
-        currentHp: enemyPokemon.currentHp,
-        maxHp: enemyPokemon.maxHp,
-        status: enemyPokemon.status,
-        stages: enemyPokemon.stages,
-        gender: enemyPokemon.gender,
-        volatileStatus: enemyPokemon.volatileStatus,
-        pokerus: enemyPokemon.pokerus,
-      });
-    }
+
+    const isWild      = enemyTrainer?.isWild ?? false;
+    const trainerName = isWild ? '' : (enemyTrainer?.getName?.() ?? '');
+    const team        = isWild ? [] : (enemyTrainer?.team?.pokemon ?? []);
+    this._enemyBox.remap(trainerName, team, enemyPokemon ?? null, isWild);
   }
 
   /** Visual turn indicator — no-op for now, boxes are always visible. */

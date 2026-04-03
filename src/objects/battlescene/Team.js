@@ -10,6 +10,10 @@ export default class {
     });
   }
 
+  /**
+   * Returns the first non-fainted Pokémon in the team.
+   * @returns {BattlePokemon|undefined} The first living Pokémon, or undefined if all have fainted.
+   */
   getFirstAlive() {
     let idx = this.pokemon.findIndex(mon => {
       return mon.currentHp > 0;
@@ -18,12 +22,20 @@ export default class {
     return this.pokemon[idx];
   }
 
+  /**
+   * Returns whether the team has at least one non-fainted Pokémon.
+   * @returns {boolean}
+   */
   hasLivingPokemon() {
     return this.pokemon.some(mon => {
       return mon.currentHp > 0;
     });
   }
 
+  /**
+   * Returns the currently active Pokémon.
+   * @returns {BattlePokemon}
+   */
   getActivePokemon() {
     return this.pokemon[this.active];
   }
@@ -62,6 +74,10 @@ export default class {
     console.warn('Invalid type for setting active Pokemon:', typeof pokemon, pokemon);
   }
 
+  /**
+   * Advances the active slot to the first non-fainted Pokémon.
+   * @returns {boolean} True if a living Pokémon was found, false if the team is wiped.
+   */
   switchToNextLivingPokemon() {
     this.active = this.pokemon.findIndex(mon => {
       return mon.currentHp > 0;
@@ -73,6 +89,7 @@ export default class {
     return true;
   }
 
+  /** Logs the team state to the console for debugging. */
   debug() {
     console.log('BATTLETEAM');
     console.log(this);

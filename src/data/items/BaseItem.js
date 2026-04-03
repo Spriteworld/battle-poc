@@ -11,9 +11,22 @@ export default class BaseItem {
     this.onUse       = onUse;
   }
 
-  getName()     { return this.name; }
-  getCategory() { return this.category; }
+  /** @returns {string} The item's display name. */
+  getName() {
+    return this.name;
+  }
 
+  /** @returns {string} The item's category. */
+  getCategory() {
+    return this.category;
+  }
+
+  /**
+   * Applies the item's effect to the target.
+   * @param {object} target - The BattlePokemon to apply the item to.
+   * @param {object} [action] - The battle action that triggered this use.
+   * @returns {object|null} Result object, or null if no onUse function is defined.
+   */
   use(target) {
     if (typeof this.onUse === 'function') {
       return this.onUse(target);

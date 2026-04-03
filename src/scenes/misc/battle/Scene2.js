@@ -249,10 +249,11 @@ export default class BattleScene2 extends Phaser.Scene {
   // ─── Battle helpers ────────────────────────────────────────────────────────
 
   remapActivePokemon() {
-    this.ActivePokemonMenu.remap([
-      this.config.player.team.getActivePokemon(),
-      this.config.enemy.team.getActivePokemon(),
-    ]);
+    this.ActivePokemonMenu.remap({
+      playerPokemon: this.config.player.team.getActivePokemon(),
+      enemyPokemon:  this.config.enemy.team.getActivePokemon(),
+      enemyTrainer:  this.config.enemy,
+    });
     this.FieldScreens.update(this.screens);
     this.WeatherDisplay.setWeather(this.weather);
     this._updateBackground(this.weather?.type ?? null);
@@ -336,7 +337,7 @@ export default class BattleScene2 extends Phaser.Scene {
     if (this._enemySprite)  { this._enemySprite.destroy();  this._enemySprite  = null; }
 
     if (player) {
-      this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 150, {
+      this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 12, {
         species:        player.pokemon?.nat_dex_id ?? player.species,
         shiny:          player.isShiny ?? false,
         gender:         player.gender  ?? null,
@@ -347,7 +348,7 @@ export default class BattleScene2 extends Phaser.Scene {
     }
 
     if (enemy) {
-      this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 196, {
+      this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 184, {
         species:        enemy.pokemon?.nat_dex_id ?? enemy.species,
         shiny:          enemy.isShiny ?? false,
         gender:         enemy.gender  ?? null,
@@ -370,7 +371,7 @@ export default class BattleScene2 extends Phaser.Scene {
 
     if (this._enemySprite) { this._enemySprite.destroy(); this._enemySprite = null; }
 
-    this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 196, {
+    this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 184, {
       species:        enemy.pokemon?.nat_dex_id ?? enemy.species,
       shiny:          enemy.isShiny  ?? false,
       gender:         enemy.gender   ?? null,
@@ -393,7 +394,7 @@ export default class BattleScene2 extends Phaser.Scene {
 
     if (this._playerSprite) { this._playerSprite.destroy(); this._playerSprite = null; }
 
-    this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 150, {
+    this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 12, {
       species:        player.pokemon?.nat_dex_id ?? player.species,
       shiny:          player.isShiny  ?? false,
       gender:         player.gender   ?? null,
@@ -420,7 +421,7 @@ export default class BattleScene2 extends Phaser.Scene {
     }
 
     if (!this.config.enemy.team.getActivePokemon().isAlive()) {
-      this.logger.addItem("The enemy's active Pokémon fainted!");
+      this.logger.addItem('The enemy\'s active Pokémon fainted!');
       // Clear any pending enemy action — the fainted Pokémon can't act.
       delete this.actions.enemy;
 

@@ -23,8 +23,9 @@ import Window from './ui/Window.js';
 import ConfirmDialog from './ui/ConfirmDialog.js';
 
 import Action from './misc/Action.js';
-import * as ActionTypes from './enums/ActionTypes.js';
-import * as TrainerClass from './enums/TrainerClass.js';
+import * as ActionTypes    from './enums/ActionTypes.js';
+import * as TrainerClass    from './enums/TrainerClass.js';
+import * as TrainerSubclass from './enums/TrainerSubclass.js';
 
 export {
   Game,
@@ -54,4 +55,5 @@ export {
   Action,
   ActionTypes,
   TrainerClass,
+  TrainerSubclass,
 };

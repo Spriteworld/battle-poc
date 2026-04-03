@@ -16,6 +16,11 @@ export default class StateMachine {
     this.changingStateQueue = [];
   }
 
+  /**
+   * Returns whether the machine is currently in the named state.
+   * @param {string} name
+   * @returns {boolean}
+   */
   isCurrentState(name) {
     if (!this.currentState) {
       return false;
@@ -24,6 +29,15 @@ export default class StateMachine {
     return this.currentState.name === name;
   }
 
+  /**
+   * Registers a new state with optional lifecycle callbacks.
+   * @param {string} name - Unique state identifier.
+   * @param {object} [config={}]
+   * @param {Function} [config.onEnter]
+   * @param {Function} [config.onUpdate]
+   * @param {Function} [config.onExit]
+   * @returns {this}
+   */
   addState(name, config = {}) {
     const context = this.context;
 
@@ -37,6 +51,11 @@ export default class StateMachine {
     return this;
   }
 
+  /**
+   * Transitions to the named state, calling onExit on the current state and
+   * onEnter on the new one.  Queues the transition if already mid-change.
+   * @param {string} name - The state to transition to.
+   */
   setState(name) {
     if (!this.states.has(name)) {
       console.log(`[StateMachine (${this.id})] Tried to change to unknown state: ${name}`);
@@ -72,6 +91,11 @@ export default class StateMachine {
     this.isChangingState = false;
   }
 
+  /**
+   * Ticks the state machine.  Processes any queued state change first, then
+   * calls the current state's onUpdate callback.
+   * @param {number} dt - Delta time in milliseconds.
+   */
   update(dt) {
     if (this.changingStateQueue.length > 0) {
       this.setState(this.changingStateQueue.shift());
