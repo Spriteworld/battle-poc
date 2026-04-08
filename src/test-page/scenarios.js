@@ -228,6 +228,9 @@ function defaultInventory() {
       { item: new Items.Awakening(),    quantity: 3 },
       { item: new Items.ParalyzHeal(),  quantity: 3 },
       { item: new Items.FullHeal(),     quantity: 2 },
+      { item: new Items.Pokeball(),     quantity: 10 },
+      { item: new Items.GreatBall(),    quantity: 5 },
+      { item: new Items.UltraBall(),    quantity: 3 },
     ],
     pokeballs: [],
     tms: [],
@@ -356,6 +359,41 @@ const SCENARIOS = [
           inventory: defaultInventory(),
         },
         enemy: { isTrainer: false, name: null, team: [staticPokemon.wild_rattata] },
+      };
+    },
+  },
+
+  {
+    id: 'wild-catch',
+    category: 'basics',
+    title: 'Wild — Catch',
+    description: 'Starter trio vs a wild Pikachu at low HP. Use the Balls tab in the bag to practice catching.',
+    color: 'bg-yellow-800',
+    tags: ['wild', 'catch', 'pokeball', 'lv5'],
+    buildData() {
+      const rattata = { ...staticPokemon.wild_rattata, level: 5, hp: null, maxHp: null };
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          team: [
+            staticPokemon.player_bulbasaur,
+            staticPokemon.player_charmander,
+            staticPokemon.player_squirtle,
+          ],
+          inventory: {
+            items: [
+              { item: new Items.Pokeball(),   quantity: 10 },
+              { item: new Items.GreatBall(),  quantity: 5  },
+              { item: new Items.UltraBall(),  quantity: 3  },
+              { item: new Items.MasterBall(), quantity: 1  },
+              { item: new Items.Potion(),     quantity: 5  },
+            ],
+            pokeballs: [],
+            tms: [],
+          },
+        },
+        enemy: { isTrainer: false, name: null, team: [rattata] },
       };
     },
   },

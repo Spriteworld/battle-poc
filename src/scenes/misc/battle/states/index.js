@@ -13,6 +13,7 @@ import BattleLost from './BattleLost.js';
 import BattleIdle from './BattleIdle.js';
 import LearnMove from './LearnMove.js';
 import Evolution from './Evolution.js';
+import PokemonCaught from './PokemonCaught.js';
 
 export {
   BattleStart,
@@ -30,4 +31,5 @@ export {
   BattleIdle,
   LearnMove,
   Evolution,
+  PokemonCaught,
 };

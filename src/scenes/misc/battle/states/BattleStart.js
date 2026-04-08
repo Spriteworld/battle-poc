@@ -58,6 +58,13 @@ export default class BattleStart {
       this.logger.addItem(`Battle rules: ${this.generation.name}`);
     }
 
+    // Always reset field state at the start of a fresh battle.
+    this.weather = { type: null, turnsLeft: 0 };
+    this.screens = {
+      player: { lightScreen: 0, reflect: 0, mist: 0, safeguard: 0, spikes: 0, toxicSpikes: 0, stealthRock: false },
+      enemy:  { lightScreen: 0, reflect: 0, mist: 0, safeguard: 0, spikes: 0, toxicSpikes: 0, stealthRock: false },
+    };
+
     // Initialise field weather from battle data (e.g. { field: { weather: 'rain' } }).
     // Weather was introduced in Gen 2; Hail was introduced in Gen 3.
     const startWeather = this.data.field?.weather ?? null;

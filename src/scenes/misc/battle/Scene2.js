@@ -16,6 +16,18 @@ import {
   BattleTeamScreen,
   PokemonSwitchMenu,
 } from '@Objects';
+import pokeballSvg  from '@/assets/images/pokeball.svg';
+import greatBallSvg from '@/assets/images/great-ball.svg';
+import ultraBallSvg from '@/assets/images/ultra-ball.svg';
+import masterBallSvg from '@/assets/images/master-ball.svg';
+
+/** Maps item display names to their preloaded SVG asset URLs. */
+const BALL_SVG = {
+  'Poké Ball':   { key: 'item-ball-poke',   url: pokeballSvg  },
+  'Great Ball':  { key: 'item-ball-great',  url: greatBallSvg  },
+  'Ultra Ball':  { key: 'item-ball-ultra',  url: ultraBallSvg  },
+  'Master Ball': { key: 'item-ball-master', url: masterBallSvg },
+};
 
 // ─── Layout ────────────────────────────────────────────────────────────────
 // Canvas: 800 × 600
@@ -55,6 +67,7 @@ export default class BattleScene2 extends Phaser.Scene {
       BATTLE_LOST:               'battleLost',
       LEARN_MOVE:                'learnMove',
       EVOLVE:                    'evolve',
+      POKEMON_CAUGHT:            'pokemonCaught',
     };
 
     this.stateMachine = new StateMachine(this)
@@ -73,6 +86,7 @@ export default class BattleScene2 extends Phaser.Scene {
       .addState(this.stateDef.BATTLE_LOST,                new State.BattleLost)
       .addState(this.stateDef.LEARN_MOVE,                 new State.LearnMove)
       .addState(this.stateDef.EVOLVE,                     new State.Evolution)
+      .addState(this.stateDef.POKEMON_CAUGHT,             new State.PokemonCaught)
     ;
 
     this.currentMenu = null;
@@ -476,5 +490,189 @@ export default class BattleScene2 extends Phaser.Scene {
   /** Legacy support — states that call this.addLogger() won't break. */
   addLogger(log) {
     this.logger = log;
+  }
+
+  // ─── Pokéball animations ───────────────────────────────────────────────────
+
+  /**
+   * Plays the full Pokéball throw → absorb → shake → result sequence.
+   * Loads the ball sprite on demand if it hasn't been cached yet.
+   *
+   * @param {string}   ballName - Display name of the thrown ball (unused visually, reserved).
+   * @param {object}   target   - The enemy BattlePokemon being targeted.
+   * @param {object}   result   - Result from BallItem.onUse ({ caught: boolean }).
+   * @param {Function} callback - Called after the full animation completes.
+   */
+  playPokeballAnimation(ballName, target, result, callback) {
+    if (!this._enemySprite || !this._playerSprite) {
+      callback?.();
+      return;
+    }
+
+    const { key: ballKey, url: ballPath } = BALL_SVG[ballName] ?? BALL_SVG['Poké Ball'];
+
+    const launch = () => {
+      const startX = this._playerSprite.x + 60;
+      const startY = this._playerSprite.y - 80;
+      const endX   = this._enemySprite.x;
+      const endY   = this._enemySprite.y - 40;
+      const midX   = (startX + endX) / 2;
+      const midY   = Math.min(startY, endY) - 70;
+
+      const ball = this.add.image(startX, startY, ballKey).setDisplaySize(20, 20).setDepth(10);
+
+      // Phase 1 — arc throw (two-segment parabola)
+      this.tweens.add({
+        targets:  ball,
+        x:        midX,
+        y:        midY,
+        duration: 200,
+        ease:     'Sine.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets:  ball,
+            x:        endX,
+            y:        endY,
+            duration: 200,
+            ease:     'Sine.easeIn',
+            onComplete: () => {
+              // Phase 2 — enemy shrinks into ball
+              this.tweens.add({
+                targets:  this._enemySprite,
+                scaleX:   0,
+                scaleY:   0,
+                alpha:    0.4,
+                duration: 220,
+                ease:     'Power2.easeIn',
+                onComplete: () => {
+                  this._enemySprite.setVisible(false);
+                  this._enemySprite.setScale(1, 1);
+                  this._enemySprite.setAlpha(1);
+
+                  // Phase 3 — shakes, then result
+                  const shakeCount = result.caught ? 3 : 2;
+                  this._shakePokeballAnimation(ball, shakeCount, () => {
+                    if (result.caught) {
+                      this._pokeCaughtAnimation(ball, callback);
+                    } else {
+                      this._pokeEscapeAnimation(ball, callback);
+                    }
+                  });
+                },
+              });
+            },
+          });
+        },
+      });
+    };
+
+    if (this.textures.exists(ballKey)) {
+      launch();
+    } else {
+      this.load.image(ballKey, ballPath);
+      this.load.once('filecomplete-image-' + ballKey, launch);
+      this.load.start();
+    }
+  }
+
+  /**
+   * Rocks the Pokéball sprite left → right → centre, repeated `count` times.
+   *
+   * @param {Phaser.GameObjects.Image} ball
+   * @param {number}   count    - Number of shakes to play.
+   * @param {Function} callback - Called after the last shake settles.
+   */
+  _shakePokeballAnimation(ball, count, callback) {
+    if (count <= 0) {
+      callback?.();
+      return;
+    }
+
+    this.tweens.add({
+      targets:  ball,
+      angle:    -20,
+      duration: 80,
+      ease:     'Sine.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets:  ball,
+          angle:    20,
+          duration: 160,
+          ease:     'Sine.easeInOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets:  ball,
+              angle:    0,
+              duration: 80,
+              ease:     'Sine.easeIn',
+              onComplete: () => this.time.delayedCall(180, () =>
+                this._shakePokeballAnimation(ball, count - 1, callback)
+              ),
+            });
+          },
+        });
+      },
+    });
+  }
+
+  /**
+   * Plays the catch-success animation: ball flashes then fades out.
+   *
+   * @param {Phaser.GameObjects.Image} ball
+   * @param {Function} callback
+   */
+  _pokeCaughtAnimation(ball, callback) {
+    this.tweens.add({
+      targets:  ball,
+      alpha:    0.15,
+      duration: 80,
+      yoyo:     true,
+      repeat:   3,
+      onComplete: () => {
+        this.tweens.add({
+          targets:  ball,
+          scaleX:   0.8,
+          scaleY:   0.8,
+          alpha:    0,
+          duration: 350,
+          ease:     'Power2.easeOut',
+          onComplete: () => {
+            ball.destroy();
+            callback?.();
+          },
+        });
+      },
+    });
+  }
+
+  /**
+   * Plays the escape animation: ball flashes open, enemy sprite pops back in.
+   *
+   * @param {Phaser.GameObjects.Image} ball
+   * @param {Function} callback
+   */
+  _pokeEscapeAnimation(ball, callback) {
+    this.tweens.add({
+      targets:  ball,
+      scaleX:   1,
+      scaleY:   1,
+      alpha:    0,
+      duration: 150,
+      ease:     'Power2.easeOut',
+      onComplete: () => {
+        ball.destroy();
+        const sprite = this._enemySprite;
+        sprite.setVisible(true);
+        sprite.setScale(0, 0);
+        this.tweens.add({
+          targets:  sprite,
+          scaleX:   1,
+          scaleY:   1,
+          duration: 220,
+          ease:     'Back.easeOut',
+          onComplete: () => callback?.(),
+        });
+      },
+    });
   }
 }

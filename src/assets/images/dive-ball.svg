@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Top half: deep blue base -->
+  <path d="M 2,50 A 48,48 0 0 1 98,50 Z" fill="#1050D0"/>
+  <!-- Light blue wave band (r 32–44) -->
+  <path d="M 6,50 A 44,44 0 0 1 94,50 L 82,50 A 32,32 0 0 0 18,50 Z" fill="#60C0F8"/>
+  <!-- Thin white highlight arc at top of wave -->
+  <path d="M 6,50 A 44,44 0 0 1 94,50 L 92,50 A 42,42 0 0 0 8,50 Z" fill="#ffffff" opacity="0.5"/>
+  <!-- Bottom half -->
+  <path d="M 98,50 A 48,48 0 0 1 2,50 Z" fill="#ffffff"/>
+  <circle cx="50" cy="50" r="48" fill="none" stroke="#181818" stroke-width="4"/>
+  <line x1="2" y1="50" x2="98" y2="50" stroke="#181818" stroke-width="4"/>
+  <circle cx="50" cy="50" r="11" fill="#181818"/>
+  <circle cx="50" cy="50" r="7"  fill="#ffffff"/>
+</svg>

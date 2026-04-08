@@ -42,19 +42,25 @@ export default class BattleWon {
       // give player badge
       // give player TM
 
-    // Drain all queued messages before returning to the overworld.
+    // Drain all queued messages, animate the EXP bar, then return to the overworld.
     this.logger.flush(() => {
-      const team = this.config.player.team.pokemon.map(p => ({
-        pid:                 p.pid,
-        currentHp:           p.currentHp,
-        exp:                 p.exp ?? 0,
-        level:               p.level,
-        readyToEvolve:       p.readyToEvolve       ?? null,
-        pendingMovesToLearn: p.pendingMovesToLearn  ?? [],
-        moves:               p.moves.map(m => ({ name: m.name, pp: { max: m.pp.max, current: m.pp.current } })),
-      }));
-      this.game.events.emit('battle-complete', { result: 'won', team });
-      this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+      // Trigger the EXP bar to animate to the new value.
+      this.remapActivePokemon();
+
+      // Wait for the bar animation before emitting battle-complete.
+      this.ActivePokemonMenu.waitForExpAnimation(() => {
+        const team = this.config.player.team.pokemon.map(p => ({
+          pid:                 p.pid,
+          currentHp:           p.currentHp,
+          exp:                 p.exp ?? null,
+          level:               p.level,
+          readyToEvolve:       p.readyToEvolve       ?? null,
+          pendingMovesToLearn: p.pendingMovesToLearn  ?? [],
+          moves:               p.moves.map(m => ({ name: m.name, pp: { max: m.pp.max, current: m.pp.current } })),
+        }));
+        this.game.events.emit('battle-complete', { result: 'won', team });
+        this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+      });
     });
   }
 

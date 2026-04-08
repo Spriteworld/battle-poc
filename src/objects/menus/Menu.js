@@ -48,10 +48,20 @@ export default class extends Phaser.GameObjects.Container {
     this._scrollTop = 0;
     this._arrowUp = null;
     this._arrowDown = null;
+    this._lastHoverIdx = -1;
 
     if (!this.name) {
       this.name = (Math.random() + 1).toString(36).substring(7);
     }
+
+    // Phaser Containers don't forward their world transform to children for
+    // hit-testing, so per-item setInteractive() would test against local coords
+    // as if they were world coords.  We handle pointer input at the scene level
+    // instead, converting world pointer position to container-local space.
+    this._ptrMoveHandler = this._onPointerMove.bind(this);
+    this._ptrDownHandler = this._onPointerDown.bind(this);
+    scene.input.on('pointermove', this._ptrMoveHandler);
+    scene.input.on('pointerdown', this._ptrDownHandler);
 
     scene.add.existing(this);
     return this;
@@ -175,6 +185,7 @@ export default class extends Phaser.GameObjects.Container {
     this.config.menuItems.length = 0;
     this.config.menuItemIndex = 0;
     this._scrollTop = 0;
+    this._lastHoverIdx = -1;
     if (this._arrowUp)   this._arrowUp.setVisible(false);
     if (this._arrowDown) this._arrowDown.setVisible(false);
   }
@@ -257,5 +268,55 @@ export default class extends Phaser.GameObjects.Container {
       .join('-')
       .toLowerCase();
     this.config.scene.events.emit(eventName, this.config.menuItemIndex);
+  }
+
+  // ─── Pointer input ─────────────────────────────────────────────────────────
+
+  /**
+   * Returns the index of the menu item under the given pointer, or -1.
+   * Converts world pointer coordinates to container-local space.
+   * @param {Phaser.Input.Pointer} pointer
+   * @returns {number}
+   */
+  _itemAtPointer(pointer) {
+    if (!this.visible) return -1;
+    const lx = pointer.x - this.x;
+    const ly = pointer.y - this.y;
+    const { menuItems, cellWidth, cellHeight } = this.config;
+    for (let i = 0; i < menuItems.length; i++) {
+      const item = menuItems[i];
+      if (!item.visible) continue;
+      if (lx >= item.x && lx < item.x + cellWidth &&
+          ly >= item.y && ly < item.y + cellHeight) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /** @param {Phaser.Input.Pointer} pointer */
+  _onPointerMove(pointer) {
+    const idx = this._itemAtPointer(pointer);
+    if (idx !== -1 && idx !== this._lastHoverIdx) {
+      this.select(idx);
+    }
+    this._lastHoverIdx = idx;
+  }
+
+  /** @param {Phaser.Input.Pointer} pointer */
+  _onPointerDown(pointer) {
+    console.log('[Menu] pointerdown', this.name, 'visible:', this.visible, 'ptr:', pointer.x, pointer.y, 'menu at:', this.x, this.y, 'items:', this.config.menuItems.length);
+    const idx = this._itemAtPointer(pointer);
+    console.log('[Menu] item at pointer:', idx);
+    if (idx !== -1) {
+      this.select(idx);
+      this.confirm();
+    }
+  }
+
+  destroy(fromScene) {
+    this.config.scene.input.off('pointermove', this._ptrMoveHandler);
+    this.config.scene.input.off('pointerdown', this._ptrDownHandler);
+    super.destroy(fromScene);
   }
 }

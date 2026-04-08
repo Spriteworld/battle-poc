@@ -46,16 +46,32 @@ export default class ApplyActions {
     }
 
     let result = target.useItem(item.item, action);
-    this.logger.addItem(result.message);
-    if (result.success !== false) item.quantity -= 1;
 
-    this.logger.flush(() => {
-      if (target.readyToEvolve != null) {
-        this.stateMachine.setState(this.stateDef.EVOLVE);
-      } else {
-        this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
+    const finish = () => {
+      this.logger.addItem(result.message);
+      if (result.success !== false) {
+        item.quantity -= 1;
       }
-    });
+      this.logger.flush(() => {
+        if (result.caught === true) {
+          this.caughtPokemon = target;
+          this.stateMachine.setState(this.stateDef.POKEMON_CAUGHT);
+          return;
+        }
+        if (target.readyToEvolve != null) {
+          this.stateMachine.setState(this.stateDef.EVOLVE);
+        } else {
+          this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
+        }
+      });
+    };
+
+    if (item.item.getCategory?.() === 'balls') {
+      this.playPokeballAnimation(item.item.getName(), target, result, finish);
+      return;
+    }
+
+    finish();
   }
 
   // ─── Switch Pokémon ───────────────────────────────────────────────────────
@@ -654,17 +670,20 @@ export default class ApplyActions {
 
     // ── Post-attack resolution ────────────────────────────────────────────────
 
-    const resolveAttack = () => {
-    let attackMessage = [];
     const _hpType = info.move?.toLowerCase() === 'hidden power' && activeMon.hiddenPowerType
       ? activeMon.hiddenPowerType[0] + activeMon.hiddenPowerType.slice(1).toLowerCase()
       : null;
     const _moveLabel = _hpType ? `Hidden Power [${_hpType}]` : info.move;
-    attackMessage.push(
+
+    // Log the attack announcement before any animation plays.
+    this.logger.addItem(
       config?.move?.selfTarget
         ? `${activeMon.getName()} uses ${_moveLabel}`
         : [activeMon.getName(), 'uses', _moveLabel, 'against', info.enemy].join(' ')
     );
+
+    const resolveAttack = () => {
+    let attackMessage = [];
 
     if (info.reflected) {
       attackMessage.push(`${info.enemy} bounced the move back with Magic Coat!`);
@@ -708,8 +727,10 @@ export default class ApplyActions {
         attackMessage.push('It was a critical hit!');
       }
     }
-    this.logger.addItem(attackMessage.join('\n'));
-    
+    if (attackMessage.length > 0) {
+      this.logger.addItem(attackMessage.join('\n'));
+    }
+
     switch (info.typeEffectiveness) {
       case 2:
       case 4:
@@ -1024,8 +1045,9 @@ export default class ApplyActions {
     }; // end resolveAttack
 
     // Play the lunge animation for damaging hits; skip it for misses, fails, and status moves.
+    // Flush the announcement message first so text appears before the animation.
     if (info && info.accuracy !== 0 && (info.damage ?? 0) > 0) {
-      this.playAttackAnimation(activeMon, target, resolveAttack);
+      this.logger.flush(() => this.playAttackAnimation(activeMon, target, resolveAttack));
     } else {
       resolveAttack();
     }

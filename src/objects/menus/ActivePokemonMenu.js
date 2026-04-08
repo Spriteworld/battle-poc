@@ -66,6 +66,15 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
     this._enemyBox.remap(trainerName, team, enemyPokemon ?? null, isWild);
   }
 
+  /**
+   * Calls callback once the player EXP bar animation finishes (or immediately
+   * on the next frame if no animation is running).
+   * @param {Function} callback
+   */
+  waitForExpAnimation(callback) {
+    this._playerBox.waitForExpAnimation(callback);
+  }
+
   /** Visual turn indicator — no-op for now, boxes are always visible. */
   select(_index) {}
   deselect() {}

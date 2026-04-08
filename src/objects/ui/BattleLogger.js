@@ -63,6 +63,13 @@ export default class BattleLogger {
       { fontFamily: 'Gen3', fontSize: '14px', color: '#606060' }
     ).setOrigin(1, 1).setDepth(DEPTH + 1).setVisible(false);
 
+    // ── Click / tap to advance ────────────────────────────────────────────
+    this._hitZone = scene.add.zone(x, y, width, height)
+      .setOrigin(0, 0)
+      .setDepth(DEPTH + 2)
+      .setInteractive({ useHandCursor: true });
+    this._hitZone.on('pointerdown', () => { this.advance(); });
+
     // ── History overlay (L key) ────────────────────────────────────────────
     this._overlay         = new DialogBox(scene, x, 0, width, scene.scale.height, 20);
     this._overlay.setDepth(50);

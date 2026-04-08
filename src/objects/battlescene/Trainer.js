@@ -51,7 +51,7 @@ export default class {
   }
 
   getName() {
-    return this.name || 'Trainer';
+    return (this.name || 'Trainer').toUpperCase();
   }
 
   /**

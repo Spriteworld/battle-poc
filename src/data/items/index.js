@@ -18,6 +18,10 @@ import ParalyzHeal from './ParalyzHeal.js';
 import FullHeal from './FullHeal.js';
 import { FireStone, WaterStone, ThunderStone, LeafStone, MoonStone, SunStone, Everstone } from './EvolutionStones.js';
 import RareCandy from './RareCandy.js';
+import Pokeball   from './Pokeball.js';
+import GreatBall  from './GreatBall.js';
+import UltraBall  from './UltraBall.js';
+import MasterBall from './MasterBall.js';
 
 export { BaseItem };
 
@@ -47,4 +51,8 @@ export default {
   SunStone,
   Everstone,
   RareCandy,
+  Pokeball,
+  GreatBall,
+  UltraBall,
+  MasterBall,
 };

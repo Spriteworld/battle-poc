@@ -48,40 +48,47 @@ function monName(p) {
 }
 
 /**
- * Awards experience to the player's active Pokémon, checks for a level-up,
- * and flags any pending level-based evolution.
- *
- * Must be called with Scene2 as `this`.
+ * Returns true if the Pokémon is holding a Lucky Egg.
+ * @param {object} p - BattlePokemon
+ * @returns {boolean}
  */
-export default function applyExperienceGains() {
-  const isTrainer = this.config.enemy.isTrainer;
-  // getActivePokemon() returns undefined after switchToNextLivingPokemon sets active=-1.
-  // Find the defeated pokemon directly from the team array instead.
-  const enemyMon  = this.config.enemy.team.pokemon.find(p => !p.isAlive())
-                 ?? this.config.enemy.team.pokemon[0];
-  if (!enemyMon) return;
-  const expGain   = calcExpGain(enemyMon, isTrainer);
+function hasLuckyEgg(p) {
+  return p.heldItem?.name?.toLowerCase() === 'lucky egg';
+}
 
-  // Gen 3 (no EXP Share): only the active frontline Pokémon gains EXP.
-  const p = this.config.player.team.getActivePokemon();
-  if (!p?.isAlive()) return;
+/**
+ * Returns true if the Pokémon is holding an Exp. Share.
+ * @param {object} p - BattlePokemon
+ * @returns {boolean}
+ */
+function hasExpShare(p) {
+  const n = p.heldItem?.name?.toLowerCase();
+  return n === 'exp. share' || n === 'exp share';
+}
 
+/**
+ * Awards a fixed amount of experience to one Pokémon, checks for a level-up,
+ * and flags any pending level-based evolution or move learning.
+ * @param {object} p       - BattlePokemon instance.
+ * @param {number} expGain - Experience points to award (already multiplied by any bonus).
+ * @param {object} logger  - Logger with addItem method.
+ * @param {string} [gainMsg] - Override the "gained EXP" log message suffix.
+ */
+function awardExpToPokemon(p, expGain, logger, gainMsg) {
   const name      = monName(p);
   const prevLevel = p.level ?? 1;
-
-  // Default to the exp threshold for the current level so the EXP bar
-  // shows progress within the level rather than starting from 0 total.
-  const growth   = p.pokemon?.growth ?? GROWTH.MEDIUM_FAST;
-  const table    = EXPERIENCE_TABLES[growth] ?? EXPERIENCE_TABLES[GROWTH.MEDIUM_FAST];
+  const growth    = p.pokemon?.growth ?? GROWTH.MEDIUM_FAST;
+  const table     = EXPERIENCE_TABLES[growth] ?? EXPERIENCE_TABLES[GROWTH.MEDIUM_FAST];
   const levelFloor = table[prevLevel - 1] ?? 0;
+
   p.exp = (p.exp ?? levelFloor) + expGain;
-  this.logger.addItem(`${name} gained ${expGain} Exp. Points!`);
+  logger.addItem(gainMsg ?? `${name} gained ${expGain} Exp. Points!`);
 
   const newLevel = Math.min(100, calcLevel(growth, p.exp));
 
   if (newLevel > prevLevel) {
     p.level = newLevel;
-    this.logger.addItem(`${name} grew to level ${newLevel}!`);
+    logger.addItem(`${name} grew to level ${newLevel}!`);
 
     // Check for a level-based evolution.
     const dexId = p.pokemon?.nat_dex_id;
@@ -94,7 +101,7 @@ export default function applyExperienceGains() {
     );
     if (evo) {
       if (!p.heldItem?.preventsEvolution) {
-        p.readyToEvolve = evo.target; // nat_dex_id of the evolved form — handled by the EVOLVE state
+        p.readyToEvolve = evo.target;
       }
     }
 
@@ -104,21 +111,69 @@ export default function applyExperienceGains() {
     const movesAtLvl = learnset.filter(([lvl]) => lvl === newLevel);
 
     for (const [, moveName] of movesAtLvl) {
-      if (p.moves.some(m => m.name === moveName)) continue; // already known
+      if (p.moves.some(m => m.name === moveName)) continue;
 
       const moveData = getMoveByName(moveName);
       const pp       = moveData?.pp ?? 20;
 
       if (p.moves.length < 4) {
         p.moves.push({ name: moveName, pp: { max: pp, current: pp } });
-        this.logger.addItem(`${name} learned ${moveName}!`);
+        logger.addItem(`${name} learned ${moveName}!`);
       } else {
-        // Mark for post-battle move selection (store name + pp so the UI doesn't need another DB lookup)
         p.pendingMovesToLearn = p.pendingMovesToLearn ?? [];
         if (!p.pendingMovesToLearn.some(m => m.name === moveName)) {
           p.pendingMovesToLearn.push({ name: moveName, pp });
         }
       }
     }
+  }
+}
+
+/**
+ * Awards experience to the player's active Pokémon and any party members
+ * holding an Exp. Share.  Applies the Lucky Egg ×1.5 bonus where held.
+ *
+ * Distribution (Gen 3 rules):
+ *   - If at least one non-battling party member holds Exp. Share:
+ *       • Battler receives floor(baseExp / 2)
+ *       • Each Exp. Share holder receives floor(baseExp / 2)
+ *   - Otherwise the battler receives the full baseExp.
+ *   - Lucky Egg multiplies the recipient's final share by 1.5.
+ *
+ * Must be called with Scene2 as `this`.
+ */
+export default function applyExperienceGains() {
+  const isTrainer = this.config.enemy.isTrainer;
+  const enemyMon  = this.config.enemy.team.pokemon.find(p => !p.isAlive())
+                 ?? this.config.enemy.team.pokemon[0];
+  if (!enemyMon) return;
+
+  const baseExp = calcExpGain(enemyMon, isTrainer);
+
+  const battler = this.config.player.team.getActivePokemon();
+  if (!battler?.isAlive()) return;
+
+  const party = this.config.player.team.pokemon ?? [];
+
+  // Exp Share holders: alive, not the battler.
+  const expShareHolders = party.filter(
+    p => p !== battler && p.isAlive?.() && hasExpShare(p)
+  );
+  const anyExpShare = expShareHolders.length > 0;
+
+  // Battler share: half if Exp Share is in play, full otherwise.
+  const battlerBase = anyExpShare ? Math.floor(baseExp / 2) : baseExp;
+  const battlerGain = hasLuckyEgg(battler) ? Math.floor(battlerBase * 1.5) : battlerBase;
+  awardExpToPokemon(battler, battlerGain, this.logger);
+
+  // Exp Share holders.
+  const sharedBase = Math.floor(baseExp / 2);
+  for (const p of expShareHolders) {
+    const gain = hasLuckyEgg(p) ? Math.floor(sharedBase * 1.5) : sharedBase;
+    const name = monName(p);
+    awardExpToPokemon(
+      p, gain, this.logger,
+      `${name} received ${gain} Exp. Points from Exp. Share!`
+    );
   }
 }

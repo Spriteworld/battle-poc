@@ -230,7 +230,7 @@ export default class EnemyTrainerStatusBox extends Phaser.GameObjects.Container 
     this._divider.setVisible(!isWild);
 
     if (!isWild) {
-      this._trainerText.setText(trainerName ?? '');
+      this._trainerText.setText(trainerName?.toUpperCase() ?? '');
       if (activePokemon) activePokemon.seen = true;
       this._drawBalls(team ?? []);
     }

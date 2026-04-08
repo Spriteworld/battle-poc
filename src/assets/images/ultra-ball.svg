@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Top half: black base -->
+  <path d="M 2,50 A 48,48 0 0 1 98,50 Z" fill="#181818"/>
+  <!-- Yellow outer ring (r 42–48) -->
+  <path d="M 2,50 A 48,48 0 0 1 98,50 L 92,50 A 42,42 0 0 0 8,50 Z" fill="#F0C020"/>
+  <!-- Yellow inner band (r 18–26) -->
+  <path d="M 24,50 A 26,26 0 0 1 76,50 L 68,50 A 18,18 0 0 0 32,50 Z" fill="#F0C020"/>
+  <!-- Yellow separator between rings -->
+  <path d="M 10,50 A 40,40 0 0 1 90,50 L 92,50 A 42,42 0 0 0 8,50 Z" fill="#181818"/>
+  <!-- Bottom half -->
+  <path d="M 98,50 A 48,48 0 0 1 2,50 Z" fill="#ffffff"/>
+  <circle cx="50" cy="50" r="48" fill="none" stroke="#181818" stroke-width="4"/>
+  <line x1="2" y1="50" x2="98" y2="50" stroke="#181818" stroke-width="4"/>
+  <!-- Yellow-ringed button -->
+  <circle cx="50" cy="50" r="11" fill="#F0C020"/>
+  <circle cx="50" cy="50" r="7"  fill="#181818"/>
+  <circle cx="50" cy="50" r="4"  fill="#ffffff"/>
+</svg>

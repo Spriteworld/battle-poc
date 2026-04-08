@@ -8,48 +8,45 @@ export default defineConfig(({ mode }) => {
   const proxyTarget = env.ASSETS_PROXY_TARGET;
 
   return {
-  plugins: [tailwindcss(), vue()],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-      '@Data': resolve(__dirname, 'src/data/'),
-      '@Maps': resolve(__dirname, 'src/maps/'),
-      '@Objects': resolve(__dirname, 'src/objects/'),
-      '@Tileset': resolve(__dirname, 'src/tileset/'),
-      '@Scenes': resolve(__dirname, 'src/scenes/'),
-      '@Utilities': resolve(__dirname, 'src/utilities/')
-    }
-  },
-  server: {
-    host: '0.0.0.0',
-    port: 8086,
-    allowedHosts: true,
-    ...(proxyTarget ? {
-      proxy: {
-        '/tileset': { target: proxyTarget, changeOrigin: true },
-      },
-    } : {}),
-  },
-  define: {
-    'process.env': {}
-  },
-  build: {
-    lib: {
-      entry: resolve(__dirname, 'src/index.js'),
-      name: 'SpriteworldBattle',
-      fileName: 'battle',
+    plugins: [tailwindcss(), vue()],
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src'),
+        '@Data': resolve(__dirname, 'src/data/'),
+        '@Maps': resolve(__dirname, 'src/maps/'),
+        '@Objects': resolve(__dirname, 'src/objects/'),
+        '@Tileset': resolve(__dirname, 'src/tileset/'),
+        '@Scenes': resolve(__dirname, 'src/scenes/'),
+        '@Utilities': resolve(__dirname, 'src/utilities/')
+      }
     },
-    rollupOptions: {
-      // The host app supplies these — don't bundle them
-      external: ['phaser', '@spriteworld/pokemon-data'],
-      output: {
-        globals: {
-          phaser: 'Phaser',
-          '@spriteworld/pokemon-data': 'SpriteworldPokemonData',
+    server: {
+      host: '0.0.0.0',
+      port: 8086,
+      allowedHosts: true,
+      ...(proxyTarget ? {
+        proxy: {
+          '/tileset': { target: proxyTarget, changeOrigin: true },
         },
-      },
+      } : {}),
     },
-    outDir: 'dist/lib',
-  },
+    define: {
+      'process.env': {}
+    },
+    build: {
+      assetsInlineLimit: 0,
+      minify: true,
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, 'index.html'),
+          test: resolve(__dirname, 'test.html'),
+        },
+        output: {
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
+        }
+      }
+    },
   };
 });

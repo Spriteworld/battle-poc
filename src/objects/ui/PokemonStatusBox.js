@@ -69,11 +69,12 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     this._height = this._showHpNumbers ? 84 : 56;
 
     // Animation tracking
-    this._displayExpRatio = null; // null = not yet seeded; animate from 0 on first remap
-    this._displayLevel    = null;
-    this._expTween        = null;
-    this._hpNumTween      = null;
-    this._displayHp       = null;
+    this._displayExpRatio    = null; // null = not yet seeded; animate from 0 on first remap
+    this._displayLevel       = null;
+    this._expTween           = null;
+    this._expAnimDoneCallback = null;
+    this._hpNumTween         = null;
+    this._displayHp          = null;
 
     scene.add.existing(this);
     this._build();
@@ -237,7 +238,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
    * @param {number} [data.pokerus]        - Pokérus value (>0 means infected)
    */
   remap({ name, level, currentHp, maxHp, exp, growth, status, stages, gender, volatileStatus, pokerus }) {
-    this._nameText.setText(name);
+    this._nameText.setText(name?.toUpperCase() ?? name);
     this._levelText.setText(`Lv.${level}`);
 
     // Animate HP bar
@@ -290,6 +291,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       this._displayExpRatio = targetRatio;
       this._displayLevel    = level;
       this._drawExpBarRatio(targetRatio);
+      this._fireExpDone();
       return;
     }
 
@@ -325,6 +327,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
             onComplete: () => {
               this._displayExpRatio = targetRatio;
               this._expTween = null;
+              this._fireExpDone();
             },
           });
         },
@@ -339,6 +342,7 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     if (Math.abs(this._displayExpRatio - targetRatio) < 0.001) {
       this._displayExpRatio = targetRatio;
       this._drawExpBarRatio(targetRatio);
+      this._fireExpDone();
       return;
     }
 
@@ -355,8 +359,33 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
       onComplete: () => {
         this._displayExpRatio = targetRatio;
         this._expTween = null;
+        this._fireExpDone();
       },
     });
+  }
+
+  /**
+   * Fires and clears the stored EXP animation done callback.
+   * Called at every terminal point of _animateExpBar.
+   */
+  _fireExpDone() {
+    const cb = this._expAnimDoneCallback;
+    this._expAnimDoneCallback = null;
+    cb?.();
+  }
+
+  /**
+   * Registers a callback to fire once the current EXP bar animation finishes.
+   * If no animation is in progress, fires on the next frame.
+   * Only meaningful on the player status box (which has an EXP bar).
+   * @param {Function} callback
+   */
+  waitForExpAnimation(callback) {
+    if (!this._expBarGfx || !this._expTween) {
+      this.scene.time.delayedCall(0, callback);
+      return;
+    }
+    this._expAnimDoneCallback = callback;
   }
 
   _animateHpNumber(currentHp, maxHp) {

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Top half: purple base -->
+  <path d="M 2,50 A 48,48 0 0 1 98,50 Z" fill="#8030B8"/>
+  <!-- Pink side bumps (circles clipped naturally by the arc boundary) -->
+  <circle cx="22" cy="36" r="12" fill="#E060C0"/>
+  <circle cx="78" cy="36" r="12" fill="#E060C0"/>
+  <!-- Dark bump borders -->
+  <circle cx="22" cy="36" r="12" fill="none" stroke="#181818" stroke-width="2"/>
+  <circle cx="78" cy="36" r="12" fill="none" stroke="#181818" stroke-width="2"/>
+  <!-- M letter -->
+  <text x="50" y="46" font-family="sans-serif" font-size="22" font-weight="bold"
+        fill="#ffffff" text-anchor="middle" dominant-baseline="auto">M</text>
+  <!-- Bottom half -->
+  <path d="M 98,50 A 48,48 0 0 1 2,50 Z" fill="#ffffff"/>
+  <circle cx="50" cy="50" r="48" fill="none" stroke="#181818" stroke-width="4"/>
+  <line x1="2" y1="50" x2="98" y2="50" stroke="#181818" stroke-width="4"/>
+  <!-- Pink-ringed button -->
+  <circle cx="50" cy="50" r="11" fill="#E060C0"/>
+  <circle cx="50" cy="50" r="7"  fill="#ffffff"/>
+</svg>

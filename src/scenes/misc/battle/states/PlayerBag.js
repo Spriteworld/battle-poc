@@ -10,12 +10,17 @@ export default class PlayerBag {
     const alivePokemon = Object.values(this.config.player.team.pokemon)
       .filter(p => p.isAlive());
 
-    // ── Item selected → show pokemon chooser ─────────────────────────────────
+    // ── Item selected → show pokemon chooser (or target enemy for balls) ──────
 
     const selectItem = (slot) => {
       this.BagMenu.deselect();
       this.BagMenu.clear();
       this.BagMenu.setVisible(false);
+
+      if (slot.item.getCategory?.() === 'balls') {
+        selectBall(slot);
+        return;
+      }
 
       alivePokemon.forEach((pokemon, idx) => {
         this.events.once('pokemonteammenu-select-option-' + idx, () =>
@@ -30,6 +35,18 @@ export default class PlayerBag {
       });
       this.PokemonTeamMenu.populate(alivePokemon, { actionItems: ['Use', 'Cancel'] });
       this.activateMenu(this.PokemonTeamMenu);
+    };
+
+    // ── Ball selected → target enemy active Pokémon directly ─────────────────
+
+    const selectBall = (slot) => {
+      this.actions.player = new Action({
+        type:   ActionTypes.USE_ITEM,
+        player: this.config.player,
+        target: this.config.enemy.team.getActivePokemon(),
+        config: { item: slot, isWild: this.config.enemy.isWild },
+      });
+      this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
     };
 
     // ── Pokemon selected → queue action ──────────────────────────────────────

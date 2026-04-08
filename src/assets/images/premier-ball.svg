@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Top half: white base -->
+  <path d="M 2,50 A 48,48 0 0 1 98,50 Z" fill="#F8F8F8"/>
+  <!-- Red arc band (r 30–40) -->
+  <path d="M 10,50 A 40,40 0 0 1 90,50 L 80,50 A 30,30 0 0 0 20,50 Z" fill="#CC1010"/>
+  <!-- Bottom half -->
+  <path d="M 98,50 A 48,48 0 0 1 2,50 Z" fill="#ffffff"/>
+  <circle cx="50" cy="50" r="48" fill="none" stroke="#181818" stroke-width="4"/>
+  <line x1="2" y1="50" x2="98" y2="50" stroke="#181818" stroke-width="4"/>
+  <circle cx="50" cy="50" r="11" fill="#181818"/>
+  <circle cx="50" cy="50" r="7"  fill="#ffffff"/>
+</svg>
