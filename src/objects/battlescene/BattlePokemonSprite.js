@@ -12,11 +12,12 @@ import Phaser from 'phaser';
  * @param {string}  opts.tilesetBaseUrl - Base URL of the pokemon tileset directory (trailing slash)
  */
 export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
-  constructor(scene, x, y, { species, shiny = false, gender = null, isBack = false, size = 96, tilesetBaseUrl }) {
+  constructor(scene, x, y, { species, shiny = false, gender = null, isBack = false, size = 96, tilesetBaseUrl, tint = null }) {
     super(scene, x, y);
 
     this._size   = size;
     this._isBack = isBack;
+    this._tint   = tint;
     const dir  = isBack ? 'back/' : 'front/';
     const base = String(species);
 
@@ -93,6 +94,7 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
     const img = scene.add.image(0, 0, key);
     img.setOrigin(0.5, 1);
     img.setDisplaySize(this._size, this._size);
+    if (this._tint != null) { img.setTint(this._tint); }
     this.add(img);
   }
 }

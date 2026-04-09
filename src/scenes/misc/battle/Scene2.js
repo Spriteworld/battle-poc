@@ -8,6 +8,7 @@ import AbilityToast from '@Objects/ui/AbilityToast.js';
 import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
 import WeatherDisplay from '@Objects/ui/WeatherDisplay.js';
 import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
+import BattleTrainerSprite from '@Objects/battlescene/BattleTrainerSprite.js';
 import {
   ActivePokemonMenu,
   BattleMenu,
@@ -93,9 +94,11 @@ export default class BattleScene2 extends Phaser.Scene {
     this.actions = {};
     this.currentAction = null;
     this.escapeAttempts = 0;
+    this.payDayCoins    = 0;
 
-    this._playerSprite = null;
-    this._enemySprite  = null;
+    this._playerSprite  = null;
+    this._enemySprite   = null;
+    this._trainerSprite = null;
 
     /** Field-side screens and entry hazards. Screen counters = turns remaining (0 = not active). */
     this.screens = {
@@ -351,26 +354,72 @@ export default class BattleScene2 extends Phaser.Scene {
     if (this._enemySprite)  { this._enemySprite.destroy();  this._enemySprite  = null; }
 
     if (player) {
+      const playerSpecies = player.volatileStatus?.transformed || (player.pokemon?.nat_dex_id ?? player.species);
       this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 12, {
-        species:        player.pokemon?.nat_dex_id ?? player.species,
+        species:        playerSpecies,
         shiny:          player.isShiny ?? false,
         gender:         player.gender  ?? null,
         isBack:         true,
         size:           192,
         tilesetBaseUrl,
+        tint:           player.volatileStatus?.transformed ? 0xaaddff : null,
       });
     }
 
     if (enemy) {
+      const enemySpecies = enemy.volatileStatus?.transformed || (enemy.pokemon?.nat_dex_id ?? enemy.species);
       this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 184, {
-        species:        enemy.pokemon?.nat_dex_id ?? enemy.species,
+        species:        enemySpecies,
         shiny:          enemy.isShiny ?? false,
         gender:         enemy.gender  ?? null,
         isBack:         false,
         size:           128,
         tilesetBaseUrl,
+        tint:           enemy.volatileStatus?.transformed ? 0xaaddff : null,
       });
     }
+  }
+
+  /**
+   * Spawns the trainer sprite on the enemy side and plays its slide-in animation.
+   * If the enemy config has no trainerSpriteUrl, calls callback immediately.
+   * @param {Function} [callback] - Called when the animation completes.
+   */
+  _spawnTrainerSprite(callback) {
+    const enemy = this.config?.enemy;
+    if (!enemy?.trainerSpriteUrl && !enemy?.trainerBattleSpriteUrl) {
+      callback?.();
+      return;
+    }
+
+    if (this._trainerSprite) {
+      this._trainerSprite.destroy();
+      this._trainerSprite = null;
+    }
+
+    this._trainerSprite = new BattleTrainerSprite(this, 610, UI_Y - 168, {
+      battleSpriteKey:    enemy.trainerBattleSprite   ? `battle-art-${enemy.trainerBattleSprite}`   : null,
+      battleSpriteUrl:    enemy.trainerBattleSpriteUrl ?? null,
+      overworldSpriteKey: enemy.trainerSprite         ? `battle-trainer-${enemy.trainerSprite}`      : null,
+      overworldSpriteUrl: enemy.trainerSpriteUrl      ?? null,
+      isEnemy:            true,
+    });
+    this._trainerSprite.slideIn(callback);
+  }
+
+  /**
+   * Slides the trainer sprite off-screen and destroys it.
+   * @param {Function} [callback] - Called after the sprite is gone.
+   */
+  _dismissTrainerSprite(callback) {
+    if (!this._trainerSprite) {
+      callback?.();
+      return;
+    }
+    this._trainerSprite.slideOut(() => {
+      this._trainerSprite = null;
+      callback?.();
+    });
   }
 
   /**
@@ -459,6 +508,9 @@ export default class BattleScene2 extends Phaser.Scene {
       const newMon = this.config.enemy.team.getActivePokemon();
       newMon.isFirstTurn = true;
       this.logger.addItem(`${this.config.enemy.getName()} sent out ${newMon.getName()}!`);
+      if (this.config.enemy.midFightText) {
+        this.logger.addItem(this.config.enemy.midFightText);
+      }
       if (nextPostBattle) return nextPostBattle;
     }
 

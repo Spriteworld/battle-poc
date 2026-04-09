@@ -172,6 +172,7 @@ export function makeContext(overrides = {}) {
       addEvent: jest.fn(({ callback, callbackScope }) => callback.call(callbackScope)),
     },
     remapActivePokemon:        jest.fn(),
+    playAttackAnimation:       jest.fn((_a, _b, cb) => cb?.()),
     checkForDeadActivePokemon: jest.fn(() => null),
     applyEndOfTurnStatus:      jest.fn(),
     activateMenu:              jest.fn(),

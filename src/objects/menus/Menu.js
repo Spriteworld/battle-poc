@@ -305,9 +305,7 @@ export default class extends Phaser.GameObjects.Container {
 
   /** @param {Phaser.Input.Pointer} pointer */
   _onPointerDown(pointer) {
-    console.log('[Menu] pointerdown', this.name, 'visible:', this.visible, 'ptr:', pointer.x, pointer.y, 'menu at:', this.x, this.y, 'items:', this.config.menuItems.length);
     const idx = this._itemAtPointer(pointer);
-    console.log('[Menu] item at pointer:', idx);
     if (idx !== -1) {
       this.select(idx);
       this.confirm();

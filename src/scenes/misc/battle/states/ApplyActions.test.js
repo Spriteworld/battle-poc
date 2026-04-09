@@ -601,3 +601,68 @@ describe('ApplyActions — infatuation (Attract)', () => {
     jest.spyOn(Math, 'random').mockRestore();
   });
 });
+
+// ─── Transform ──────────────────────────────────────────────────────────────
+
+describe('ApplyActions — Transform', () => {
+  function makeTransformCtx() {
+    const ctx = makeContext();
+    const playerMon = ctx.config.player.team.getActivePokemon();
+    const enemyMon  = ctx.config.enemy.team.getActivePokemon();
+
+    enemyMon.pokemon = { nat_dex_id: 6 };
+    playerMon.volatileStatus.transformed = false;
+
+    // The data layer's transformEffect handles type/move/stat copying via onEffect.
+    // The mock returns the message that transformEffect would produce plus the move name.
+    playerMon.attack.mockReturnValue({
+      move: 'transform', enemy: 'Charizard',
+      damage: 0, accuracy: 1, critical: 1, typeEffectiveness: 1,
+      effect: { message: 'Bulbasaur transformed into Charizard!' },
+    });
+
+    ctx.currentAction = {
+      type:   ActionTypes.ATTACK,
+      player: ctx.config.player,
+      target: enemyMon,
+      config: { move: { name: 'transform', selfTarget: true, pp: { current: 10, max: 10 } } },
+    };
+
+    return { ctx, playerMon, enemyMon };
+  }
+
+  test('sets volatileStatus.transformed to the target species ID', () => {
+    const { ctx, playerMon } = makeTransformCtx();
+    applyAttack(ctx);
+    expect(playerMon.volatileStatus.transformed).toBe(6);
+  });
+
+  test('does not set volatileStatus.transformed on a miss', () => {
+    const { ctx, playerMon } = makeTransformCtx();
+    playerMon.attack.mockReturnValue({
+      move: 'transform', enemy: 'Charizard',
+      damage: 0, accuracy: 0, critical: 1, typeEffectiveness: 1,
+      effect: null,
+    });
+    applyAttack(ctx);
+    expect(playerMon.volatileStatus.transformed).toBe(false);
+  });
+
+  test('logs the "transformed" message from the data layer effect', () => {
+    const { ctx } = makeTransformCtx();
+    applyAttack(ctx);
+    expect(ctx.logger.addItem).toHaveBeenCalledWith(expect.stringContaining('transformed'));
+  });
+
+  test('calls remapActivePokemon so the sprite updates', () => {
+    const { ctx } = makeTransformCtx();
+    applyAttack(ctx);
+    expect(ctx.remapActivePokemon).toHaveBeenCalled();
+  });
+
+  test('schedules transition to BEFORE_ACTION', () => {
+    const { ctx } = makeTransformCtx();
+    applyAttack(ctx);
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('beforeAction');
+  });
+});

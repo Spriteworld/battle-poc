@@ -422,8 +422,8 @@ export default class extends BasePokemon {
       return this.useMetronome(target, move, generation, fieldState, weather);
     }
 
-    if (typeof move === 'undefined' || move === null || !(move instanceof Move)) {
-      console.warn('BattlePokemon: attack called without a valid Move instance', move);
+    if (!move?.name || !move?.type || !move?.category) {
+      console.warn('BattlePokemon: attack called without a valid move', move);
       return {
         player:   this.getName(),
         enemy:    target.getName(),

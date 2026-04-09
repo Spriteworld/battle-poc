@@ -102,28 +102,42 @@ export default class BattleStart {
     // Flush any weather / generation messages queued during setup.
     this.logger.flush(() => {
 
-      // 1. Enemy Pokémon enters.
-      this._spawnEnemySpriteAnimated(() => {
-        const enemyMsg = isWild
-          ? `A wild ${enemyLead.getName()} appeared!`
-          : `${this.config.enemy.getName()} sent out ${enemyLead.getName()}!`;
-        this.logger.addItem(enemyMsg);
-        applySwitchInAbilities(enemyLead, playerLead, this.weather, this.logger, this.generation, toast);
+      const spawnBattle = () => {
+        // 1. Enemy Pokémon enters.
+        this._spawnEnemySpriteAnimated(() => {
+          const enemyMsg = isWild
+            ? `A wild ${enemyLead.getName()} appeared!`
+            : `${this.config.enemy.getName()} sent out ${enemyLead.getName()}!`;
+          this.logger.addItem(enemyMsg);
+          applySwitchInAbilities(enemyLead, playerLead, this.weather, this.logger, this.generation, toast);
 
-        this.logger.flush(() => {
+          this.logger.flush(() => {
 
-          // 2. Player sends out their lead.
-          this._spawnPlayerSpriteAnimated(() => {
-            this.logger.addItem(`Go, ${playerLead.getName()}!`);
-            applySwitchInAbilities(playerLead, enemyLead, this.weather, this.logger, this.generation, toast);
+            // 2. Player sends out their lead.
+            this._spawnPlayerSpriteAnimated(() => {
+              this.logger.addItem(`Go, ${playerLead.getName()}!`);
+              applySwitchInAbilities(playerLead, enemyLead, this.weather, this.logger, this.generation, toast);
 
-            this.logger.flush(() => {
-              this.remapActivePokemon();
-              this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+              this.logger.flush(() => {
+                this.remapActivePokemon();
+                this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+              });
             });
           });
         });
-      });
+      };
+
+      if (!isWild) {
+        // 0. Show trainer sprite, log challenge message, then dismiss before Pokémon enters.
+        this._spawnTrainerSprite(() => {
+          this.logger.addItem(`${this.config.enemy.getDisplayName()} wants to battle!`);
+          this.logger.flush(() => {
+            this._dismissTrainerSprite(spawnBattle);
+          });
+        });
+      } else {
+        spawnBattle();
+      }
     });
   }
   

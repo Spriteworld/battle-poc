@@ -754,6 +754,12 @@ export default class ApplyActions {
       this.logger.addItem(info.effect.message);
     }
 
+    if (info.effect?.payDay) {
+      const coins = 2 * activeMon.level;
+      this.payDayCoins += coins;
+      this.logger.addItem(`Coins scattered everywhere! (${coins} coins)`);
+    }
+
     if (info.damage === 0 && !info.effect && info.typeEffectiveness !== 0) {
       this.logger.addItem('It had no effect!');
     }
@@ -964,26 +970,10 @@ export default class ApplyActions {
     }
 
     // Transform — copy the target's types, moves (5 PP each), and battle stats.
-    if (info.effect?.transform) {
-      activeMon.types = [...(target.types ?? [])];
-      activeMon.moves = (target.moves ?? []).map(m => ({
-        name:     m.name,
-        type:     m.type,
-        category: m.category,
-        power:    m.power,
-        accuracy: m.accuracy,
-        pp:       { max: 5, current: 5 },
-      }));
-      const COPY_STATS = ['attack', 'defense', 'special_attack', 'special_defense', 'speed'];
-      for (const stat of COPY_STATS) {
-        if (target._baseStats?.[stat] != null) activeMon._baseStats[stat] = target._baseStats[stat];
-        if (target.stats?.[stat]      != null) activeMon.stats[stat]      = target.stats[stat];
-      }
-      for (const [stat, stage] of Object.entries(target.stages ?? {})) {
-        activeMon.stages[stat] = stage;
-      }
-      activeMon.volatileStatus.transformed = true;
-      this.logger.addItem(`${activeMon.getName()} transformed!`);
+    // The data layer's transformEffect handles types/moves/stats/stages via onEffect.
+    // Set the species ID here so _updatePokemonSprites can swap the sprite.
+    if (info.accuracy !== 0 && (info.move ?? '').toLowerCase() === 'transform') {
+      activeMon.volatileStatus.transformed = target.pokemon?.nat_dex_id ?? target.species;
     }
 
     // Uproar — lock the user into Uproar for additional turns.

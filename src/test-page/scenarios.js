@@ -803,6 +803,76 @@ const SCENARIOS = [
     },
   },
 
+  {
+    id: 'volatile-transform',
+    category: 'status',
+    title: 'Transform',
+    description: 'Player leads with Ditto. Use Transform to copy the enemy Charizard\'s sprite, types, stats, stages, and moves (PP capped at 5). Verify the sprite swaps to Charizard\'s back sprite and copied moves appear in the attack menu. Switch out to confirm the transform resets.',
+    color: 'bg-orange-800',
+    tags: ['volatile', 'transform', 'ditto'],
+    buildData() {
+      const { allSpecies, movePool } = getDexAndMoves();
+      const ivs = Object.fromEntries(STAT_KEYS.map(s => [s, 31]));
+      const evs = Object.fromEntries(STAT_KEYS.map(s => [s, 0]));
+
+      const ditto = {
+        game:    GAMES.POKEMON_CHAMPIONS,
+        pid:     1,
+        species: 132, // Ditto
+        level:   50,
+        nature:  pick(NATURE_LIST),
+        gender:  GENDERS.GENDERLESS,
+        ability: { name: 'none' },
+        moves:   [
+          { name: 'transform', pp: { max: 10, current: 10 } },
+          { name: 'struggle',  pp: { max: 1,  current: 1  } },
+        ],
+        ivs, evs,
+      };
+
+      const charizard = {
+        game:    GAMES.POKEMON_CHAMPIONS,
+        pid:     2,
+        species: 6, // Charizard
+        level:   15,
+        nature:  pick(NATURE_LIST),
+        gender:  pick([GENDERS.MALE, GENDERS.FEMALE]),
+        ability: { name: 'none' },
+        moves: [
+          namedMove('Flamethrower') ?? { name: 'Flamethrower', pp: { max: 15, current: 15 } },
+          namedMove('Air Slash')    ?? { name: 'Air Slash',    pp: { max: 20, current: 20 } },
+          namedMove('Dragon Claw')  ?? { name: 'Dragon Claw',  pp: { max: 15, current: 15 } },
+          namedMove('Earthquake')   ?? { name: 'Earthquake',   pp: { max: 10, current: 10 } },
+        ],
+        ivs, evs,
+      };
+
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          team: [
+            ditto,
+            randomPokemon(allSpecies, movePool, 50, 3),
+            randomPokemon(allSpecies, movePool, 50, 4),
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.ACE_TRAINER,
+          team: [
+            charizard,
+            randomPokemon(allSpecies, movePool, 50, 5),
+            randomPokemon(allSpecies, movePool, 50, 6),
+          ],
+        },
+      };
+    },
+  },
+
   // ── Field ────────────────────────────────────────────────────────────────────
 
   {
