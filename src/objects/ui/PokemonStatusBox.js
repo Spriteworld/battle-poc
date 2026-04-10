@@ -133,6 +133,16 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     });
     this.add(this._nameText);
 
+    // Shiny indicator — separate object so it can be centered independently of the name baseline
+    this._shinyText = this.scene.add.text(10, 0, '★', {
+      fontFamily: 'Gen3',
+      fontSize:   '14px',
+      color:      '#181818',
+    });
+    this._shinyText.setOrigin(0, 0.5);
+    this._shinyText.setVisible(false);
+    this.add(this._shinyText);
+
     // Gender symbol (shown between name and level)
     this._genderText = this.scene.add.text(0, 6, '', {
       fontFamily: 'Gen3',
@@ -235,10 +245,20 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
    * @param {object} [data.stages]         - BattlePokemon stages object (ATTACK, DEFENSE, …)
    * @param {string} [data.gender]         - GENDERS constant value
    * @param {object} [data.volatileStatus] - BattlePokemon volatile status (leechSeed, etc.)
-   * @param {number} [data.pokerus]        - Pokérus value (>0 means infected)
+   * @param {number}  [data.pokerus]        - Pokérus value (>0 means infected)
+   * @param {boolean} [data.isShiny]        - Whether this Pokémon is shiny.
    */
-  remap({ name, level, currentHp, maxHp, exp, growth, status, stages, gender, volatileStatus, pokerus }) {
-    this._nameText.setText(name?.toUpperCase() ?? name);
+  remap({ name, level, currentHp, maxHp, exp, growth, status, stages, gender, volatileStatus, pokerus, isShiny }) {
+    this._nameText.setText(name?.toUpperCase() ?? '');
+    if (isShiny) {
+      // Center the star on the name row and indent the name to the right of it.
+      const nameCenter = this._nameText.y + Math.round(this._nameText.height / 2);
+      this._shinyText.setY(nameCenter).setVisible(true);
+      this._nameText.setX(this._shinyText.x + this._shinyText.width + 3);
+    } else {
+      this._shinyText.setVisible(false);
+      this._nameText.setX(10);
+    }
     this._levelText.setText(`Lv.${level}`);
 
     // Animate HP bar

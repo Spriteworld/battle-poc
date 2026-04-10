@@ -57,6 +57,7 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
         gender:         playerPokemon.gender,
         volatileStatus: playerPokemon.volatileStatus,
         pokerus:        playerPokemon.pokerus,
+        isShiny:        playerPokemon.isShiny ?? false,
       });
     }
 

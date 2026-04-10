@@ -236,6 +236,14 @@ async function launch(scenario, battleData = null) {
       if (scenario.type === 'showcase') {
         this.scene.add(UIShowcaseScene.name, UIShowcaseScene, false);
         this.scene.start(UIShowcaseScene.name, data);
+      } else if (scenario.type === 'evolution-scene') {
+        const game = this.game;
+        const loop = () => {
+          const fresh = { ...scenario.buildData(), onComplete: () => loop() };
+          game.scene.start(EvolutionScene.name, fresh);
+        };
+        game.scene.add(EvolutionScene.name, EvolutionScene, false);
+        loop();
       } else {
         this.scene.add(BattleScene2.name, BattleScene2, false);
         this.scene.add(BattleUI.name, BattleUI, false);

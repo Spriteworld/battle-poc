@@ -237,6 +237,42 @@ function defaultInventory() {
   };
 }
 
+// ─── Evolution helpers ────────────────────────────────────────────────────────
+
+/** Gen 1 level-up evolution pairs (stone / trade evolutions excluded). */
+const LEVEL_UP_EVOS = [
+  [  1,   2 ], [  2,   3 ], [  4,   5 ], [  5,   6 ], [  7,   8 ], [  8,   9 ],
+  [ 10,  11 ], [ 11,  12 ], [ 13,  14 ], [ 14,  15 ], [ 16,  17 ], [ 17,  18 ],
+  [ 19,  20 ], [ 21,  22 ], [ 23,  24 ], [ 27,  28 ], [ 29,  30 ], [ 32,  33 ],
+  [ 41,  42 ], [ 43,  44 ], [ 46,  47 ], [ 48,  49 ], [ 50,  51 ], [ 52,  53 ],
+  [ 54,  55 ], [ 56,  57 ], [ 60,  61 ], [ 63,  64 ], [ 66,  67 ], [ 69,  70 ],
+  [ 72,  73 ], [ 74,  75 ], [ 77,  78 ], [ 79,  80 ], [ 81,  82 ], [ 84,  85 ],
+  [ 86,  87 ], [ 88,  89 ], [ 92,  93 ], [ 96,  97 ], [ 98,  99 ], [100, 101],
+  [104, 105 ], [116, 117 ], [118, 119 ], [129, 130 ], [147, 148 ], [148, 149 ],
+];
+
+function buildEvolutionSceneData() {
+  const [fromId, toId] = pick(LEVEL_UP_EVOS);
+  const dex = new Pokedex(GAMES.POKEMON_FIRE_RED);
+  const getName = id => {
+    try {
+      return (dex.getPokemonById(id).species ?? `#${id}`).replace(/\b\w/g, c => c.toUpperCase());
+    } catch {
+      return `#${id}`;
+    }
+  };
+  return {
+    fromSpecies:    fromId,
+    toSpecies:      toId,
+    fromName:       getName(fromId),
+    toName:         getName(toId),
+    shiny:          false,
+    gender:         pick([GENDERS.MALE, GENDERS.FEMALE]),
+    tilesetBaseUrl: '/',
+    canCancel:      false,
+  };
+}
+
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export const CATEGORIES = [
@@ -334,6 +370,19 @@ const SCENARIOS = [
     tags: ['showcase', 'ui', 'static'],
     buildData() {
       return {};
+    },
+  },
+
+  {
+    id: 'evolution-screen',
+    category: 'showcase',
+    type: 'evolution-scene',
+    title: 'Evolution Screen',
+    description: 'Shows the Gen 3 evolution animation directly. A random level-up evolution is picked each time — loops automatically after each animation completes.',
+    color: 'bg-purple-700',
+    tags: ['showcase', 'evolution', 'animation'],
+    buildData() {
+      return buildEvolutionSceneData();
     },
   },
 
@@ -588,7 +637,7 @@ const SCENARIOS = [
     category: 'status',
     title: 'Paralysis',
     description: 'Player lead has Thunder Wave and Body Slam. Enemy also has Thunder Wave. Tests speed reduction, full-paralysis turns, and PAR badge.',
-    color: 'bg-yellow-600',
+    color: 'bg-yellow-700',
     tags: ['status', 'paralysis', 'lv50'],
     buildData() {
       return {
@@ -868,6 +917,103 @@ const SCENARIOS = [
             randomPokemon(allSpecies, movePool, 50, 5),
             randomPokemon(allSpecies, movePool, 50, 6),
           ],
+        },
+      };
+    },
+  },
+
+  {
+    id: 'shiny',
+    category: 'status',
+    title: 'Shiny',
+    description: 'Player leads with a shiny Pikachu; enemy is a shiny wild Gyarados. Verify the sparkle animation fires on entry for both sides and shiny sprite tints are applied correctly.',
+    color: 'bg-yellow-700',
+    tags: ['shiny', 'wild', 'lv50'],
+    buildData() {
+      const { allSpecies, movePool } = getDexAndMoves();
+      const ivs = Object.fromEntries(STAT_KEYS.map(s => [s, 31]));
+      const evs = Object.fromEntries(STAT_KEYS.map(s => [s, 0]));
+
+      const shinyPikachu = {
+        game:    GAMES.POKEMON_CHAMPIONS,
+        pid:     1,
+        species: 25, // Pikachu — instantly recognisable shiny (grey → orange)
+        level:   50,
+        nature:  pick(NATURE_LIST),
+        gender:  pick([GENDERS.MALE, GENDERS.FEMALE]),
+        ability: { name: 'none' },
+        moves: [
+          namedMove('Thunderbolt')  ?? { name: 'Thunderbolt',  pp: { max: 15, current: 15 } },
+          namedMove('Thunder Wave') ?? { name: 'Thunder Wave', pp: { max: 20, current: 20 } },
+          namedMove('Quick Attack') ?? { name: 'Quick Attack', pp: { max: 30, current: 30 } },
+          namedMove('Iron Tail')    ?? { name: 'Iron Tail',    pp: { max: 15, current: 15 } },
+        ],
+        ivs, evs,
+        isShiny: true,
+      };
+
+      const shinyGyarados = {
+        game:    GAMES.POKEMON_CHAMPIONS,
+        pid:     2,
+        species: 130, // Gyarados
+        level:   30,
+        nature:  pick(NATURE_LIST),
+        gender:  pick([GENDERS.MALE, GENDERS.FEMALE]),
+        ability: { name: 'none' },
+        moves: [
+          namedMove('Surf')        ?? { name: 'Surf',        pp: { max: 15, current: 15 } },
+          namedMove('Bite')        ?? { name: 'Bite',        pp: { max: 25, current: 25 } },
+          namedMove('Dragon Rage') ?? { name: 'Dragon Rage', pp: { max: 10, current: 10 } },
+          namedMove('Thrash')      ?? { name: 'Thrash',      pp: { max: 20, current: 20 } },
+        ],
+        ivs, evs,
+        isShiny: true,
+      };
+
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          team: [
+            shinyPikachu,
+            randomPokemon(allSpecies, movePool, 50, 3),
+            randomPokemon(allSpecies, movePool, 50, 4),
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: { isTrainer: false, name: null, team: [shinyGyarados] },
+      };
+    },
+  },
+
+  {
+    id: 'pokerus',
+    category: 'status',
+    title: 'Pokérus',
+    description: 'All three player Pokémon carry Pokérus. Enemy is a trainer with a clean team. Verify the Pokérus badge appears on each party member\'s active panel as they rotate in.',
+    color: 'bg-pink-700',
+    tags: ['pokerus', 'trainer', 'lv50'],
+    buildData() {
+      const { allSpecies, movePool } = getDexAndMoves();
+      return {
+        field: { weather: null, terrain: 'normal' },
+        player: {
+          name: 'Player',
+          team: [
+            { ...randomPokemon(allSpecies, movePool, 50, 1), pokerus: true },
+            { ...randomPokemon(allSpecies, movePool, 50, 2), pokerus: true },
+            { ...randomPokemon(allSpecies, movePool, 50, 3), pokerus: true },
+          ],
+          inventory: defaultInventory(),
+        },
+        enemy: {
+          isTrainer: true,
+          name: 'Trainer',
+          trainerClass: TrainerClass.TRAINER,
+          trainerSubclass: TrainerSubclass.POKEMON_BREEDER,
+          team: Array.from({ length: 3 }, (_, i) =>
+            randomPokemon(allSpecies, movePool, 50, i + 4)
+          ),
         },
       };
     },
@@ -1434,7 +1580,7 @@ const SCENARIOS = [
     category: 'generations',
     title: 'Gen II Rules (GSC)',
     description: 'Battle under Generation II mechanics. The type chart gains Dark and Steel — Psychic is no longer immune to Ghost, and Dark moves are super-effective against it. Move category is still type-based (not per-move). Critical hits still deal ×2 damage. Weather (rain, sun, sandstorm) is fully supported but hail is not yet available.',
-    color: 'bg-yellow-600',
+    color: 'bg-yellow-700',
     tags: ['gen2', 'rules', 'lv50'],
     buildData() {
       return {
@@ -1611,7 +1757,7 @@ const SCENARIOS = [
     category: 'ai',
     title: 'Gen II AI (GSC)',
     description: 'Gold/Silver AI: the type-check bug is fixed so moves are scored correctly, but a 40 % random deviation still makes trainers fairly unpredictable. Noticably smarter than Gen I on average.',
-    color: 'bg-yellow-600',
+    color: 'bg-yellow-700',
     tags: ['ai', 'gen2', 'lv50'],
     buildData() {
       return {

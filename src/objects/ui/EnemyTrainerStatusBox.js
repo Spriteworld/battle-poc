@@ -99,6 +99,16 @@ export default class EnemyTrainerStatusBox extends Phaser.GameObjects.Container 
     this._monNameText = scene.add.text(10, MON_Y, '', { ...FONT, fontSize: '13px' });
     this.add(this._monNameText);
 
+    // Shiny indicator — separate object so it can be centered independently of the name baseline
+    this._shinyText = scene.add.text(10, 0, '★', {
+      fontFamily: 'Gen3',
+      fontSize:   '13px',
+      color:      '#181818',
+    });
+    this._shinyText.setOrigin(0, 0.5);
+    this._shinyText.setVisible(false);
+    this.add(this._shinyText);
+
     // Gender symbol
     this._genderText = scene.add.text(0, MON_Y, '', { fontFamily: 'Gen3', fontSize: '12px' });
     this._genderText.setVisible(false);
@@ -250,7 +260,16 @@ export default class EnemyTrainerStatusBox extends Phaser.GameObjects.Container 
     this._hpBar.setVisible(hasMon);
 
     if (hasMon) {
-      this._monNameText.setText(activePokemon.getName?.() ?? '');
+      const monName = activePokemon.getName?.() ?? '';
+      this._monNameText.setX(10);
+      this._monNameText.setText(monName);
+      if (activePokemon.isShiny) {
+        const nameCenter = this._monNameText.y + Math.round(this._monNameText.height / 2);
+        this._shinyText.setY(nameCenter).setVisible(true);
+        this._monNameText.setX(this._shinyText.x + this._shinyText.width + 3);
+      } else {
+        this._shinyText.setVisible(false);
+      }
       this._levelText.setText(`Lv.${activePokemon.level}`);
       this._hpBar.update(activePokemon.currentHp, activePokemon.maxHp);
       this._updateGenderSymbol(activePokemon.gender, monY);
