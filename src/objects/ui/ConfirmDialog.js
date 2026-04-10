@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TEXT_STYLE, TEXT_STYLE_BOLD } from '../common/constants.js';
+import { getInputManager, Action } from '@Utilities/InputManager.js';
 
 const PAD      = 16;
 const BTN_H    = 28;
@@ -51,8 +52,10 @@ export default class ConfirmDialog extends Phaser.GameObjects.Container {
     // 0 = confirm button highlighted, 1 = cancel button highlighted
     this._cursor = 0;
 
-    this._btnTexts    = [];
-    this._keyListener = this._onKey.bind(this);
+    this._btnTexts        = [];
+    this._onNav           = this._onNav.bind(this);
+    this._onConfirmAction = this._onConfirmAction.bind(this);
+    this._onCancelAction  = this._onCancelAction.bind(this);
 
     scene.add.existing(this);
     this._build();
@@ -140,53 +143,59 @@ export default class ConfirmDialog extends Phaser.GameObjects.Container {
     });
   }
 
-  // ── Keyboard ─────────────────────────────────────────────────────────────────
+  // ── Input handlers ───────────────────────────────────────────────────────────
 
-  _onKey(event) {
+  _onNav() {
     if (!this.visible) return;
+    this._cursor = this._cursor === 0 ? 1 : 0;
+    this._updateCursor();
+  }
 
-    if (event.code === 'ArrowUp' || event.code === 'ArrowDown') {
-      this._cursor = this._cursor === 0 ? 1 : 0;
-      this._updateCursor();
-      return;
-    }
-
-    if (event.code === 'Enter' || event.code === 'KeyZ') {
-      if (this._cursor === 0) {
-        this._dismiss();
-        this._onConfirm();
-      } else {
-        this._dismiss();
-        this._onCancel();
-      }
-      return;
-    }
-
-    if (event.code === 'Escape' || event.code === 'KeyX') {
-      this._dismiss();
+  _onConfirmAction() {
+    if (!this.visible) return;
+    this._dismiss();
+    if (this._cursor === 0) {
+      this._onConfirm();
+    } else {
       this._onCancel();
     }
+  }
+
+  _onCancelAction() {
+    if (!this.visible) return;
+    this._dismiss();
+    this._onCancel();
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
 
   _dismiss() {
     this.setVisible(false);
-    this.scene.input.keyboard.off('keydown', this._keyListener);
+    const im = getInputManager();
+    im?.off(Action.UP,      this._onNav);
+    im?.off(Action.DOWN,    this._onNav);
+    im?.off(Action.CONFIRM, this._onConfirmAction);
+    im?.off(Action.CANCEL,  this._onCancelAction);
   }
 
   /**
-   * Shows the dialog and begins listening for keyboard input.
+   * Shows the dialog and begins listening for input.
    * Resets the cursor to the confirm button each time.
    */
   show() {
     this._cursor = 0;
     this._updateCursor();
     this.setVisible(true);
-    // Use once-registered persistent listener so repeated show() calls don't
-    // stack duplicate listeners.
-    this.scene.input.keyboard.off('keydown', this._keyListener);
-    this.scene.input.keyboard.on('keydown', this._keyListener);
+    // Deregister first so repeated show() calls don't stack duplicate listeners.
+    const im = getInputManager();
+    im?.off(Action.UP,      this._onNav);
+    im?.off(Action.DOWN,    this._onNav);
+    im?.off(Action.CONFIRM, this._onConfirmAction);
+    im?.off(Action.CANCEL,  this._onCancelAction);
+    im?.on(Action.UP,       this._onNav);
+    im?.on(Action.DOWN,     this._onNav);
+    im?.on(Action.CONFIRM,  this._onConfirmAction);
+    im?.on(Action.CANCEL,   this._onCancelAction);
   }
 
   /** Hides the dialog without firing any callback. */

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
+import { getInputManager, Action } from '@Utilities/InputManager.js';
 
 const W = 800;
 const H = 600;
@@ -42,6 +42,25 @@ export default class EvolutionScene extends Phaser.Scene {
     this._waitingInput  = false;
   }
 
+  /**
+   * Preload both sprite images so they are guaranteed to be in the texture
+   * cache when create() runs.
+   */
+  preload() {
+    const suffix = this._shiny ? '-shiny' : '';
+    const dir    = this._shiny ? 'shiny/' : '';
+
+    this._fromKey = `pkmn-battle-front-${this._from}${suffix}`;
+    this._toKey   = `pkmn-battle-front-${this._to}${suffix}`;
+
+    if (!this.textures.exists(this._fromKey)) {
+      this.load.image(this._fromKey, `${this._baseUrl}tileset/pokemon/front/${dir}${this._from}.png`);
+    }
+    if (!this.textures.exists(this._toKey)) {
+      this.load.image(this._toKey, `${this._baseUrl}tileset/pokemon/front/${dir}${this._to}.png`);
+    }
+  }
+
   create() {
     // ── Black background ──────────────────────────────────────────────────────
     this.add.rectangle(0, 0, W, H, 0x000000).setOrigin(0).setDepth(0);
@@ -53,56 +72,34 @@ export default class EvolutionScene extends Phaser.Scene {
       color:      '#f8f8f8',
     }).setOrigin(0.5).setDepth(10);
 
-    // ── Sprites ───────────────────────────────────────────────────────────────
-    this._fromSprite = new BattlePokemonSprite(this, W / 2, H / 2 - 30, {
-      species:        this._from,
-      shiny:          this._shiny,
-      gender:         this._gender,
-      isBack:         false,
-      size:           192,
-      tilesetBaseUrl: this._baseUrl,
-    });
-    this._fromSprite.setDepth(5);
+    // ── Sprites (textures guaranteed present from preload) ────────────────────
+    this._fromSprite = this.add.image(W / 2, H / 2 - 30, this._fromKey)
+      .setOrigin(0.5, 1).setDisplaySize(192, 192).setDepth(5);
 
-    // Evolved form — hidden until transform
-    this._toSprite = new BattlePokemonSprite(this, W / 2, H / 2 - 30, {
-      species:        this._to,
-      shiny:          this._shiny,
-      gender:         this._gender,
-      isBack:         false,
-      size:           192,
-      tilesetBaseUrl: this._baseUrl,
-    });
-    this._toSprite.setDepth(5).setAlpha(0);
+    this._toSprite = this.add.image(W / 2, H / 2 - 30, this._toKey)
+      .setOrigin(0.5, 1).setDisplaySize(192, 192).setDepth(5).setAlpha(0);
 
     // ── White flash overlay ───────────────────────────────────────────────────
     this._flash = this.add.rectangle(0, 0, W, H, 0xffffff)
       .setOrigin(0).setAlpha(0).setDepth(8);
 
-    // ── Start flash after a brief pause (lets sprites begin loading) ──────────
+    // ── Start flash ───────────────────────────────────────────────────────────
     this.time.delayedCall(350, () => this._beginFlash());
 
     // ── Input ─────────────────────────────────────────────────────────────────
-    this.input.keyboard.on('keydown', this._onKey, this);
-  }
-
-  // ─── Input ─────────────────────────────────────────────────────────────────
-
-  _onKey(event) {
-    if (this._waitingInput) {
-      if (event.code === 'KeyZ' || event.code === 'Enter') {
-        this._waitingInput = false;
-        this.input.keyboard.off('keydown', this._onKey, this);
-        this._finish(true);
-      }
-      return;
-    }
-
-    if (!this._transformDone && !this._cancelled && this._canCancel) {
-      if (event.code === 'KeyX' || event.code === 'Escape') {
-        this._cancel();
-      }
-    }
+    this._onConfirm = () => {
+      if (!this._waitingInput) return;
+      this._waitingInput = false;
+      getInputManager()?.off(Action.CONFIRM, this._onConfirm);
+      getInputManager()?.off(Action.CANCEL,  this._onCancel);
+      this._finish(true);
+    };
+    this._onCancel = () => {
+      if (this._transformDone || this._cancelled || !this._canCancel) return;
+      this._cancel();
+    };
+    getInputManager()?.on(Action.CONFIRM, this._onConfirm);
+    getInputManager()?.on(Action.CANCEL,  this._onCancel);
   }
 
   // ─── Flash animation ────────────────────────────────────────────────────────
@@ -177,6 +174,11 @@ export default class EvolutionScene extends Phaser.Scene {
   // ─── Finish ────────────────────────────────────────────────────────────────
 
   _finish(didEvolve) {
+    // Deregister input handlers before stopping the scene
+    const im = getInputManager();
+    im?.off(Action.CONFIRM, this._onConfirm);
+    im?.off(Action.CANCEL,  this._onCancel);
+
     // Fade to white, stop self, then notify caller
     this.tweens.add({
       targets:  this._flash,

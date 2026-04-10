@@ -5,7 +5,7 @@ const PAD        = 18;
 const FONT       = { fontFamily: 'Gen3', fontSize: '18px', color: '#181818' };
 const R          = 8;
 const DEPTH      = 5;
-const CHAR_DELAY = 30;
+const CHAR_DELAY = { normal: 30, fast: 10, instant: 0 };
 
 /**
  * Replaces the raw DialogBox as the battle logger.
@@ -26,12 +26,13 @@ export default class BattleLogger {
    * @param {number} width   width of the dialog area
    * @param {number} height  height of the dialog area
    */
-  constructor(scene, x, y, width, height) {
-    this._scene  = scene;
-    this._x      = x;
-    this._y      = y;
-    this._w      = width;
-    this._h      = height;
+  constructor(scene, x, y, width, height, { textSpeed = 'normal' } = {}) {
+    this._scene     = scene;
+    this._x         = x;
+    this._y         = y;
+    this._w         = width;
+    this._h         = height;
+    this._charDelay = CHAR_DELAY[textSpeed] ?? CHAR_DELAY.normal;
 
     // ── Queue & history ────────────────────────────────────────────────────
     this._queue    = [];   // messages awaiting display
@@ -198,10 +199,16 @@ export default class BattleLogger {
     this._charIdx  = 1;
     this._typing   = true;
     this._indicator.setVisible(false);
+
+    if (this._charDelay === 0) {
+      this._skipTyping();
+      return;
+    }
+
     this._textObj.setText(msg.slice(0, 1));
 
     this._typingTimer = this._scene.time.addEvent({
-      delay:    CHAR_DELAY,
+      delay:    this._charDelay,
       repeat:   msg.length - 1,
       callback: () => {
         this._charIdx++;

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import StateMachine from '@Objects/StateMachine';
+import { createInputManager, getInputManager, Action } from '@Utilities/InputManager.js';
 import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import applyExperienceGains from './applyExperienceGains.js';
@@ -127,7 +128,7 @@ export default class BattleScene2 extends Phaser.Scene {
     this.FieldScreens = new FieldScreensDisplay(this);
 
     // Dialog box (bottom-left)
-    this.logger = new BattleLogger(this, 0, UI_Y, DIALOG_W, UI_H);
+    this.logger = new BattleLogger(this, 0, UI_Y, DIALOG_W, UI_H, { textSpeed: this.data?.textSpeed ?? 'normal' });
 
     // Status boxes (enemy top-left, player bottom-right)
     this.ActivePokemonMenu = new ActivePokemonMenu(
@@ -152,7 +153,35 @@ export default class BattleScene2 extends Phaser.Scene {
       this.PokemonSwitchMenu,
     ].forEach(m => m.setVisible(false));
 
-    this.input.keyboard.on('keydown', this.onKeyInput, this);
+    const im = createInputManager(this);
+    im.on(Action.UP,            () => this.currentMenu?.moveSelectionUp());
+    im.on(Action.DOWN,          () => this.currentMenu?.moveSelectionDown());
+    im.on(Action.LEFT,          () => this.currentMenu?.moveSelectionLeft());
+    im.on(Action.RIGHT,         () => this.currentMenu?.moveSelectionRight());
+    im.on(Action.LOGGER_TOGGLE, () => this.logger.toggle());
+    im.on(Action.SCROLL_UP,     () => this.logger.scrollUp());
+    im.on(Action.SCROLL_DOWN,   () => this.logger.scrollDown());
+    im.on(Action.CONFIRM, () => {
+      if (this.logger.isFlushing()) {
+        this.logger.advance();
+      } else {
+        this.currentMenu?.confirm();
+      }
+    });
+    im.on(Action.CANCEL, () => {
+      if (!this.currentMenu) return;
+      if (typeof this.currentMenu.back === 'function' && this.currentMenu.back()) return;
+      const items = this.currentMenu.config.menuItems;
+      const last  = items[items.length - 1];
+      if (last?.text().toLowerCase() === 'cancel') {
+        this.events.emit(
+          this.currentMenu.getName().toLowerCase() +
+          '-select-option-' +
+          (items.length - 1)
+        );
+      }
+    });
+
     this.stateMachine.setState(this.stateDef.BATTLE_START);
   }
 
@@ -223,44 +252,6 @@ export default class BattleScene2 extends Phaser.Scene {
     this.currentMenu = menu;
     this.currentMenu.setVisible(true);
     this.currentMenu.select(0);
-  }
-
-  // ─── Input ─────────────────────────────────────────────────────────────────
-
-  onKeyInput(event) {
-    // Active menu — route all navigation to it.
-    switch (event.code) {
-      case 'ArrowUp':    this.currentMenu?.moveSelectionUp(); break;
-      case 'ArrowDown':  this.currentMenu?.moveSelectionDown(); break;
-      case 'ArrowLeft':  this.currentMenu?.moveSelectionLeft(); break;
-      case 'ArrowRight': this.currentMenu?.moveSelectionRight(); break;
-      case 'KeyL':       this.logger.toggle(); break;
-      case 'PageUp':     this.logger.scrollUp(); break;
-      case 'PageDown':   this.logger.scrollDown(); break;
-      case 'Enter':
-      case 'KeyZ':
-        if (this.logger.isFlushing()) {
-          this.logger.advance();
-        } else {
-          this.currentMenu?.confirm();
-        }
-        break;
-      case 'Escape':
-      case 'KeyX': {
-        if (!this.currentMenu) break;
-        if (typeof this.currentMenu.back === 'function' && this.currentMenu.back()) break;
-        const items = this.currentMenu.config.menuItems;
-        const last  = items[items.length - 1];
-        if (last?.text().toLowerCase() === 'cancel') {
-          this.events.emit(
-            this.currentMenu.getName().toLowerCase() +
-            '-select-option-' +
-            (items.length - 1)
-          );
-        }
-        break;
-      }
-    }
   }
 
   // ─── Battle helpers ────────────────────────────────────────────────────────
@@ -501,8 +492,11 @@ export default class BattleScene2 extends Phaser.Scene {
             ? this.stateDef.LEARN_MOVE
             : null;
 
-      if (!this.config.enemy.team.switchToNextLivingPokemon()) {
+      if (!this.config.enemy.isWild) {
         this.logger.addItem('The enemy has no more Pokémon left!');
+      }
+
+      if (!this.config.enemy.team.switchToNextLivingPokemon()) {
         return nextPostBattle ?? this.stateDef.BATTLE_WON;
       }
       const newMon = this.config.enemy.team.getActivePokemon();
