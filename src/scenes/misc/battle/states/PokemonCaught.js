@@ -36,7 +36,12 @@ export default class PokemonCaught {
         moves:              p.moves.map(m => ({ name: m.name, pp: { max: m.pp.max, current: m.pp.current } })),
       }));
 
-      this.game.events.emit('battle-complete', { result: 'caught', caughtPokemon: caughtData, team });
+      this.game.events.emit('battle-complete', {
+        result: 'caught',
+        caughtPokemon: caughtData,
+        team,
+        tutorial: this.tutorial === true,
+      });
       this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
     });
   }

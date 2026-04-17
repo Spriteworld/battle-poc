@@ -1,5 +1,9 @@
 import { Action, ActionTypes } from '@Objects';
 
+/** Visible-beat timings for tutorial autopilot (ms). */
+const AUTOPILOT_PRE_SELECT_MS = 500;
+const AUTOPILOT_HOLD_MS       = 300;
+
 export default class PlayerAttack {
   onEnter() {
     const activeMon = this.config.player.team.getActivePokemon();
@@ -65,6 +69,35 @@ export default class PlayerAttack {
     const sameMon = this._lastMovePokemon === activeMon.id;
     const lastIdx = sameMon ? Math.min(this._lastMoveIndex ?? 0, moves.length - 1) : 0;
     this.AttackMenu.select(lastIdx);
+
+    // ── Tutorial autopilot ──────────────────────────────────────────────────
+    // If a scripted attack entry is queued, find the matching move slot and
+    // auto-drive the AttackMenu cursor to it before confirming. Fall back to
+    // slot 0 with a console warning if the named move isn't in this lead's
+    // moveset, so a mistyped script doesn't silently hang.
+    const scripted = this.scriptedActions?.[0];
+    if (scripted?.type === 'attack') {
+      const moveList = Object.values(moves);
+      const wanted = (scripted.move ?? '').toLowerCase();
+      let targetIdx = moveList.findIndex(m => m.name?.toLowerCase() === wanted);
+      if (targetIdx < 0) {
+        if (wanted) {
+          console.warn(`[PlayerAttack] scripted move "${scripted.move}" not found on ${activeMon.getName()} — falling back to slot 0`);
+        }
+        targetIdx = 0;
+      }
+      this.autopilotLocked = true;
+      this.time.delayedCall(AUTOPILOT_PRE_SELECT_MS, () => {
+        this.AttackMenu.select(targetIdx);
+        this.time.delayedCall(AUTOPILOT_HOLD_MS, () => {
+          // Scripted action consumed; confirm emits attackmenu-select-option-N
+          // which triggers the attack() handler and transitions to ENEMY_ACTION.
+          this.scriptedActions.shift();
+          this.autopilotLocked = false;
+          this.AttackMenu.confirm();
+        });
+      });
+    }
   }
 
   onExit() {

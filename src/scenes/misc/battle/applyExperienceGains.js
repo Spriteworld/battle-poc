@@ -162,14 +162,20 @@ export default function applyExperienceGains() {
   const anyExpShare = expShareHolders.length > 0;
 
   // Battler share: half if Exp Share is in play, full otherwise.
+  const expRate    = this.data?.expRate ?? 1;
+
   const battlerBase = anyExpShare ? Math.floor(baseExp / 2) : baseExp;
-  const battlerGain = hasLuckyEgg(battler) ? Math.floor(battlerBase * 1.5) : battlerBase;
+  const battlerGain = Math.floor(
+    (hasLuckyEgg(battler) ? Math.floor(battlerBase * 1.5) : battlerBase) * expRate
+  );
   awardExpToPokemon(battler, battlerGain, this.logger);
 
   // Exp Share holders.
   const sharedBase = Math.floor(baseExp / 2);
   for (const p of expShareHolders) {
-    const gain = hasLuckyEgg(p) ? Math.floor(sharedBase * 1.5) : sharedBase;
+    const gain = Math.floor(
+      (hasLuckyEgg(p) ? Math.floor(sharedBase * 1.5) : sharedBase) * expRate
+    );
     const name = monName(p);
     awardExpToPokemon(
       p, gain, this.logger,

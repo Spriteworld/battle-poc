@@ -43,8 +43,33 @@ export default class BattleWon {
             pendingMovesToLearn: p.pendingMovesToLearn  ?? [],
             moves:               p.moves.map(m => ({ name: m.name, pp: { max: m.pp.max, current: m.pp.current } })),
           }));
-          this.game.events.emit('battle-complete', { result: 'won', team, prizeMoney });
-          this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+
+          const finish = () => {
+            this.game.events.emit('battle-complete', { result: 'won', team, prizeMoney });
+            this.stateMachine.setState(this.stateDef.BATTLE_IDLE);
+          };
+
+          const proceedToEnd = () => {
+            const postDefeatText = this.config.enemy.postDefeatText;
+            if (postDefeatText && this.config.enemy.isTrainer) {
+              this._spawnTrainerSprite(() => {
+                this.logger.addItem(postDefeatText);
+                this.logger.flush(() => {
+                  this._dismissTrainerSprite(finish);
+                });
+              });
+            } else {
+              finish();
+            }
+          };
+
+          const hasEvolving = this.config.player.team.pokemon.some(p => p.readyToEvolve != null);
+          if (hasEvolving) {
+            this._pendingBattleComplete = proceedToEnd;
+            this.stateMachine.setState(this.stateDef.EVOLVE);
+          } else {
+            proceedToEnd();
+          }
         });
       };
 

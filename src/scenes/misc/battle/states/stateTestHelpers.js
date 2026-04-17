@@ -181,7 +181,7 @@ export function makeContext(overrides = {}) {
     BagMenu:           makeMenu('bagmenu'),
     PokemonTeamMenu:   makeMenu('pokemonteammenu'),
     PokemonSwitchMenu: makeMenu('pokemonswitchmenu'),
-    ActivePokemonMenu: { select: jest.fn() },
+    ActivePokemonMenu: { select: jest.fn(), waitForExpAnimation: jest.fn(cb => cb()) },
     selectedItem:    undefined,
     selectedPokemon: undefined,
   };

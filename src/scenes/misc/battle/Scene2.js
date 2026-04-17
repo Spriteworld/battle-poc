@@ -4,6 +4,7 @@ import { createInputManager, getInputManager, Action } from '@Utilities/InputMan
 import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import applyExperienceGains from './applyExperienceGains.js';
+import applyEnemyExperienceGains from './applyEnemyExperienceGains.js';
 import BattleLogger from '@Objects/ui/BattleLogger.js';
 import AbilityToast from '@Objects/ui/AbilityToast.js';
 import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
@@ -116,6 +117,11 @@ export default class BattleScene2 extends Phaser.Scene {
       ...data,
       tilesetBaseUrl: data?.tilesetBaseUrl ?? import.meta.env.VITE_ASSETS_URL,
     };
+    this.tutorial        = data?.tutorial === true;
+    this.forceCatch      = data?.forceCatch === true;
+    this.scriptedActions = Array.isArray(data?.scriptedActions) ? [...data.scriptedActions] : null;
+    this.autopilotLocked = false;
+    console.log('[BattleScene2.init] tutorial=', this.tutorial, 'forceCatch=', this.forceCatch, 'scriptedActions=', this.scriptedActions);
   }
 
   create() {
@@ -154,21 +160,26 @@ export default class BattleScene2 extends Phaser.Scene {
     ].forEach(m => m.setVisible(false));
 
     const im = createInputManager(this);
-    im.on(Action.UP,            () => this.currentMenu?.moveSelectionUp());
-    im.on(Action.DOWN,          () => this.currentMenu?.moveSelectionDown());
-    im.on(Action.LEFT,          () => this.currentMenu?.moveSelectionLeft());
-    im.on(Action.RIGHT,         () => this.currentMenu?.moveSelectionRight());
+    // Menu navigation is suppressed while the tutorial autopilot is driving the
+    // menus, so the player can't desync the scripted sequence. Logger advance
+    // (Action.CONFIRM while the log is flushing) is always allowed — that is
+    // the one input the tutorial expects.
+    im.on(Action.UP,            () => !this.autopilotLocked && this.currentMenu?.moveSelectionUp());
+    im.on(Action.DOWN,          () => !this.autopilotLocked && this.currentMenu?.moveSelectionDown());
+    im.on(Action.LEFT,          () => !this.autopilotLocked && this.currentMenu?.moveSelectionLeft());
+    im.on(Action.RIGHT,         () => !this.autopilotLocked && this.currentMenu?.moveSelectionRight());
     im.on(Action.LOGGER_TOGGLE, () => this.logger.toggle());
     im.on(Action.SCROLL_UP,     () => this.logger.scrollUp());
     im.on(Action.SCROLL_DOWN,   () => this.logger.scrollDown());
     im.on(Action.CONFIRM, () => {
       if (this.logger.isFlushing()) {
         this.logger.advance();
-      } else {
+      } else if (!this.autopilotLocked) {
         this.currentMenu?.confirm();
       }
     });
     im.on(Action.CANCEL, () => {
+      if (this.autopilotLocked) return;
       if (!this.currentMenu) return;
       if (typeof this.currentMenu.back === 'function' && this.currentMenu.back()) return;
       const items = this.currentMenu.config.menuItems;
@@ -377,8 +388,18 @@ export default class BattleScene2 extends Phaser.Scene {
    * @param {Function} [callback] - Called when the animation completes.
    */
   _spawnTrainerSprite(callback) {
-    const enemy = this.config?.enemy;
-    if (!enemy?.trainerSpriteUrl && !enemy?.trainerBattleSpriteUrl) {
+    const enemy          = this.config?.enemy;
+    const tilesetBaseUrl = this.data?.tilesetBaseUrl ?? null;
+
+    // Use the explicit sprite name, or derive one from the trainer's subclass title
+    // (e.g. 'Ace Trainer' → 'ace_trainer') so BattleTrainerSprite can attempt both
+    // the dedicated battle-art path and the overworld-sprite fallback path.
+    const name = enemy?.trainerBattleSprite
+      ?? (enemy?.trainerSubclass
+          ? enemy.trainerSubclass.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+          : null);
+
+    if (!name || !tilesetBaseUrl) {
       callback?.();
       return;
     }
@@ -388,12 +409,10 @@ export default class BattleScene2 extends Phaser.Scene {
       this._trainerSprite = null;
     }
 
-    this._trainerSprite = new BattleTrainerSprite(this, 610, UI_Y - 168, {
-      battleSpriteKey:    enemy.trainerBattleSprite   ? `battle-art-${enemy.trainerBattleSprite}`   : null,
-      battleSpriteUrl:    enemy.trainerBattleSpriteUrl ?? null,
-      overworldSpriteKey: enemy.trainerSprite         ? `battle-trainer-${enemy.trainerSprite}`      : null,
-      overworldSpriteUrl: enemy.trainerSpriteUrl      ?? null,
-      isEnemy:            true,
+    this._trainerSprite = new BattleTrainerSprite(this, 610, UI_Y - 184, {
+      name,
+      tilesetBaseUrl,
+      isEnemy: true,
     });
     this._trainerSprite.slideIn(callback);
   }
@@ -467,6 +486,17 @@ export default class BattleScene2 extends Phaser.Scene {
       this.logger.addItem('Your active Pokémon fainted!');
       // Clear any pending player action — the fainted Pokémon can't act.
       delete this.actions.player;
+
+      // Award exp to the enemy's active Pokémon silently.
+      const evo = this.applyEnemyExperienceGains();
+      if (evo != null) {
+        this.logger.addItem(
+          `Oh! ${this.config.enemy.getName()}'s ${evo.fromName} evolved into ${evo.toName}!`
+        );
+        this.config.enemy.team.getActivePokemon().evolve(evo.targetId);
+        this._refreshEnemySprite();
+      }
+
       if (!this.config.player.team.hasLivingPokemon()) {
         this.logger.addItem('You have no more Pokémon left!');
         return this.stateDef.BATTLE_LOST;
@@ -482,15 +512,16 @@ export default class BattleScene2 extends Phaser.Scene {
       // Award EXP for this faint immediately.
       this.applyExperienceGains();
 
+      const deferEvolution = this.data?.deferEvolution ?? true;
       const hasEvolving = this.config.player.team.pokemon.some(p => p.readyToEvolve != null);
       const hasPending  = this.config.player.team.pokemon.some(
         p => p.pendingMovesToLearn?.length > 0
       );
-      const nextPostBattle = hasEvolving 
+      const nextPostBattle = (hasEvolving && !deferEvolution)
         ? this.stateDef.EVOLVE
-          : hasPending                     
-            ? this.stateDef.LEARN_MOVE
-            : null;
+        : hasPending
+          ? this.stateDef.LEARN_MOVE
+          : null;
 
       if (!this.config.enemy.isWild) {
         this.logger.addItem('The enemy has no more Pokémon left!');
@@ -524,6 +555,33 @@ export default class BattleScene2 extends Phaser.Scene {
 
   applyExperienceGains() {
     applyExperienceGains.call(this);
+  }
+
+  applyEnemyExperienceGains() {
+    return applyEnemyExperienceGains.call(this);
+  }
+
+  /**
+   * Replaces the enemy Pokémon sprite in-place after a mid-battle evolution.
+   * Destroys the current sprite and creates a fresh one at the same position
+   * with no slide-in animation.
+   */
+  _refreshEnemySprite() {
+    const tilesetBaseUrl = this.data?.tilesetBaseUrl;
+    const enemy = this.config?.enemy?.team?.getActivePokemon();
+    if (!enemy || !tilesetBaseUrl || !this._enemySprite) return;
+    const x = this._enemySprite.x;
+    const y = this._enemySprite.y;
+    this._enemySprite.destroy();
+    const enemySpecies = enemy.volatileStatus?.transformed || (enemy.pokemon?.nat_dex_id ?? enemy.species);
+    this._enemySprite = new BattlePokemonSprite(this, x, y, {
+      species:        enemySpecies,
+      shiny:          enemy.isShiny ?? false,
+      gender:         enemy.gender  ?? null,
+      isBack:         false,
+      size:           128,
+      tilesetBaseUrl,
+    });
   }
 
   checkForEndOfBattle() {

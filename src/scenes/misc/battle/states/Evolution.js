@@ -26,6 +26,12 @@ export default class Evolution {
           this.stateMachine.setState(this.stateDef.LEARN_MOVE);
           return;
         }
+        if (this._pendingBattleComplete) {
+          const fn = this._pendingBattleComplete;
+          this._pendingBattleComplete = null;
+          fn();
+          return;
+        }
         const enemyAlive = this.config.enemy.team.pokemon.some(
           mon => mon.isAlive?.() ?? mon.currentHp > 0
         );

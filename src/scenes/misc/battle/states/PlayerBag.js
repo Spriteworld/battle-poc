@@ -1,6 +1,11 @@
 import { Action, ActionTypes } from '@Objects';
 import { BAG_TABS } from '@Objects/menus/BagMenu.js';
 
+/** Visible-beat timings for tutorial autopilot (ms). */
+const AUTOPILOT_PRE_SELECT_MS = 500;
+const AUTOPILOT_TAB_HOLD_MS   = 350;
+const AUTOPILOT_HOLD_MS       = 400;
+
 export default class PlayerBag {
   onEnter() {
     // Persist the active tab across re-entries (e.g. back from PokemonTeamMenu).
@@ -104,6 +109,60 @@ export default class PlayerBag {
 
     populate();
     this.activateMenu(this.BagMenu);
+
+    // ── Tutorial autopilot ──────────────────────────────────────────────────
+    // If a scripted use_item entry is queued, switch to the matching tab,
+    // move the cursor to the slot whose item name matches, and auto-confirm.
+    const scripted = this.scriptedActions?.[0];
+    if (scripted?.type === 'use_item') {
+      const wantedName = (scripted.itemName ?? '').toLowerCase();
+      const targetSlot = this.data.player.inventory.items.find(
+        s => s.item.getName?.()?.toLowerCase() === wantedName && s.quantity > 0
+      );
+      if (!targetSlot) {
+        console.warn(`[PlayerBag] scripted item "${scripted.itemName}" not in tutor inventory — autopilot aborting`);
+      } else {
+        const category = targetSlot.item.getCategory?.() ?? 'other';
+        const tabIdx = BAG_TABS.findIndex(t => t.category === category);
+        this.autopilotLocked = true;
+
+        const selectAndConfirmItem = () => {
+          const { category: cat } = BAG_TABS[this._bagTabIndex];
+          const filtered = this.data.player.inventory.items.filter(
+            s => (s.item.getCategory?.() ?? 'other') === cat &&
+                 s.quantity > 0 &&
+                 s.item.canUseInBattle !== false
+          );
+          const itemIdx = filtered.findIndex(s => s === targetSlot);
+          if (itemIdx < 0) {
+            console.warn('[PlayerBag] autopilot: item vanished after tab switch');
+            this.autopilotLocked = false;
+            return;
+          }
+          this.time.delayedCall(AUTOPILOT_PRE_SELECT_MS, () => {
+            this.BagMenu.select(itemIdx);
+            this.time.delayedCall(AUTOPILOT_HOLD_MS, () => {
+              // Scripted action consumed; confirm emits bagmenu-select-option-N
+              // which routes through selectBall() → ENEMY_ACTION.
+              this.scriptedActions.shift();
+              this.autopilotLocked = false;
+              this.BagMenu.confirm();
+            });
+          });
+        };
+
+        if (tabIdx >= 0 && tabIdx !== this._bagTabIndex) {
+          // Switch tab visibly, then after a short hold, locate and confirm.
+          this.time.delayedCall(AUTOPILOT_PRE_SELECT_MS, () => {
+            this.BagMenu.setActiveTab(tabIdx);
+            this.events.emit('bagmenu-tab-change', tabIdx);
+            this.time.delayedCall(AUTOPILOT_TAB_HOLD_MS, selectAndConfirmItem);
+          });
+        } else {
+          selectAndConfirmItem();
+        }
+      }
+    }
   }
 
   onExit() {

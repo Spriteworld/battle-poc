@@ -1,5 +1,9 @@
 import { Action, ActionTypes } from '@Objects';
 
+/** Visible-beat timings for tutorial autopilot (ms). */
+const AUTOPILOT_PRE_SELECT_MS = 500;
+const AUTOPILOT_HOLD_MS       = 250;
+
 export default class PlayerAction {
   onEnter() {
     const activeMon = this.config.player.team.getActivePokemon();
@@ -38,7 +42,7 @@ export default class PlayerAction {
     this.events.once('battlemenu-select-option-3', () => {
       if (!this.config.enemy.isWild) {
         this.logger.addItem('You can\'t run from a trainer battle!');
-        this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.PLAYER_ACTION));
         return;
       }
       this.logger.addItem('You chose to run away!');
@@ -49,6 +53,23 @@ export default class PlayerAction {
       });
       this.stateMachine.setState(this.stateDef.ENEMY_ACTION);
     });
+
+    // ── Tutorial autopilot ──────────────────────────────────────────────────
+    // When a scripted action is queued on the scene, visibly drive the menu
+    // cursor to the matching option and auto-confirm. The player sees the
+    // same menu flow they'd see playing normally, just hands-off.
+    const scripted = this.scriptedActions?.[0];
+    console.log('[PlayerAction] scriptedActions=', this.scriptedActions, '→ scripted=', scripted);
+    if (scripted) {
+      const targetIdx = scripted.type === 'use_item' ? 1 : 0; // attack → 0, use_item → 1
+      this.autopilotLocked = true;
+      this.time.delayedCall(AUTOPILOT_PRE_SELECT_MS, () => {
+        this.BattleMenu.select(targetIdx);
+        this.time.delayedCall(AUTOPILOT_HOLD_MS, () => {
+          this.BattleMenu.confirm();
+        });
+      });
+    }
   }
 
   onExit() {

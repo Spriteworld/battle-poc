@@ -1,59 +1,53 @@
 import Phaser from 'phaser';
 
 /**
- * Battle-field trainer sprite. Displays the trainer using one of two sources:
- *  - Battle art  (plain PNG):     loaded with load.image, displayed at a fixed size.
- *  - Overworld sprite (spritesheet): loaded with load.spritesheet, frame 0 scaled up.
- * Battle art takes priority when both are supplied.
+ * Battle-field trainer sprite. Lazy-loads the trainer's battle image from
+ * `tilesetBaseUrl + 'tileset/characters/trainer/' + name + '.png'`. If that
+ * file does not exist, falls back to the overworld sprite at
+ * `tilesetBaseUrl + 'tileset/characters/sprites/' + name + '.png'`.
+ * A semi-transparent placeholder is shown while loading.
  *
- * @param {string}  [opts.battleSpriteKey]      - Cache key for the battle art image.
- * @param {string}  [opts.battleSpriteUrl]      - URL of the battle art PNG.
- * @param {string}  [opts.overworldSpriteKey]   - Cache key for the overworld spritesheet.
- * @param {string}  [opts.overworldSpriteUrl]   - URL of the overworld spritesheet.
- * @param {number}  [opts.overworldScale=4]     - Scale multiplier for the overworld fallback.
- * @param {number}  [opts.battleDisplayW=128]   - Display width for battle art.
- * @param {number}  [opts.battleDisplayH=160]   - Display height for battle art.
- * @param {boolean} [opts.isEnemy=true]         - true = right side; false = left side.
+ * @param {string}  opts.name           - Trainer file name (e.g. 'brock', 'bird_keeper').
+ * @param {string}  opts.tilesetBaseUrl - Base URL of the tileset directory (trailing slash).
+ * @param {number}  [opts.displayW=128] - Display width in px.
+ * @param {number}  [opts.displayH=160] - Display height in px.
+ * @param {boolean} [opts.isEnemy=true] - true = right side; false = left side.
  */
 export default class BattleTrainerSprite extends Phaser.GameObjects.Container {
   constructor(scene, x, y, {
-    battleSpriteKey   = null,
-    battleSpriteUrl   = null,
-    overworldSpriteKey = null,
-    overworldSpriteUrl = null,
-    overworldScale    = 4,
-    battleDisplayW    = 128,
-    battleDisplayH    = 160,
-    isEnemy           = true,
+    name,
+    tilesetBaseUrl,
+    displayW = 128,
+    displayH = 160,
+    isEnemy  = true,
   }) {
     super(scene, x, y);
 
-    this._isEnemy           = isEnemy;
-    this._battleKey         = battleSpriteKey;
-    this._battleUrl         = battleSpriteUrl;
-    this._overworldKey      = overworldSpriteKey;
-    this._overworldUrl      = overworldSpriteUrl;
-    this._overworldScale    = overworldScale;
-    this._battleDisplayW    = battleDisplayW;
-    this._battleDisplayH    = battleDisplayH;
+    this._isEnemy      = isEnemy;
+    this._key          = `trainer-battle-${name}`;
+    this._path         = `${tilesetBaseUrl}tileset/characters/trainer/${name}.png`;
+    this._fallbackKey  = `trainer-overworld-${name}`;
+    this._fallbackPath = `${tilesetBaseUrl}tileset/characters/sprites/${name}.png`;
+    this._displayW     = displayW;
+    this._displayH     = displayH;
 
-    // Placeholder box sized to whichever sprite we expect.
-    const pw = battleSpriteUrl ? battleDisplayW : (32 * overworldScale);
-    const ph = battleSpriteUrl ? battleDisplayH : (42 * overworldScale);
+    // Placeholder shown while loading (bottom-anchored to match sprite origin).
     this._placeholder = scene.add.graphics();
     this._placeholder.fillStyle(0x000000, 0.08);
-    this._placeholder.fillRect(-pw / 2, -ph, pw, ph);
+    this._placeholder.fillRect(-displayW / 2, -displayH, displayW, displayH);
     this.add(this._placeholder);
 
-    this._loadAndShow(scene);
     scene.add.existing(this);
   }
 
   /**
-   * Slides the trainer in from off-screen to the container's current position.
+   * Starts loading the trainer image then slides the sprite in from off-screen.
+   * Loading is deferred to here so no network request fires until the sprite is needed.
    * @param {Function} [callback]
    */
   slideIn(callback) {
+    this._loadAndShow(this.scene);
+
     const targetX = this.x;
     const startX  = this._isEnemy ? targetX + 300 : targetX - 300;
     this.setX(startX);
@@ -88,66 +82,38 @@ export default class BattleTrainerSprite extends Phaser.GameObjects.Container {
   }
 
   _loadAndShow(scene) {
-    if (this._battleUrl) {
-      this._loadBattleSprite(scene);
-    } else if (this._overworldUrl) {
-      this._loadOverworldSprite(scene);
-    }
-    // If neither is provided the placeholder stays until the container is dismissed.
-  }
-
-  _loadBattleSprite(scene) {
-    if (scene.textures.exists(this._battleKey)) {
-      this._showBattleSprite(scene);
+    if (scene.textures.exists(this._key)) {
+      this._show(scene, this._key);
       return;
     }
-    scene.load.image(this._battleKey, this._battleUrl);
-    scene.load.once('filecomplete-image-' + this._battleKey, () => this._showBattleSprite(scene));
+    scene.load.image(this._key, this._path);
+    scene.load.once('filecomplete-image-' + this._key, () => this._show(scene, this._key));
     scene.load.once('loaderror', (file) => {
-      if (file.key !== this._battleKey) return;
-      // Fall back to overworld sprite on load failure.
-      if (this._overworldUrl) { this._loadOverworldSprite(scene); }
+      if (file.key !== this._key) return;
+      this._loadFallback(scene);
     });
     scene.load.start();
   }
 
-  _loadOverworldSprite(scene) {
-    if (scene.textures.exists(this._overworldKey)) {
-      this._showOverworldSprite(scene);
+  _loadFallback(scene) {
+    if (scene.textures.exists(this._fallbackKey)) {
+      this._show(scene, this._fallbackKey);
       return;
     }
-    scene.load.spritesheet(this._overworldKey, this._overworldUrl, {
-      frameWidth:  32,
-      frameHeight: 42,
-    });
-    scene.load.once('filecomplete-spritesheet-' + this._overworldKey, () => this._showOverworldSprite(scene));
+    scene.load.image(this._fallbackKey, this._fallbackPath);
+    scene.load.once('filecomplete-image-' + this._fallbackKey, () => this._show(scene, this._fallbackKey));
     scene.load.start();
   }
 
-  _showBattleSprite(scene) {
+  _show(scene, key) {
     if (!this.scene) return;
-    this._clearPlaceholder();
-    const img = scene.add.image(0, 0, this._battleKey);
-    img.setOrigin(0.5, 1);
-    img.setDisplaySize(this._battleDisplayW, this._battleDisplayH);
-    this.add(img);
-  }
-
-  _showOverworldSprite(scene) {
-    if (!this.scene) return;
-    this._clearPlaceholder();
-    const dispW = 32 * this._overworldScale;
-    const dispH = 42 * this._overworldScale;
-    const img = scene.add.image(0, 0, this._overworldKey, 0);
-    img.setOrigin(0.5, 1);
-    img.setDisplaySize(dispW, dispH);
-    this.add(img);
-  }
-
-  _clearPlaceholder() {
     if (this._placeholder) {
       this._placeholder.destroy();
       this._placeholder = null;
     }
+    const img = scene.add.image(0, 0, key);
+    img.setOrigin(0.5, 1);
+    img.setDisplaySize(this._displayW, this._displayH);
+    this.add(img);
   }
 }

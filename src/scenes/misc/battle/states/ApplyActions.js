@@ -47,6 +47,19 @@ export default class ApplyActions {
 
     let result = target.useItem(item.item, action);
 
+    // Tutorial override: when scene.forceCatch is on, any ball thrown at a live
+    // wild Pokémon catches on the first shake. Respects the normal failure
+    // cases (non-wild target, fainted target) — those still abort cleanly.
+    if (
+      this.forceCatch &&
+      item.item.getCategory?.() === 'balls' &&
+      action.config?.isWild &&
+      target.currentHp > 0 &&
+      result.success !== false
+    ) {
+      result = { caught: true, message: `${target.getName()} was caught!` };
+    }
+
     const finish = () => {
       this.logger.addItem(result.message);
       if (result.success !== false) {
@@ -58,15 +71,17 @@ export default class ApplyActions {
           this.stateMachine.setState(this.stateDef.POKEMON_CAUGHT);
           return;
         }
-        if (target.readyToEvolve != null) {
-          this.stateMachine.setState(this.stateDef.EVOLVE);
-        } else {
-          this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
-        }
+        this.stateMachine.setState(this.stateDef.BEFORE_ACTION);
       });
     };
 
     if (item.item.getCategory?.() === 'balls') {
+      // Nuzlocke: block throws in zones where the player already caught a Pokémon.
+      if (this.data?.nuzlocke?.zoneCaught) {
+        this.logger.addItem('Nuzlocke rules prevent catching here!');
+        this.logger.flush(() => this.stateMachine.setState(this.stateDef.BEFORE_ACTION));
+        return;
+      }
       this.playPokeballAnimation(item.item.getName(), target, result, finish);
       return;
     }
