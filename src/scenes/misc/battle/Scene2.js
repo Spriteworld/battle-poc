@@ -523,18 +523,29 @@ export default class BattleScene2 extends Phaser.Scene {
           ? this.stateDef.LEARN_MOVE
           : null;
 
-      if (!this.config.enemy.isWild) {
-        this.logger.addItem('The enemy has no more Pokémon left!');
-      }
-
       if (!this.config.enemy.team.switchToNextLivingPokemon()) {
+        // Only log the wipe AFTER confirming there's nothing left to send out;
+        // otherwise this fires on every trainer faint and lies about the outcome.
+        if (!this.config.enemy.isWild) {
+          this.logger.addItem('The enemy has no more Pokémon left!');
+        }
         return nextPostBattle ?? this.stateDef.BATTLE_WON;
       }
       const newMon = this.config.enemy.team.getActivePokemon();
       newMon.isFirstTurn = true;
       this.logger.addItem(`${this.config.enemy.getName()} sent out ${newMon.getName()}!`);
-      if (this.config.enemy.midFightText) {
-        this.logger.addItem(this.config.enemy.midFightText);
+
+      // Mid-fight scenarios: narrate when the trainer is down to their last
+      // living Pokémon, then let their `midFightText` line land with weight.
+      if (this.config.enemy.isTrainer) {
+        const livingCount = this.config.enemy.team.pokemon
+          .filter(p => p.currentHp > 0).length;
+        if (livingCount === 1) {
+          this.logger.addItem(`${this.config.enemy.getName()} is down to their last Pokémon!`);
+        }
+        if (this.config.enemy.midFightText) {
+          this.logger.addItem(this.config.enemy.midFightText);
+        }
       }
       if (nextPostBattle) return nextPostBattle;
     }

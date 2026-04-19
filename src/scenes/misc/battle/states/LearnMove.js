@@ -1,3 +1,5 @@
+import Move from '../../../../objects/battlescene/Move.js';
+
 /**
  * Handles the post-level-up "do you want to learn this move?" flow.
  *
@@ -51,7 +53,13 @@ export default class LearnMove {
 
             if (i < p.moves.length) {
               const forgotten = p.moves[i].name;
-              p.moves[i] = { name: pending.name, pp: { max: pending.pp, current: pending.pp } };
+              // Build via `new Move(...)` so the runtime sees a fully-formed
+              // Move with type/category/power/etc — without it the very next
+              // `attack()` call would fail validation and print "But it failed!".
+              p.moves[i] = new Move(
+                { name: pending.name, pp: { max: pending.pp, current: pending.pp } },
+                p,
+              );
               this.logger.addItem(`${monName} forgot ${forgotten}!`);
               this.logger.addItem(`${monName} learned ${pending.name}!`);
             } else {

@@ -50,17 +50,10 @@ export default class BattleWon {
           };
 
           const proceedToEnd = () => {
-            const postDefeatText = this.config.enemy.postDefeatText;
-            if (postDefeatText && this.config.enemy.isTrainer) {
-              this._spawnTrainerSprite(() => {
-                this.logger.addItem(postDefeatText);
-                this.logger.flush(() => {
-                  this._dismissTrainerSprite(finish);
-                });
-              });
-            } else {
-              finish();
-            }
+            // Post-defeat trainer text is shown by the overworld trainer
+            // interactable when the player walks up to the defeated trainer
+            // again — not here in the battle scene.
+            finish();
           };
 
           const hasEvolving = this.config.player.team.pokemon.some(p => p.readyToEvolve != null);

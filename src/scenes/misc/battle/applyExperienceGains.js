@@ -5,6 +5,7 @@ import {
   FRLG_LEARNSETS,
   Moves, GAMES,
 } from '@spriteworld/pokemon-data';
+import Move from '../../../objects/battlescene/Move.js';
 
 // Cache the FRLG move pool for PP lookups (keyed by name)
 let _movePpCache = null;
@@ -117,7 +118,9 @@ function awardExpToPokemon(p, expGain, logger, gainMsg) {
       const pp       = moveData?.pp ?? 20;
 
       if (p.moves.length < 4) {
-        p.moves.push({ name: moveName, pp: { max: pp, current: pp } });
+        // Wrap with Move so type/category/power/etc are populated — a raw
+        // `{ name, pp }` would fail validation in the very next attack tick.
+        p.moves.push(new Move({ name: moveName, pp: { max: pp, current: pp } }, p));
         logger.addItem(`${name} learned ${moveName}!`);
       } else {
         p.pendingMovesToLearn = p.pendingMovesToLearn ?? [];

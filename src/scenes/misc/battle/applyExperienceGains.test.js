@@ -26,10 +26,14 @@ jest.mock('@spriteworld/pokemon-data', () => {
     // Return level directly from exp (simplified: exp >= 8000 → level 20)
     calcLevel: jest.fn((_growth, exp) => (exp >= 8000 ? 20 : 19)),
     Moves: {
+      // Enough fields to satisfy the Move class's category/type asserts when
+      // applyExperienceGains wraps freshly-learned moves in `new Move(...)`.
+      MOVE_CATEGORIES: { PHYSICAL: 'physical', SPECIAL: 'special', STATUS: 'status' },
       getMovesByGameId: jest.fn(() => [
-        { name: 'Razor Leaf', pp: 25 },
+        { name: 'Razor Leaf', pp: 25, category: 'physical', type: 'grass' },
       ]),
     },
+    TYPES: { GRASS: 'grass' },
   };
 });
 

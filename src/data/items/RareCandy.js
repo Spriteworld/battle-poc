@@ -4,6 +4,7 @@ import {
   EVOLUTION_METHOD, EXPERIENCE_TABLES, GROWTH,
   FRLG_LEARNSETS, Moves, GAMES,
 } from '@spriteworld/pokemon-data';
+import Move from '../../objects/battlescene/Move.js';
 
 // Merged evolution table keyed by nat_dex_id.
 const ALL_EVOLUTIONS = {};
@@ -72,7 +73,9 @@ export default class RareCandy extends BaseItem {
           const pp       = moveData?.pp ?? 20;
           if ((target.moves?.length ?? 0) < 4) {
             if (!target.moves) target.moves = [];
-            target.moves.push({ name: moveName, pp: { max: pp, current: pp } });
+            // Wrap with Move so type/category/power/etc are populated — a raw
+            // `{ name, pp }` would fail validation in the very next attack tick.
+            target.moves.push(new Move({ name: moveName, pp: { max: pp, current: pp } }, target));
           } else {
             target.pendingMovesToLearn = target.pendingMovesToLearn ?? [];
             if (!target.pendingMovesToLearn.some(m => m.name === moveName)) {
