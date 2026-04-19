@@ -1,4 +1,4 @@
-import { Pokedex, GAMES } from '@spriteworld/pokemon-data';
+import { Pokedex, GAMES, getSpeciesDisplayName } from '@spriteworld/pokemon-data';
 
 /**
  * Handles the post-level-up evolution sequence.
@@ -47,7 +47,7 @@ export default class Evolution {
       let toName;
       try {
         const entry = new Pokedex(p.game ?? GAMES.POKEMON_FIRE_RED).getPokemonById(targetId);
-        toName = (entry.species ?? `#${targetId}`).replace(/\b\w/g, c => c.toUpperCase());
+        toName = getSpeciesDisplayName(entry) || `#${targetId}`;
       } catch {
         toName = `#${targetId}`;
       }

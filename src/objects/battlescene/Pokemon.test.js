@@ -545,10 +545,10 @@ describe('attackMultiHit', () => {
 });
 
 describe('nameWithHP', () => {
-  test('returns formatted name with hp fraction', () => {
+  test('returns formatted name with hp fraction (name uppercased for Gen 3 battle UI)', () => {
     bulbasaur.currentHp = 30;
     bulbasaur.maxHp = 100;
-    expect(bulbasaur.nameWithHP()).toBe('Bulbasaur (30/100)');
+    expect(bulbasaur.nameWithHP()).toBe('BULBASAUR (30/100)');
   });
 });
 

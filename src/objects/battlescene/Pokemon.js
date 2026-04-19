@@ -367,6 +367,12 @@ export default class extends BasePokemon {
    * @return {object}
    */
   attack(target, move, generation, fieldState = null, weather = null) {
+    // Cache names once — getName() is called 20+ times across the branches
+    // below (multi-hit moves amplify the count). These don't change within a
+    // single attack() invocation.
+    const playerName = this.getName();
+    const enemyName  = target.getName();
+
     if (this.mustStruggle()) {
       return this.struggle(target, generation);
     }
@@ -408,8 +414,8 @@ export default class extends BasePokemon {
     // Disable — the selected move cannot be used while disabled.
     if (move && this.volatileStatus.disabledMove?.move === move) {
       return {
-        player:   this.getName(),
-        enemy:    target.getName(),
+        player:   playerName,
+        enemy:    enemyName,
         move:     move.name,
         accuracy: 0,
         damage:   0,
@@ -425,8 +431,8 @@ export default class extends BasePokemon {
     if (!move?.name || !move?.type || !move?.category) {
       console.warn('BattlePokemon: attack called without a valid move', move);
       return {
-        player:   this.getName(),
-        enemy:    target.getName(),
+        player:   playerName,
+        enemy:    enemyName,
         move:     move?.name ?? '???',
         accuracy: 0,
         damage:   0,
@@ -460,8 +466,8 @@ export default class extends BasePokemon {
           const effectiveAcc = move.accuracy * stageMult * accAbilityMult;
           if (!(Math.random() * 100 < effectiveAcc)) {
             return {
-              player: this.getName(),
-              enemy:  target.getName(),
+              player: playerName,
+              enemy:  enemyName,
               move:   move.name,
               accuracy: 0,
               damage:   0,
@@ -496,8 +502,8 @@ export default class extends BasePokemon {
         const effectiveAcc = move.accuracy * ACC_STAGE_MULTIPLIERS[accStageDelta + 6] * accAbilityMult;
         if (!(Math.random() * 100 < effectiveAcc)) {
           return {
-            player: this.getName(),
-            enemy: target.getName(),
+            player: playerName,
+            enemy: enemyName,
             move: move.name,
             accuracy: 0,
             damage: 0,
@@ -623,8 +629,8 @@ export default class extends BasePokemon {
     // A missed onAttack (accuracy: 0) returns without applying effects.
     if (info.accuracy === 0) {
       return {
-        player: this.getName(),
-        enemy: target.getName(),
+        player: playerName,
+        enemy: enemyName,
         move: move.name,
         ...info,
       };
@@ -647,8 +653,8 @@ export default class extends BasePokemon {
       : null;
 
     return {
-      player: this.getName(),
-      enemy: target.getName(),
+      player: playerName,
+      enemy: enemyName,
       move: move.name,
       ...info,
       effect,
@@ -683,8 +689,8 @@ export default class extends BasePokemon {
 
     return {
       player: this.getName(),
-      enemy: target.getName(),
-      move: 'Struggle',
+      enemy:  target.getName(),
+      move:   'Struggle',
       damage: info.damage,
       critical: info.critical,
       stab: 1,
@@ -706,17 +712,20 @@ export default class extends BasePokemon {
    * @return {object}
    */
   attackLocked(target, move, generation, fieldState = null, weather = null) {
+    const playerName = this.getName();
+    const enemyName  = target.getName();
+
     let info;
     if (typeof move.onAttack === 'function') {
       info = move.onAttack(this, target, generation);
     } else {
       if (move.accuracy !== null && !weatherBypassAccuracy(move, weather, generation) && !(Math.random() * 100 < move.accuracy)) {
         return {
-          player: this.getName(),
-          enemy: target.getName(),
-          move: move.name,
+          player: playerName,
+          enemy:  enemyName,
+          move:   move.name,
           accuracy: 0,
-          damage: 0,
+          damage:   0,
         };
       }
       const weatherMult = getWeatherMultiplier(move, weather, target, generation, this);
@@ -764,7 +773,7 @@ export default class extends BasePokemon {
     this.isFirstTurn = false;
 
     if (info.accuracy === 0) {
-      return { player: this.getName(), enemy: target.getName(), move: move.name, ...info };
+      return { player: playerName, enemy: enemyName, move: move.name, ...info };
     }
 
     if (weather) info.weather = weather;
@@ -773,7 +782,7 @@ export default class extends BasePokemon {
       ? move.onEffect(this, target, info) || null
       : null;
 
-    return { player: this.getName(), enemy: target.getName(), move: move.name, ...info, effect };
+    return { player: playerName, enemy: enemyName, move: move.name, ...info, effect };
   }
 
   /**
@@ -793,6 +802,9 @@ export default class extends BasePokemon {
    * @return {object}
    */
   attackMultiHit(target, move, generation, hitCount, powers = null, fieldState = null, weather = null) {
+    const playerName = this.getName();
+    const enemyName  = target.getName();
+
     move.pp.current = Math.max(0, move.pp.current - 1);
 
     // Single accuracy check for all hits (Gen 3+) — mirrors the stage/ability logic in attack().
@@ -809,12 +821,12 @@ export default class extends BasePokemon {
       const effectiveAcc = move.accuracy * ACC_STAGE_MULTIPLIERS[accStageDelta + 6] * accAbilityMult;
       if (!(Math.random() * 100 < effectiveAcc)) {
         return {
-          player: this.getName(),
-          enemy: target.getName(),
-          move: move.name,
+          player: playerName,
+          enemy:  enemyName,
+          move:   move.name,
           accuracy: 0,
-          damage: 0,
-          hits: 0,
+          damage:   0,
+          hits:     0,
         };
       }
     }
@@ -881,9 +893,9 @@ export default class extends BasePokemon {
     }
 
     return {
-      player: this.getName(),
-      enemy: target.getName(),
-      move: move.name,
+      player: playerName,
+      enemy:  enemyName,
+      move:   move.name,
       accuracy: 1,
       damage: totalDamage,
       hits: hitCount,

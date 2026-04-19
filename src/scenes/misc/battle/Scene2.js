@@ -121,7 +121,9 @@ export default class BattleScene2 extends Phaser.Scene {
     this.forceCatch      = data?.forceCatch === true;
     this.scriptedActions = Array.isArray(data?.scriptedActions) ? [...data.scriptedActions] : null;
     this.autopilotLocked = false;
-    console.log('[BattleScene2.init] tutorial=', this.tutorial, 'forceCatch=', this.forceCatch, 'scriptedActions=', this.scriptedActions);
+    if (this.game?.config?.debug?.console?.battle) {
+      console.log('[BattleScene2.init] tutorial=', this.tutorial, 'forceCatch=', this.forceCatch, 'scriptedActions=', this.scriptedActions);
+    }
   }
 
   create() {

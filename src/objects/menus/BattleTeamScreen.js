@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Pokedex, GAMES } from '@spriteworld/pokemon-data';
+import { Pokedex, GAMES, getSpeciesDisplayName } from '@spriteworld/pokemon-data';
 import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
 import {
   SX, SY, SW, SH,
@@ -341,7 +341,7 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
     const tilesetUrl = scene.data?.tilesetBaseUrl;
 
     let speciesName = `#${speciesId}`;
-    try { speciesName = this.dex.getPokemonById(speciesId)?.species?.toUpperCase() ?? speciesName; } catch (_) {}
+    try { speciesName = getSpeciesDisplayName(this.dex.getPokemonById(speciesId)).toUpperCase() || speciesName; } catch (_) {}
 
     const gender = bMon.gender === 'male' ? ' ♂' : bMon.gender === 'female' ? ' ♀' : '';
     const { bg: bgColor, border, lw } = slotColors(state);
@@ -392,7 +392,7 @@ export default class BattleTeamScreen extends Phaser.GameObjects.Container {
     const tilesetUrl = scene.data?.tilesetBaseUrl;
 
     let speciesName = `#${speciesId}`;
-    try { speciesName = this.dex.getPokemonById(speciesId)?.species?.toUpperCase() ?? speciesName; } catch (_) {}
+    try { speciesName = getSpeciesDisplayName(this.dex.getPokemonById(speciesId)).toUpperCase() || speciesName; } catch (_) {}
 
     const gender = bMon.gender === 'male' ? ' ♂' : bMon.gender === 'female' ? ' ♀' : '';
     const { bg: bgColor, border, lw } = slotColors(state);

@@ -28,14 +28,14 @@ import WildTrainer from './WildTrainer.js';
 const teamData = [{ name: 'Bulbasaur', currentHp: 100 }];
 
 describe('Trainer', () => {
-  test('getName returns the configured name', () => {
+  test('getName returns the configured name, uppercased for Gen 3 battle UI', () => {
     const t = new Trainer({ name: 'Red', team: teamData });
-    expect(t.getName()).toBe('Red');
+    expect(t.getName()).toBe('RED');
   });
 
-  test('getName returns "Trainer" when name is not set', () => {
+  test('getName returns "TRAINER" when name is not set', () => {
     const t = new Trainer({ name: null, team: teamData });
-    expect(t.getName()).toBe('Trainer');
+    expect(t.getName()).toBe('TRAINER');
   });
 
   test('isWild is false', () => {

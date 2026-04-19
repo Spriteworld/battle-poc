@@ -5,6 +5,7 @@ import {
   FRLG_LEARNSETS,
   Moves, GAMES,
   Pokedex,
+  getSpeciesDisplayName,
 } from '@spriteworld/pokemon-data';
 
 let _movePpCache = null;
@@ -108,7 +109,7 @@ export default function applyEnemyExperienceGains() {
   let toName;
   try {
     const entry = new Pokedex(enemyMon.game ?? GAMES.POKEMON_FIRE_RED).getPokemonById(evo.target);
-    toName = (entry.species ?? `#${evo.target}`).replace(/\b\w/g, c => c.toUpperCase());
+    toName = getSpeciesDisplayName(entry) || `#${evo.target}`;
   } catch {
     toName = `#${evo.target}`;
   }

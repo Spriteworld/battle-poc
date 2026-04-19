@@ -1,6 +1,6 @@
 import Items from '@Data/items/';
 import * as staticPokemon from '@Data/pokemon/';
-import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves, Abilities, EXPERIENCE_TABLES, GROWTH, FRLG_LEARNSETS } from '@spriteworld/pokemon-data';
+import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves, Abilities, EXPERIENCE_TABLES, GROWTH, FRLG_LEARNSETS, getSpeciesDisplayName } from '@spriteworld/pokemon-data';
 import { TrainerClass, TrainerSubclass } from '@Objects';
 import { parseTeam } from '@/utilities/showdownParser.js';
 
@@ -256,7 +256,7 @@ function buildEvolutionSceneData() {
   const dex = new Pokedex(GAMES.POKEMON_FIRE_RED);
   const getName = id => {
     try {
-      return (dex.getPokemonById(id).species ?? `#${id}`).replace(/\b\w/g, c => c.toUpperCase());
+      return getSpeciesDisplayName(dex.getPokemonById(id)) || `#${id}`;
     } catch {
       return `#${id}`;
     }

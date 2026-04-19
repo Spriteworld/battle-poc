@@ -34,6 +34,16 @@ jest.mock('@spriteworld/pokemon-data', () => {
       ]),
     },
     TYPES: { GRASS: 'grass' },
+    // Display-name helper used by `monName()` in applyExperienceGains. Mirrors
+    // the data-package implementation: prefer entry.displayName, else
+    // title-case the snake_case species id.
+    getSpeciesDisplayName: jest.fn(entry => {
+      if (entry?.displayName) return entry.displayName;
+      return (entry?.species ?? '')
+        .split('_')
+        .map(w => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
+        .join(' ');
+    }),
   };
 });
 

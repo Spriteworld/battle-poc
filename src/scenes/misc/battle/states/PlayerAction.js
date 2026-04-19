@@ -59,7 +59,9 @@ export default class PlayerAction {
     // cursor to the matching option and auto-confirm. The player sees the
     // same menu flow they'd see playing normally, just hands-off.
     const scripted = this.scriptedActions?.[0];
-    console.log('[PlayerAction] scriptedActions=', this.scriptedActions, '→ scripted=', scripted);
+    if (this.game?.config?.debug?.console?.battle) {
+      console.log('[PlayerAction] scriptedActions=', this.scriptedActions, '→ scripted=', scripted);
+    }
     if (scripted) {
       const targetIdx = scripted.type === 'use_item' ? 1 : 0; // attack → 0, use_item → 1
       this.autopilotLocked = true;

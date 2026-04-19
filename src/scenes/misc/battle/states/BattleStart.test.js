@@ -15,14 +15,16 @@ jest.mock('@Objects', () => {
   }
   function BattleTrainer(config) {
     Object.assign(this, config);
-    this.getName = () => config.name || 'Trainer';
+    this.getName        = () => config.name || 'Trainer';
+    this.getDisplayName = () => config.name || 'Trainer';
     this.isWild = false;
     this.team = new BattleTeam(config.team);
   }
   function WildTrainer(config) {
     Object.assign(this, config);
     this.name = 'Wild';
-    this.getName = () => 'Wild';
+    this.getName        = () => 'Wild';
+    this.getDisplayName = () => 'Wild';
     this.isWild = true;
     this.team = new BattleTeam(config.team);
   }
@@ -72,6 +74,22 @@ function makeContext(dataOverrides = {}) {
     config:            {},
     generation:        null,
     escapeAttempts:    0,
+    // UI components set up by BattleStart — mocked as no-ops.
+    ActivePokemonMenu: { remap: jest.fn() },
+    FieldScreens:      { update: jest.fn() },
+    WeatherDisplay:    { setWeather: jest.fn() },
+    _updateBackground: jest.fn(),
+    _updatePlatforms:  jest.fn(),
+    // Sprite-entry helpers — each receives a callback that we invoke immediately
+    // so the state machine flow continues synchronously through the test.
+    _spawnEnemySpriteAnimated:  jest.fn(cb => cb?.()),
+    _spawnPlayerSpriteAnimated: jest.fn(cb => cb?.()),
+    _spawnTrainerSprite:        jest.fn(cb => cb?.()),
+    _dismissTrainerSprite:      jest.fn(cb => cb?.()),
+    showAbilityToast:           jest.fn(),
+    // Screens / weather state read by BattleStart.
+    screens: { player: {}, enemy: {} },
+    weather: { type: null, turnsLeft: 0 },
   };
   return ctx;
 }

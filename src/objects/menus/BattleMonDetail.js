@@ -1,4 +1,4 @@
-import { Pokedex, GAMES } from '@spriteworld/pokemon-data';
+import { Pokedex, GAMES, getSpeciesDisplayName } from '@spriteworld/pokemon-data';
 import { drawStatsPanel } from '../common/pokemonStats.js';
 import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
 import TypeBadge, { TYPE_COLORS } from '@Objects/ui/TypeBadge.js';
@@ -112,7 +112,7 @@ export function drawBattleMonDetail(menu, { bMon, x, y, w, h, tab = 0 }) {
 
   const types       = bMon.types ?? entry?.types ?? [];
   const dexNum      = entry ? `#${String(entry.nat_dex_id).padStart(3, '0')}` : '';
-  const speciesName = entry ? entry.species.toUpperCase() : bMon.species?.toUpperCase?.() ?? '???';
+  const speciesName = entry ? getSpeciesDisplayName(entry).toUpperCase() : bMon.species?.toUpperCase?.() ?? '???';
   const gender      = bMon.gender === 'male' ? ' ♂' : bMon.gender === 'female' ? ' ♀' : '';
   const { scene, reg } = menu;
 

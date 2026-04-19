@@ -4,6 +4,7 @@ import {
   EVOLUTION_METHOD,
   FRLG_LEARNSETS,
   Moves, GAMES,
+  getSpeciesDisplayName,
 } from '@spriteworld/pokemon-data';
 import Move from '../../../objects/battlescene/Move.js';
 
@@ -45,7 +46,7 @@ function calcExpGain(enemyMon, isTrainer) {
 function monName(p) {
   return p.nickname
     ? p.nickname
-    : (p.species ?? 'Pokémon').replace(/\b\w/g, c => c.toUpperCase());
+    : (getSpeciesDisplayName(p.pokemon) || p.species || 'Pokémon');
 }
 
 /**

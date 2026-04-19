@@ -6,7 +6,10 @@ import BattleIdle from './BattleIdle.js';
 describe('BattleIdle', () => {
   test('clears, deselects, and hides every known menu', () => {
     const Menu = require('@Objects/menus/Menu.js').default;
-    const scene = { add: { existing: jest.fn() } };
+    const scene = {
+      add:   { existing: jest.fn() },
+      input: { on: jest.fn(), off: jest.fn() },
+    };
     const makeRealMenu = () => {
       const m = new Menu(scene, 0, 0);
       jest.spyOn(m, 'clear');
