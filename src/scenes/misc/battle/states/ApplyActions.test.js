@@ -62,6 +62,89 @@ describe('ApplyActions — USE_ITEM', () => {
   });
 });
 
+// ─── USE_ITEM — catching gives exp ─────────────────────────────────────────
+
+describe('ApplyActions — USE_ITEM (catching gives exp)', () => {
+  function makeBallCtx({ catchingGivesExp = false, isTrainer = false, caught = true } = {}) {
+    const ctx = makeContext();
+    ctx.config.enemy.isTrainer = isTrainer;
+    ctx.data.catchingGivesExp  = catchingGivesExp;
+    ctx.applyExperienceGains   = jest.fn();
+    // Ball animation short-circuits straight to the finish callback.
+    ctx.playPokeballAnimation  = jest.fn((_name, _target, _result, cb) => cb?.());
+
+    const enemyMon = ctx.config.enemy.team.getActivePokemon();
+    enemyMon.useItem = jest.fn(() => (
+      caught
+        ? { caught: true,  message: `${enemyMon.getName()} was caught!` }
+        : { caught: false, message: 'The ball missed!' }
+    ));
+
+    const ballItem = {
+      getCategory: () => 'balls',
+      getName:     () => 'Poké Ball',
+    };
+    const inventoryItem = { item: ballItem, quantity: 3 };
+
+    ctx.currentAction = {
+      type:   ActionTypes.USE_ITEM,
+      player: ctx.config.player,
+      target: enemyMon,
+      config: { item: inventoryItem, isWild: true },
+    };
+    return { ctx, inventoryItem, enemyMon };
+  }
+
+  test('awards exp on a successful wild catch when catchingGivesExp is true', () => {
+    const { ctx } = makeBallCtx({ catchingGivesExp: true });
+    applyUseItem(ctx);
+    expect(ctx.applyExperienceGains).toHaveBeenCalledTimes(1);
+  });
+
+  test('does NOT award exp when catchingGivesExp is false', () => {
+    const { ctx } = makeBallCtx({ catchingGivesExp: false });
+    applyUseItem(ctx);
+    expect(ctx.applyExperienceGains).not.toHaveBeenCalled();
+  });
+
+  test('does NOT award exp when catchingGivesExp is undefined (default)', () => {
+    const { ctx } = makeBallCtx();
+    delete ctx.data.catchingGivesExp;
+    applyUseItem(ctx);
+    expect(ctx.applyExperienceGains).not.toHaveBeenCalled();
+  });
+
+  test('does NOT award exp on a failed catch even when catchingGivesExp is true', () => {
+    const { ctx } = makeBallCtx({ catchingGivesExp: true, caught: false });
+    applyUseItem(ctx);
+    expect(ctx.applyExperienceGains).not.toHaveBeenCalled();
+  });
+
+  test('does NOT award exp when the enemy is a trainer', () => {
+    const { ctx } = makeBallCtx({ catchingGivesExp: true, isTrainer: true });
+    applyUseItem(ctx);
+    expect(ctx.applyExperienceGains).not.toHaveBeenCalled();
+  });
+
+  test('transitions to POKEMON_CAUGHT after a successful catch (regardless of exp flag)', () => {
+    const { ctx } = makeBallCtx({ catchingGivesExp: true });
+    applyUseItem(ctx);
+    expect(ctx.stateMachine.setState).toHaveBeenCalledWith('pokemonCaught');
+  });
+
+  test('stores the caught pokemon on the scene', () => {
+    const { ctx, enemyMon } = makeBallCtx({ catchingGivesExp: true });
+    applyUseItem(ctx);
+    expect(ctx.caughtPokemon).toBe(enemyMon);
+  });
+
+  test('decrements ball quantity by 1 on a successful catch', () => {
+    const { ctx, inventoryItem } = makeBallCtx({ catchingGivesExp: true });
+    applyUseItem(ctx);
+    expect(inventoryItem.quantity).toBe(2);
+  });
+});
+
 // ─── SWITCH_POKEMON ────────────────────────────────────────────────────────
 
 describe('ApplyActions — SWITCH_POKEMON', () => {

@@ -65,6 +65,15 @@ export default class ApplyActions {
       if (result.success !== false) {
         item.quantity -= 1;
       }
+      // Gen 6+ "catching gives exp": on a successful wild catch, award the
+      // battler (and any Exp. Share holders) as if the target had fainted.
+      if (
+        result.caught === true &&
+        this.data?.catchingGivesExp === true &&
+        !this.config.enemy.isTrainer
+      ) {
+        this.applyExperienceGains();
+      }
       this.logger.flush(() => {
         if (result.caught === true) {
           this.caughtPokemon = target;

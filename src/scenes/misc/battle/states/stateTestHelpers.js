@@ -151,6 +151,7 @@ export function makeContext(overrides = {}) {
       BATTLE_END:                'battleEnd',
       BATTLE_WON:                'battleWon',
       BATTLE_LOST:               'battleLost',
+      POKEMON_CAUGHT:            'pokemonCaught',
     },
     events:  makeEvents(),
     config:  { player, enemy, field: {} },
