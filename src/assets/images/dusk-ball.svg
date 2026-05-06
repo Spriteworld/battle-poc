@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Top half: dark teal base -->
+  <path d="M 2,50 A 48,48 0 0 1 98,50 Z" fill="#203828"/>
+  <!-- Lighter teal arc band (r 26–40) -->
+  <path d="M 10,50 A 40,40 0 0 1 90,50 L 76,50 A 26,26 0 0 0 24,50 Z" fill="#385848"/>
+  <!-- Dark outer ring (r 44–48) -->
+  <path d="M 2,50 A 48,48 0 0 1 98,50 L 94,50 A 44,44 0 0 0 6,50 Z" fill="#101810"/>
+  <!-- Bottom half -->
+  <path d="M 98,50 A 48,48 0 0 1 2,50 Z" fill="#ffffff"/>
+  <circle cx="50" cy="50" r="48" fill="none" stroke="#181818" stroke-width="4"/>
+  <line x1="2" y1="50" x2="98" y2="50" stroke="#181818" stroke-width="4"/>
+  <!-- Dark button with pale centre -->
+  <circle cx="50" cy="50" r="11" fill="#101810"/>
+  <circle cx="50" cy="50" r="7"  fill="#385848"/>
+</svg>

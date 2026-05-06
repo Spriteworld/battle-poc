@@ -1,18 +1,16 @@
-import { BasePokemon } from "@spriteworld/pokemon-data";
-import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
+import { BasePokemon, GENDERS } from '@spriteworld/pokemon-data';
+import { GAMES, NATURES, STATS } from '@spriteworld/pokemon-data';
 
-export default new BasePokemon({
+export default {
   game: GAMES.POKEMON_FIRE_RED,
   pid: 1,
   originalTrainer: 'Trainer',
   nickname: 'Sparky',
   species: 25,
   level: 5,
+  gender: GENDERS.FEMALE,
   nature: NATURES.HARDY,
-  ability: {
-    name: 'none',
-  },
-  currentHp: 10,
+  ability: 'Static',
   moves: [{
     name: 'Tackle',
     pp: {
@@ -44,4 +42,4 @@ export default new BasePokemon({
   },
   exp: 0,
   isShiny: false,
-});
+};

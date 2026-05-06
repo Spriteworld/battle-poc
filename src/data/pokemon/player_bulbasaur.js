@@ -1,18 +1,17 @@
-import { BasePokemon } from "@spriteworld/pokemon-data";
-import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
+import { BasePokemon, GENDERS } from '@spriteworld/pokemon-data';
+import { GAMES, NATURES, STATS } from '@spriteworld/pokemon-data';
 
-export default new BasePokemon({
+export default {
   game: GAMES.POKEMON_FIRE_RED,
   pid: 1,
   originalTrainer: 'Player',
   nickname: 'Bulbasaur',
   species: 1,
   level: 5,
+  gender: GENDERS.MALE,
   nature: NATURES.HARDY,
-  ability: {
-    name: 'none',
-  },
-  currentHp: 10,
+  ability: 'Overgrow',
+  currentHp: 15,
   moves: [{
     name: 'Tackle',
     pp: {
@@ -20,10 +19,22 @@ export default new BasePokemon({
       current: 10
     },
   }, {
-    name: 'Razor Leaf',
+    name: 'Bide',
     pp: {
       max: 5,
       current: 5
+    },
+  },{
+    name: 'Leech Seed',
+    pp: {
+      max: 10,
+      current: 10
+    },
+  },{
+    name: 'Belly Drum',
+    pp: {
+      max: 10,
+      current: 10
     },
   }],
   ivs: {
@@ -44,4 +55,4 @@ export default new BasePokemon({
   },
   exp: 0,
   isShiny: false,
-});
+};

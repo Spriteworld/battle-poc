@@ -1,11 +1,5 @@
 import '@/assets/app.css';
+import { createApp } from 'vue';
+import App from './App.vue';
 
-import Phaser from 'phaser';
-import registerTiledJSONExternalLoader from 'phaser-tiled-json-external-loader';
-
-import { config } from '@Data'
-import { Game } from '@Objects'
-
-registerTiledJSONExternalLoader(Phaser);
-
-window.spriteworld = new Game(config);
+createApp(App).mount('#app');

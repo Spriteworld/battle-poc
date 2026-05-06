@@ -7,11 +7,17 @@ export default class extends Phaser.Scene {
     super({ key: 'BattleUI' });
 
     this.currentMenu = false;
+    this.activeScene = null;
+  }
+
+  init(data) {
+    console.log('[BattleUI] init', data);
+    this.activeScene = data.activeScene || 'BattleScene';
   }
 
   create() {
     console.group('Battle UI');
-    this.battleScene = this.scene.get('BattleScene');
+    this.battleScene = this.scene.get(this.activeScene);
     this.logger = new Log(this.battleScene, 350, 10);
     this.logger.addItem('Battle Initiated...');
     this.battleScene.addLogger(this.logger);
@@ -124,7 +130,8 @@ export default class extends Phaser.Scene {
     let attacks = this.battleScene.activeMon[playerTurn].getAttacks();
 
     this.attackMenu.remap(attacks.map(move => {
-      return `${move.name} (${move.pp.current}pp)`;
+      const prefix = move.implemented === false ? '[N] ' : move.implemented === 'partial' ? '[P] ' : '';
+      return `${prefix}${move.name} (${move.pp.current}pp)`;
     }));
   }
 }

@@ -1,5 +1,5 @@
-import { BasePokemon } from "@spriteworld/pokemon-data";
-import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
+import { BasePokemon } from '@spriteworld/pokemon-data';
+import { GAMES, NATURES, STATS } from '@spriteworld/pokemon-data';
 
 export default new BasePokemon({
   game: GAMES.POKEMON_FIRE_RED,
@@ -10,7 +10,7 @@ export default new BasePokemon({
   gender: 'male',
   level: 100,
   nature: NATURES.NAUGHTY,
-  ability: 'static',
+  ability: 'Static',
   item: null,
   ivs: {
     [STATS.HP]: 31,

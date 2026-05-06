@@ -1,18 +1,15 @@
-import { BasePokemon } from "@spriteworld/pokemon-data";
-import { GAMES, NATURES, STATS } from "@spriteworld/pokemon-data";
+import { BasePokemon } from '@spriteworld/pokemon-data';
+import { GAMES, NATURES, STATS } from '@spriteworld/pokemon-data';
 
 export default new BasePokemon({
   game: GAMES.POKEMON_FIRE_RED,
   pid: 1,
   originalTrainer: 'Wild',
   nickname: 'Rattata',
-  species: 18,
+  species: 19,
   level: 5,
   nature: NATURES.HARDY,
-  ability: {
-    name: 'none',
-  },
-  currentHp: 10,
+  ability: 'Run Away',
   moves: [{
     name: 'Tackle',
     pp: {

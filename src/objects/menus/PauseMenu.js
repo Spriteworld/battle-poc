@@ -3,6 +3,7 @@ import { Menu } from '@Objects';
 export default class extends Menu {
   constructor(scene, x, y) {
     super(scene, x, y);
+    this.name = 'PauseMenu';
 
     scene.plugins.get('rexAnchor').add(this, {
       right: '100%-100',
