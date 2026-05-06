@@ -293,13 +293,13 @@ export default class UIShowcaseScene extends Phaser.Scene {
     this._playerSprite = new BattlePokemonSprite(this, 190, UI_Y - 12, {
       species:       6,   // Charizard back sprite
       isBack:        true,
-      size:          192,
+      size:          256,
       tilesetBaseUrl: url,
     });
     this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 184, {
       species:       9,   // Blastoise front sprite
       isBack:        false,
-      size:          128,
+      size:          160,
       tilesetBaseUrl: url,
     });
 

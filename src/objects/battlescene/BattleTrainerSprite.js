@@ -1,13 +1,15 @@
 import Phaser from 'phaser';
 
 /**
- * Battle-field trainer sprite. Lazy-loads the trainer's battle image from
- * `tilesetBaseUrl + 'tileset/characters/trainer/' + name + '.png'`. If that
- * file does not exist, falls back to the overworld sprite at
- * `tilesetBaseUrl + 'tileset/characters/sprites/' + name + '.png'`.
+ * Battle-field trainer sprite. Displays the trainer's battle portrait from
+ * `tilesetBaseUrl + 'tileset/characters/trainer/' + name + '.png'`.
+ * If the texture was already preloaded into the Phaser cache it is shown
+ * immediately; otherwise it is fetched via a native Image element (bypassing
+ * the Phaser loader to avoid 304/fetch edge-cases in Phaser 3.90).
+ * If the portrait file does not exist, the placeholder is quietly removed.
  * A semi-transparent placeholder is shown while loading.
  *
- * @param {string}  opts.name           - Trainer file name (e.g. 'brock', 'bird_keeper').
+ * @param {string}  opts.name           - Trainer portrait file name (e.g. 'brock', 'bird_keeper').
  * @param {string}  opts.tilesetBaseUrl - Base URL of the tileset directory (trailing slash).
  * @param {number}  [opts.displayW=128] - Display width in px.
  * @param {number}  [opts.displayH=160] - Display height in px.
@@ -23,13 +25,11 @@ export default class BattleTrainerSprite extends Phaser.GameObjects.Container {
   }) {
     super(scene, x, y);
 
-    this._isEnemy      = isEnemy;
-    this._key          = `trainer-battle-${name}`;
-    this._path         = `${tilesetBaseUrl}tileset/characters/trainer/${name}.png`;
-    this._fallbackKey  = `trainer-overworld-${name}`;
-    this._fallbackPath = `${tilesetBaseUrl}tileset/characters/sprites/${name}.png`;
-    this._displayW     = displayW;
-    this._displayH     = displayH;
+    this._isEnemy  = isEnemy;
+    this._key      = `trainer-battle-${name}`;
+    this._path     = `${tilesetBaseUrl}tileset/characters/trainer/${name}.png`;
+    this._displayW = displayW;
+    this._displayH = displayH;
 
     // Placeholder shown while loading (bottom-anchored to match sprite origin).
     this._placeholder = scene.add.graphics();
@@ -86,23 +86,23 @@ export default class BattleTrainerSprite extends Phaser.GameObjects.Container {
       this._show(scene, this._key);
       return;
     }
-    scene.load.image(this._key, this._path);
-    scene.load.once('filecomplete-image-' + this._key, () => this._show(scene, this._key));
-    scene.load.once('loaderror', (file) => {
-      if (file.key !== this._key) return;
-      this._loadFallback(scene);
-    });
-    scene.load.start();
-  }
-
-  _loadFallback(scene) {
-    if (scene.textures.exists(this._fallbackKey)) {
-      this._show(scene, this._fallbackKey);
-      return;
-    }
-    scene.load.image(this._fallbackKey, this._fallbackPath);
-    scene.load.once('filecomplete-image-' + this._fallbackKey, () => this._show(scene, this._fallbackKey));
-    scene.load.start();
+    // Use native Image loading to avoid Phaser loader state issues (calling
+    // scene.load.start() from within a loaderror callback is a no-op in Phaser
+    // 3.90 because the loader is already completing its current cycle).
+    const img = new Image();
+    img.onload = () => {
+      if (!scene.textures) return;
+      scene.textures.addImage(this._key, img);
+      this._show(scene, this._key);
+    };
+    img.onerror = () => {
+      // Portrait doesn't exist — silently remove the placeholder.
+      if (this._placeholder) {
+        this._placeholder.destroy();
+        this._placeholder = null;
+      }
+    };
+    img.src = this._path;
   }
 
   _show(scene, key) {

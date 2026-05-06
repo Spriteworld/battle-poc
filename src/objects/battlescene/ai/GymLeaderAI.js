@@ -6,6 +6,8 @@
  * near-optimal decisions most of the time but still have a small chance
  * of an unexpected choice, preventing completely predictable play.
  */
+import { shouldSwitch } from './switchStrategy.js';
+
 export default class GymLeaderAI {
   /**
    * Select and execute a move for the Gym Leader's Pokémon.
@@ -19,5 +21,9 @@ export default class GymLeaderAI {
    */
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0.1);
+  }
+
+  shouldSwitch(active, opponent, benched, generation) {
+    return shouldSwitch(active, opponent, benched, generation, 0.5);
   }
 }

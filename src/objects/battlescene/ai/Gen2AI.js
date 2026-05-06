@@ -21,4 +21,9 @@ export default class Gen2AI {
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0.4);
   }
+
+  // Gen 2 trainers still don't consider mid-battle switches in the mainline AI.
+  shouldSwitch() {
+    return null;
+  }
 }

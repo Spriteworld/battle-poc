@@ -81,6 +81,16 @@ export default class BattleLogger {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /**
+   * Reparents all of this logger's display objects into the given container,
+   * preserving relative z-order.  Used by BattleScene2 to put the logger into
+   * the uiContainer layer.
+   * @param {Phaser.GameObjects.Container} container
+   */
+  reparent(container) {
+    container.add([this._bg, this._textObj, this._indicator, this._hitZone, this._overlay]);
+  }
+
+  /**
    * Queues a message for sequential display and appends it to history.
    * @param {string} text
    */

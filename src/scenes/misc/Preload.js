@@ -7,6 +7,8 @@ const Scenes = { BattleUI, BattleScene, BattleScene2, EvolutionScene };
 import * as pokemon from '@Data/pokemon/';
 import Items from '@Data/items/';
 import { Pokedex, GAMES, NATURES, STATS, GENDERS, Moves } from '@spriteworld/pokemon-data';
+import statuses_sheet from '@/assets/images/statuses.png';
+import { loadResized } from '@Utilities/loadResized.js';
 
 // ─── Dev switch ───────────────────────────────────────────────────────────────
 /**
@@ -108,6 +110,21 @@ export default class extends Phaser.Scene {
       .forEach(scene => {
         this.scene.add(Scenes[scene].name, Scenes[scene], false);
       });
+
+    // Menu UI icons — shared look with the character project's pills.
+    this.load.spritesheet('statuses', statuses_sheet, { frameWidth: 44, frameHeight: 16 });
+
+    const base = import.meta.env.VITE_ASSETS_URL ?? '/';
+    const TYPE_NAMES = [
+      'normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison',
+      'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark',
+      'steel', 'fairy',
+    ];
+    const CATEGORY_NAMES = ['physical', 'special', 'status'];
+    // Pre-downscale onto a canvas so Phaser renders them 1:1 with no WebGL
+    // bilinear smudge on the high-contrast pixel art.
+    TYPE_NAMES.forEach(t     => loadResized(this, `type-${t}`,     `${base}tileset/ui/types/${t}.png`,      24, 24));
+    CATEGORY_NAMES.forEach(c => loadResized(this, `category-${c}`, `${base}tileset/ui/categories/${c}.png`, 24, 24));
   }
 
   create() {
@@ -140,7 +157,7 @@ export default class extends Phaser.Scene {
     const randomWeather = RANDOM_WEATHERS[Math.floor(Math.random() * RANDOM_WEATHERS.length)];
 
     const data = {
-      field: { weather: randomWeather, terrain: 'normal' },
+      field: { weather: randomWeather, terrain: 'normal', scene: 'field' },
       player: {
         name: 'Player',
         team: playerTeam,
@@ -181,7 +198,7 @@ export default class extends Phaser.Scene {
     const isTrainer = Math.random() < 0.5;
 
     const data = {
-      field: { weather: 'rain', terrain: 'normal' },
+      field: { weather: 'rain', terrain: 'normal', scene: 'field' },
       player: {
         name: 'Player',
         team: [

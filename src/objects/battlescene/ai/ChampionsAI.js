@@ -5,6 +5,8 @@
  * and play with perfect optimisation: always choosing the highest-scoring
  * move with zero random deviation.  Only ties introduce non-determinism.
  */
+import { shouldSwitch } from './switchStrategy.js';
+
 export default class ChampionsAI {
   /**
    * @param {object} attacker  - The active BattlePokemon using the move.
@@ -16,5 +18,9 @@ export default class ChampionsAI {
    */
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0);
+  }
+
+  shouldSwitch(active, opponent, benched, generation) {
+    return shouldSwitch(active, opponent, benched, generation, 1.0);
   }
 }

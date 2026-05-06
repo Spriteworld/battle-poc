@@ -1,6 +1,70 @@
 import Phaser from 'phaser';
 
 /**
+ * Module-level cache of per-texture alpha bounding boxes.  Keyed by Phaser
+ * texture key so every BattlePokemonSprite that reuses a species only pays
+ * the pixel-scan cost once.  Values are `{ minX, minY, maxX, maxY, w, h }`
+ * in native-image coords, or `null` when the scan failed (tainted canvas
+ * or a missing texture).
+ */
+const _bboxCache = new Map();
+
+/** Alpha threshold for counting a pixel as "visible" during the bbox scan. */
+const _ALPHA_THRESHOLD = 8;
+
+/**
+ * Scans the source image's alpha channel and returns the tight bounding box
+ * of non-transparent pixels.  Used to offset the sprite so its visible feet
+ * land on the container's baseline regardless of empty rows in the PNG frame.
+ *
+ * @param {Phaser.Scene} scene
+ * @param {string}       key
+ * @returns {{minX:number,minY:number,maxX:number,maxY:number,w:number,h:number}|null}
+ */
+function _measureAlphaBbox(scene, key) {
+  if (_bboxCache.has(key)) return _bboxCache.get(key);
+
+  const tex = scene.textures.get(key);
+  const source = tex?.getSourceImage?.();
+  if (!source) { _bboxCache.set(key, null); return null; }
+
+  const w = source.width;
+  const h = source.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(source, 0, 0);
+
+  let data;
+  try {
+    data = ctx.getImageData(0, 0, w, h).data;
+  } catch (_) {
+    // Cross-origin taint or similar — skip bbox, fall back to frame-edge.
+    _bboxCache.set(key, null);
+    return null;
+  }
+
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > _ALPHA_THRESHOLD) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < 0) { _bboxCache.set(key, null); return null; }
+
+  const bbox = { minX, minY, maxX, maxY, w, h };
+  _bboxCache.set(key, bbox);
+  return bbox;
+}
+
+/**
  * Generates polygon points for an N-pointed star centred at the origin.
  * @param {number} outerR - Radius of the outer (tip) vertices.
  * @param {number} innerR - Radius of the inner (notch) vertices.
@@ -141,10 +205,12 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
 
     scene.load.image(this._key, this._path);
     scene.load.once('filecomplete-image-' + this._key, () => this._show(scene, this._key));
-    scene.load.once('loaderror', (file) => {
+    const onError = (file) => {
       if (file.key !== this._key) return;
+      scene.load.off('loaderror', onError);
       this._showUnknown(scene);
-    });
+    };
+    scene.load.on('loaderror', onError);
     scene.load.start();
   }
 
@@ -155,6 +221,11 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
     }
     scene.load.image(this._unknownKey, this._unknownPath);
     scene.load.once('filecomplete-image-' + this._unknownKey, () => this._show(scene, this._unknownKey));
+    const onError = (file) => {
+      if (file.key !== this._unknownKey) return;
+      scene.load.off('loaderror', onError);
+    };
+    scene.load.on('loaderror', onError);
     scene.load.start();
   }
 
@@ -166,8 +237,24 @@ export default class BattlePokemonSprite extends Phaser.GameObjects.Container {
     }
     const img = scene.add.image(0, 0, key);
     img.setOrigin(0.5, 1);
-    img.setDisplaySize(this._size, this._size);
     if (this._tint != null) { img.setTint(this._tint); }
     this.add(img);
+
+    // Scale by the *frame* dimensions so Pokémon keep their natural size
+    // relationships — a tiny sprite like Pichu stays smaller than a giant
+    // like Snorlax even though they share the same `_size` target.
+    const scale = this._size / Math.max(img.width, img.height);
+    img.setScale(scale);
+
+    // Alpha-bbox trim is only used for *positioning*: shift the image so the
+    // bbox bottom lands at y=0 (feet on the baseline) and the bbox centre
+    // sits at x=0 (content centred, not frame centred).  No effect on size.
+    const bbox = _measureAlphaBbox(scene, key);
+    if (bbox) {
+      const bottomPad = (bbox.h - 1 - bbox.maxY) * scale;
+      const contentCx = (bbox.minX + bbox.maxX) / 2;
+      const hOffset   = (bbox.w / 2 - contentCx) * scale;
+      img.setPosition(hOffset, bottomPad);
+    }
   }
 }

@@ -8,6 +8,8 @@
  * A 2 % random deviation is used — these trainers are near-perfect and will
  * almost always find the best move.
  */
+import { shouldSwitch } from './switchStrategy.js';
+
 export default class Gen7AI {
   /**
    * @param {object} attacker  - The active BattlePokemon using the move.
@@ -19,5 +21,9 @@ export default class Gen7AI {
    */
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0.02);
+  }
+
+  shouldSwitch(active, opponent, benched, generation) {
+    return shouldSwitch(active, opponent, benched, generation, 0.8);
   }
 }

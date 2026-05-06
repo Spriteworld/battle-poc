@@ -8,6 +8,8 @@
  * multiple moves share the top score one is chosen at random among them —
  * that is the only remaining non-determinism.
  */
+import { shouldSwitch } from './switchStrategy.js';
+
 export default class EliteFourAI {
   /**
    * Select and execute a move for the Elite Four member's Pokémon.
@@ -21,5 +23,9 @@ export default class EliteFourAI {
    */
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0);
+  }
+
+  shouldSwitch(active, opponent, benched, generation) {
+    return shouldSwitch(active, opponent, benched, generation, 0.9);
   }
 }

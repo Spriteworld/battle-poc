@@ -397,7 +397,7 @@ const SCENARIOS = [
     tags: ['wild', '3v1', 'lv5'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'field' },
         player: {
           name: 'Player',
           team: [
@@ -422,7 +422,7 @@ const SCENARIOS = [
     buildData() {
       const rattata = { ...staticPokemon.wild_rattata, level: 5, hp: null, maxHp: null };
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'forest' },
         player: {
           name: 'Player',
           team: [
@@ -456,7 +456,7 @@ const SCENARIOS = [
     tags: ['wild', '3v1', 'lv20'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave1' },
         player: {
           name: 'Player',
           team: [
@@ -481,7 +481,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave2' },
         player: {
           name: 'Player',
           team: [randomPokemon(allSpecies, movePool, 30, 1)],
@@ -501,13 +501,13 @@ const SCENARIOS = [
     tags: ['trainer', '3v3', 'random', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor1' },
         player: {
           name: 'Player',
           team: randomTeam(3, 50),
           inventory: defaultInventory(),
         },
-        enemy: { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.ACE_TRAINER, team: randomTeam(3, 50) },
+        enemy: { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.BIRD_KEEPER, team: randomTeam(3, 50) },
       };
     },
   },
@@ -523,7 +523,7 @@ const SCENARIOS = [
     tags: ['trainer', '3v3', 'rain'],
     buildData() {
       return {
-        field: { weather: 'rain', terrain: 'normal' },
+        field: { weather: 'rain', terrain: 'normal', scene: 'indoor2' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.SWIMMER_M, team: randomTeam(3, 50) },
       };
@@ -539,7 +539,7 @@ const SCENARIOS = [
     tags: ['trainer', '3v3', 'sun'],
     buildData() {
       return {
-        field: { weather: 'sun', terrain: 'normal' },
+        field: { weather: 'sun', terrain: 'normal', scene: 'indoor3' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.TRAINER, trainerSubclass: TrainerSubclass.KINDLER, team: randomTeam(3, 50) },
       };
@@ -555,7 +555,7 @@ const SCENARIOS = [
     tags: ['trainer', '3v3', 'sandstorm'],
     buildData() {
       return {
-        field: { weather: 'sandstorm', terrain: 'normal' },
+        field: { weather: 'sandstorm', terrain: 'normal', scene: 'rocky' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, trainerSubclass: TrainerSubclass.GYM_LEADER, team: randomTeam(3, 50) },
       };
@@ -571,7 +571,7 @@ const SCENARIOS = [
     tags: ['trainer', '3v3', 'hail'],
     buildData() {
       return {
-        field: { weather: 'hail', terrain: 'normal' },
+        field: { weather: 'hail', terrain: 'normal', scene: 'rocky_night' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Trainer', trainerClass: TrainerClass.GYM_LEADER, trainerSubclass: TrainerSubclass.GYM_LEADER, team: randomTeam(3, 50) },
       };
@@ -587,7 +587,7 @@ const SCENARIOS = [
     tags: ['trainer', '3v3', 'drizzle', 'drought'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'underwater' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Surf', 'Ice Beam', 'Thunderbolt', 'Rain Dance'], Abilities.DRIZZLE),
@@ -615,7 +615,7 @@ const SCENARIOS = [
     tags: ['status', 'burn', 'toxic', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Will-O-Wisp', 'Toxic', 'Shadow Ball', 'Protect']),
@@ -641,7 +641,7 @@ const SCENARIOS = [
     tags: ['status', 'paralysis', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_eve' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Thunder Wave', 'Body Slam', 'Thunderbolt', 'Protect']),
@@ -667,7 +667,7 @@ const SCENARIOS = [
     tags: ['status', 'sleep', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_night' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Spore', 'Leech Seed', 'Giga Drain', 'Synthesis']),
@@ -694,7 +694,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'field' },
         player: {
           name: 'Player',
           team: [
@@ -727,7 +727,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'forest' },
         player: {
           name: 'Player',
           team: [
@@ -760,7 +760,7 @@ const SCENARIOS = [
     buildData() {
       const confused = { confusedTurns: 3 };
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave1' },
         player: {
           name: 'Player',
           team: [
@@ -794,7 +794,7 @@ const SCENARIOS = [
     tags: ['volatile', 'nightmare', 'sleep', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave2' },
         player: {
           name: 'Player',
           team: [
@@ -828,7 +828,7 @@ const SCENARIOS = [
     tags: ['volatile', 'leech-seed', 'trap', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor1' },
         player: {
           name: 'Player',
           team: [
@@ -897,7 +897,7 @@ const SCENARIOS = [
       };
 
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor2' },
         player: {
           name: 'Player',
           team: [
@@ -911,7 +911,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
-          trainerSubclass: TrainerSubclass.ACE_TRAINER,
+          trainerSubclass: TrainerSubclass.BIRD_KEEPER,
           team: [
             charizard,
             randomPokemon(allSpecies, movePool, 50, 5),
@@ -971,7 +971,7 @@ const SCENARIOS = [
       };
 
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor3' },
         player: {
           name: 'Player',
           team: [
@@ -996,7 +996,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'rocky' },
         player: {
           name: 'Player',
           team: [
@@ -1030,7 +1030,7 @@ const SCENARIOS = [
     tags: ['field', 'spikes', 'rapid-spin', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'rocky_night' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Spikes', 'Rapid Spin', 'Earthquake', 'Rock Slide']),
@@ -1056,7 +1056,7 @@ const SCENARIOS = [
     tags: ['field', 'screens', 'reflect', 'light-screen', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'underwater' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Reflect', 'Light Screen', 'Psychic', 'Thunderbolt']),
@@ -1083,7 +1083,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water' },
         player: {
           name: 'Player',
           team: [
@@ -1117,7 +1117,7 @@ const SCENARIOS = [
     tags: ['volatile', 'substitute', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_eve' },
         player: {
           name: 'Player',
           team: [
@@ -1134,7 +1134,7 @@ const SCENARIOS = [
           isTrainer: true,
           name: 'Trainer',
           trainerClass: TrainerClass.TRAINER,
-          trainerSubclass: TrainerSubclass.ACE_TRAINER,
+          trainerSubclass: TrainerSubclass.BIRD_KEEPER,
           team: teamWithLead(3, 50, ['Tackle', 'Earthquake', 'Thunder Wave', 'Fire Blast']),
         },
       };
@@ -1152,7 +1152,7 @@ const SCENARIOS = [
     tags: ['ability', 'intimidate', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_night' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Earthquake', 'Crunch', 'Ice Fang', 'Thunder Fang'], Abilities.INTIMIDATE),
@@ -1179,7 +1179,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'field' },
         player: {
           name: 'Player',
           team: [
@@ -1213,7 +1213,7 @@ const SCENARIOS = [
     tags: ['ability', 'levitate', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'forest' },
         player: {
           name: 'Player',
           team: [
@@ -1247,7 +1247,7 @@ const SCENARIOS = [
     tags: ['ability', 'static', 'flame-body', 'poison-point', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave1' },
         player: {
           name: 'Player',
           team: [
@@ -1281,7 +1281,7 @@ const SCENARIOS = [
     tags: ['ability', 'speed-boost', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave2' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Flamethrower', 'Agility', 'Protect', 'Quick Attack'], Abilities.SPEED_BOOST),
@@ -1307,7 +1307,7 @@ const SCENARIOS = [
     tags: ['ability', 'trace', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor1' },
         player: {
           name: 'Player',
           team: teamWithLead(3, 50, ['Psychic', 'Ice Beam', 'Shadow Ball', 'Recover'], Abilities.TRACE),
@@ -1352,7 +1352,7 @@ const SCENARIOS = [
         ...(heldItem && { heldItem }),
       });
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor2' },
         player: {
           name: 'Player',
           team: [
@@ -1388,7 +1388,7 @@ const SCENARIOS = [
       const ivs   = Object.fromEntries(STAT_KEYS.map(s => [s, 31]));
       const evs   = Object.fromEntries(STAT_KEYS.map(s => [s, 0]));
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor3' },
         player: {
           name: 'Player',
           team: [
@@ -1429,7 +1429,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'rocky' },
         player: {
           name: 'Player',
           team: [
@@ -1461,7 +1461,7 @@ const SCENARIOS = [
     buildData() {
       const { allSpecies, movePool } = getDexAndMoves();
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'rocky_night' },
         player: {
           name: 'Player',
           team: [
@@ -1491,7 +1491,7 @@ const SCENARIOS = [
     tags: ['volatile', 'perish-song', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'underwater' },
         player: {
           name: 'Player',
           team: [
@@ -1525,7 +1525,7 @@ const SCENARIOS = [
     tags: ['trainer', '6v6', 'random', 'lv100'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water' },
         player: {
           name: 'Player',
           team: randomTeam(6, 100),
@@ -1548,7 +1548,7 @@ const SCENARIOS = [
     buildData() {
       return {
         generation: 'GEN_1',
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_eve' },
         player: {
           name: 'Player',
           // High-speed lead with Slash to showcase speed-based crits.
@@ -1585,7 +1585,7 @@ const SCENARIOS = [
     buildData() {
       return {
         generation: 'GEN_2',
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_night' },
         player: {
           name: 'Player',
           // Dark-type moves vs Psychic to show the Gen 2 type-chart fix.
@@ -1621,7 +1621,7 @@ const SCENARIOS = [
     buildData() {
       return {
         generation: 'GEN_3',
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'field' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy: {
           isTrainer: true,
@@ -1645,7 +1645,7 @@ const SCENARIOS = [
     buildData() {
       return {
         generation: 'GEN_4',
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'forest' },
         player: {
           name: 'Player',
           // Mix of moves that change category in Gen 4 vs earlier.
@@ -1683,7 +1683,7 @@ const SCENARIOS = [
     buildData() {
       return {
         generation: 'GEN_5',
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave1' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy: {
           isTrainer: true,
@@ -1707,7 +1707,7 @@ const SCENARIOS = [
     buildData() {
       return {
         generation: 'GEN_6',
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'cave2' },
         player: {
           name: 'Player',
           // High-crit moves to make the ×1.5 vs ×2 difference visible.
@@ -1745,7 +1745,7 @@ const SCENARIOS = [
     tags: ['ai', 'gen1', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor1' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Red', trainerClass: TrainerClass.GEN_1, trainerSubclass: TrainerSubclass.CHAMPION, team: randomTeam(3, 50) },
       };
@@ -1761,7 +1761,7 @@ const SCENARIOS = [
     tags: ['ai', 'gen2', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor2' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Ethan', trainerClass: TrainerClass.GEN_2, trainerSubclass: TrainerSubclass.POKEMON_TRAINER, team: randomTeam(3, 50) },
       };
@@ -1777,7 +1777,7 @@ const SCENARIOS = [
     tags: ['ai', 'gen3', 'lv50'],
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'indoor3' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Brendan', trainerClass: TrainerClass.GEN_3, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
@@ -1794,7 +1794,7 @@ const SCENARIOS = [
     disabled: true,
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'rocky' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Lucas', trainerClass: TrainerClass.GEN_4, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
@@ -1811,7 +1811,7 @@ const SCENARIOS = [
     disabled: true,
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'rocky_night' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Hilbert', trainerClass: TrainerClass.GEN_5, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
@@ -1828,7 +1828,7 @@ const SCENARIOS = [
     disabled: true,
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'underwater' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Calem', trainerClass: TrainerClass.GEN_6, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
@@ -1845,7 +1845,7 @@ const SCENARIOS = [
     disabled: true,
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Elio', trainerClass: TrainerClass.GEN_7, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
@@ -1862,7 +1862,7 @@ const SCENARIOS = [
     disabled: true,
     buildData() {
       return {
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_eve' },
         player: { name: 'Player', team: randomTeam(3, 50), inventory: defaultInventory() },
         enemy:  { isTrainer: true, name: 'Victor', trainerClass: TrainerClass.GEN_8, trainerSubclass: TrainerSubclass.RIVAL, team: randomTeam(3, 50) },
       };
@@ -1896,7 +1896,7 @@ const SCENARIOS = [
       console.log('Parsed enemy team:', enemyTeam);
       return {
         generation: 'all',
-        field: { weather: null, terrain: 'normal' },
+        field: { weather: null, terrain: 'normal', scene: 'water_night' },
         player: {
           name: 'Player',
           team: playerTeam,

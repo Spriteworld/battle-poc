@@ -5,11 +5,12 @@ import { makeContext } from './stateTestHelpers.js';
 import PlayerAttack from './PlayerAttack.js';
 
 describe('PlayerAttack', () => {
-  test('adds one item per move plus Cancel to AttackMenu', () => {
+  test('adds one item per move to AttackMenu (grid mode — no Cancel slot)', () => {
     const ctx = makeContext();
     new PlayerAttack().onEnter.call(ctx);
-    // 2 moves + 1 Cancel = 3 addMenuItem calls
-    expect(ctx.AttackMenu.addMenuItem).toHaveBeenCalledTimes(3);
+    // 2 moves, no Cancel slot — B/CANCEL now routes via attackmenu-cancel.
+    expect(ctx.AttackMenu.addMenuItem).toHaveBeenCalledTimes(2);
+    expect(ctx.AttackMenu.useGridMode).toHaveBeenCalled();
   });
 
   test('calls activateMenu with AttackMenu', () => {
@@ -34,11 +35,10 @@ describe('PlayerAttack', () => {
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('enemyAction');
   });
 
-  test('Cancel (last option) transitions to PLAYER_ACTION', () => {
+  test('attackmenu-cancel transitions to PLAYER_ACTION', () => {
     const ctx = makeContext();
-    const moves = ctx.config.player.team.getActivePokemon().getMoves();
     new PlayerAttack().onEnter.call(ctx);
-    ctx.events.emit('attackmenu-select-option-' + moves.length);
+    ctx.events.emit('attackmenu-cancel');
     expect(ctx.stateMachine.setState).toHaveBeenCalledWith('playerAction');
   });
 

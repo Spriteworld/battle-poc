@@ -89,6 +89,9 @@ export default class BattleStart {
       enemyPokemon:  this.config.enemy.team.getActivePokemon(),
       enemyTrainer:  this.config.enemy,
     });
+    // Hide both cards — animated back in once each sprite lands.
+    this.ActivePokemonMenu.hideEnemyBoxForIntro?.();
+    this.ActivePokemonMenu.hidePlayerBoxForIntro?.();
     this.FieldScreens.update(this.screens);
     this.WeatherDisplay.setWeather(this.weather);
     this._updateBackground(this.weather?.type ?? null);
@@ -105,6 +108,10 @@ export default class BattleStart {
       const spawnBattle = () => {
         // 1. Enemy Pokémon enters.
         this._spawnEnemySpriteAnimated(() => {
+          // Slide the enemy card in alongside the sprite — runs concurrently
+          // with the log flush, no callback wait needed.
+          this.ActivePokemonMenu.slideInEnemyBox?.();
+
           const enemyMsg = isWild
             ? `A wild ${enemyLead.getName()} appeared!`
             : `${this.config.enemy.getName()} sent out ${enemyLead.getName()}!`;
@@ -115,6 +122,9 @@ export default class BattleStart {
 
             // 2. Player sends out their lead.
             this._spawnPlayerSpriteAnimated(() => {
+              // Slide the player card in alongside the sprite.
+              this.ActivePokemonMenu.slideInPlayerBox?.();
+
               this.logger.addItem(`Go, ${playerLead.getName()}!`);
               applySwitchInAbilities(playerLead, enemyLead, this.weather, this.logger, this.generation, toast);
 

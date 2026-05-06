@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import StateMachine from '@Objects/StateMachine';
 import { createInputManager, getInputManager, Action } from '@Utilities/InputManager.js';
+import { loadResized } from '@Utilities/loadResized.js';
 import * as State from './states/index.js';
 import applyEndOfTurnStatus from './applyEndOfTurnStatus.js';
 import applyExperienceGains from './applyExperienceGains.js';
@@ -9,6 +10,7 @@ import BattleLogger from '@Objects/ui/BattleLogger.js';
 import AbilityToast from '@Objects/ui/AbilityToast.js';
 import FieldScreensDisplay from '@Objects/ui/FieldScreensDisplay.js';
 import WeatherDisplay from '@Objects/ui/WeatherDisplay.js';
+import MoveInfoOverlay from '@Objects/ui/MoveInfoOverlay.js';
 import BattlePokemonSprite from '@Objects/battlescene/BattlePokemonSprite.js';
 import BattleTrainerSprite from '@Objects/battlescene/BattleTrainerSprite.js';
 import {
@@ -19,10 +21,66 @@ import {
   BattleTeamScreen,
   PokemonSwitchMenu,
 } from '@Objects';
-import pokeballSvg  from '@/assets/images/pokeball.svg';
-import greatBallSvg from '@/assets/images/great-ball.svg';
-import ultraBallSvg from '@/assets/images/ultra-ball.svg';
-import masterBallSvg from '@/assets/images/master-ball.svg';
+import pokeballSvg    from '@/assets/images/pokeball.svg';
+import greatBallSvg   from '@/assets/images/great-ball.svg';
+import ultraBallSvg   from '@/assets/images/ultra-ball.svg';
+import masterBallSvg  from '@/assets/images/master-ball.svg';
+import statuses_sheet from '@/assets/images/statuses.png';
+
+const TYPE_NAMES = [
+  'normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison',
+  'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark',
+  'steel', 'fairy',
+];
+const CATEGORY_NAMES = ['physical', 'special', 'status'];
+
+/** Converts a display string (e.g. 'Ace Trainer') to a filename slug ('ace_trainer'). */
+function _slug(str) {
+  return str.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+
+/**
+ * Returns portrait filename candidates for a trainer config, in priority order:
+ *   1. explicit trainerBattleSprite override
+ *   2. subclass slug  (e.g. 'Bird Keeper' → 'bird_keeper')
+ *   3. trainer name slug, if not a generic placeholder like 'Trainer'
+ * Duplicates are removed.
+ */
+function _trainerPortraitCandidates(enemy) {
+  if (!enemy) return [];
+  const seen = new Set();
+  const push = (val) => {
+    if (val && !seen.has(val)) { seen.add(val); }
+  };
+  if (enemy.trainerBattleSprite) push(enemy.trainerBattleSprite);
+  if (enemy.trainerSubclass)     push(_slug(enemy.trainerSubclass));
+  if (enemy.name && _slug(enemy.name) !== 'trainer') push(_slug(enemy.name));
+  return [...seen];
+}
+
+/**
+ * Named battle-scene themes.  Each entry maps to two textures — a full-field
+ * backdrop (`{theme}_bg.png`) and a platform sprite (`{theme}_base1.png`).
+ * The theme is selected via `data.field.scene` and replaces the procedural
+ * sky/ground gradient + ellipse platforms when set.
+ */
+const THEMES = Object.fromEntries(
+  [
+    'field',
+    'forest',
+    'cave1',
+    'cave2',
+    'indoor1',
+    'indoor2',
+    'indoor3',
+    'rocky',
+    'rocky_night',
+    'underwater',
+    'water',
+    'water_eve',
+    'water_night',
+  ].map(name => [name, { bg: `scene-${name}-bg`, base: `scene-${name}-base` }])
+);
 
 /** Maps item display names to their preloaded SVG asset URLs. */
 const BALL_SVG = {
@@ -126,17 +184,76 @@ export default class BattleScene2 extends Phaser.Scene {
     }
   }
 
+  preload() {
+    const base = this.data?.tilesetBaseUrl ?? '/';
+
+    // Type / category icons and status spritesheet — needed by iconSheets.js helpers.
+    // These are also loaded by Preload.js when entering via index.html; loading here
+    // ensures they are available when entering via the test-page QuickPreload path.
+    if (!this.textures.exists('statuses')) {
+      this.load.spritesheet('statuses', statuses_sheet, { frameWidth: 44, frameHeight: 16 });
+    }
+    TYPE_NAMES.forEach(t     => loadResized(this, `type-${t}`,     `${base}tileset/ui/types/${t}.png`,      24, 24));
+    CATEGORY_NAMES.forEach(c => loadResized(this, `category-${c}`, `${base}tileset/ui/categories/${c}.png`, 24, 24));
+
+    // Scene theme — defaults to 'field' so callers that omit the property
+    // still render with base images instead of falling back to the ellipses.
+    const themeKey = this.data?.field?.scene ?? 'field';
+    const theme    = THEMES[themeKey];
+    if (theme) {
+      if (!this.textures.exists(theme.bg)) {
+        this.load.image(theme.bg,   `${base}tileset/battlescene/${themeKey}_bg.png`);
+      }
+      if (!this.textures.exists(theme.base)) {
+        this.load.image(theme.base, `${base}tileset/battlescene/${themeKey}_base1.png`);
+      }
+    }
+
+    // Trainer sprite — preload all candidate portrait names during the standard
+    // Phaser loading phase so the runtime loader's 304/fetch edge-cases never
+    // interfere with the first display.  Candidates are tried in priority order:
+    // explicit override → subclass slug → trainer name slug.
+    const enemy = this.data?.enemy;
+    if (enemy?.isTrainer) {
+      for (const name of _trainerPortraitCandidates(enemy)) {
+        const key = `trainer-battle-${name}`;
+        if (!this.textures.exists(key)) {
+          this.load.image(key, `${base}tileset/characters/trainer/${name}.png`);
+        }
+      }
+    }
+  }
+
   create() {
+    this._centerViewport();
+    this.scale.on('resize', this._centerViewport, this);
+
+    // Render layers — mirrors pokerogue's field / fieldUI / uiContainer split.
+    // field:       arena, platforms, weather, pokémon + trainer sprites, field screens
+    // fieldUI:     status boxes, ability toasts — above sprites, below menus
+    // uiContainer: message logger, command/action menus, pokéball animations
+    this.field       = this.add.container(0, 0).setDepth(0);
+    this.fieldUI     = this.add.container(0, 0).setDepth(1);
+    this.uiContainer = this.add.container(0, 0).setDepth(2);
+
     this._drawBackground();
 
     // Weather particles — behind screens and status boxes
     this.WeatherDisplay = new WeatherDisplay(this);
+    this.field.add(this.WeatherDisplay);
 
     // Field-side screen barriers — rendered directly on the battlefield, below all other UI
     this.FieldScreens = new FieldScreensDisplay(this);
+    this.field.add(this.FieldScreens);
 
     // Dialog box (bottom-left)
     this.logger = new BattleLogger(this, 0, UI_Y, DIALOG_W, UI_H, { textSpeed: this.data?.textSpeed ?? 'normal' });
+    this.logger.reparent(this.uiContainer);
+
+    // Move-info overlay — drawn over the textbox area while the move picker is open
+    this.MoveInfoOverlay = new MoveInfoOverlay(this, 0, UI_Y, DIALOG_W, UI_H);
+    this.MoveInfoOverlay.setVisible(false);
+    this.uiContainer.add(this.MoveInfoOverlay);
 
     // Status boxes (enemy top-left, player bottom-right)
     this.ActivePokemonMenu = new ActivePokemonMenu(
@@ -144,6 +261,7 @@ export default class BattleScene2 extends Phaser.Scene {
       ENEMY_BOX.x,  ENEMY_BOX.y,
       PLAYER_BOX.x, PLAYER_BOX.y
     );
+    this.fieldUI.add(this.ActivePokemonMenu);
 
     // All menus pre-created at the action panel position, hidden until needed
     this.BattleMenu        = new BattleMenu(this,        ACTION_X, UI_Y);
@@ -151,15 +269,16 @@ export default class BattleScene2 extends Phaser.Scene {
     this.BagMenu           = new BagMenu(this,           0, 0);
     this.PokemonTeamMenu   = new BattleTeamScreen(this);
     this.PokemonSwitchMenu = new PokemonSwitchMenu(this, ACTION_X, UI_Y);
-    this.BagMenu.setDepth(10);
-    this.PokemonTeamMenu.setDepth(10);
     [
       this.BattleMenu,
       this.AttackMenu,
       this.BagMenu,
       this.PokemonTeamMenu,
       this.PokemonSwitchMenu,
-    ].forEach(m => m.setVisible(false));
+    ].forEach(m => {
+      m.setVisible(false);
+      this.uiContainer.add(m);
+    });
 
     const im = createInputManager(this);
     // Menu navigation is suppressed while the tutorial autopilot is driving the
@@ -203,6 +322,16 @@ export default class BattleScene2 extends Phaser.Scene {
     this.WeatherDisplay.tick(time);
   }
 
+  // ─── Viewport centering ─────────────────────────────────────────────────────
+
+  _centerViewport() {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    const x = Math.max(0, Math.floor((w - 800) / 2));
+    const y = Math.max(0, Math.floor((h - 600) / 2));
+    this.cameras.main.setViewport(x, y, 800, 600);
+  }
+
   // ─── Background ────────────────────────────────────────────────────────────
 
   // Sky and ground colour palettes per weather type.
@@ -214,22 +343,63 @@ export default class BattleScene2 extends Phaser.Scene {
     hail:        { skyTop: 0x5878a0, skyBot: 0x90b0c8, gndTop: 0x508858, gndBot: 0x387040 },
   };
 
+  _getTheme() {
+    // Default to 'field' so test-page scenarios and any other entry point
+    // that omits an explicit `scene` still render with the base images.
+    return THEMES[this.data?.field?.scene ?? 'field'] ?? null;
+  }
+
   _drawBackground() {
-    this._skyGfx    = this.add.graphics();
-    this._groundGfx = this.add.graphics();
-    this._updateBackground(null);
+    const theme = this._getTheme();
+
+    if (theme && this.textures.exists(theme.bg)) {
+      // Full-field backdrop sprite replaces the sky/ground gradient.  Scaled
+      // to cover the canvas width; any overflow below UI_Y is hidden under
+      // the bottom UI strip.
+      this._bgImage = this.add.image(0, 0, theme.bg).setOrigin(0, 0);
+      this._bgImage.setScale(800 / this._bgImage.width);
+      this.field.add(this._bgImage);
+    } else {
+      this._skyGfx    = this.add.graphics();
+      this._groundGfx = this.add.graphics();
+      this.field.add([this._skyGfx, this._groundGfx]);
+      this._updateBackground(null);
+    }
+
+    // Solid panel behind the bottom UI strip so the dialog box and action
+    // menus always have a clean, opaque backdrop regardless of the chosen
+    // battlefield theme. Drawn first so the border/menus render above it.
+    const menuBg = this.add.graphics();
+    menuBg.fillStyle(0x2a2a2a, 1);
+    menuBg.fillRect(0, UI_Y, 800, 600 - UI_Y);
+    menuBg.fillStyle(0x454545, 1);
+    menuBg.fillRect(0, UI_Y, 800, 4);
+    this.uiContainer.add(menuBg);
 
     // Static elements drawn once — border and platforms.
     const border = this.add.graphics();
     border.lineStyle(4, 0x181818);
     border.lineBetween(0, UI_Y, 800, UI_Y);
     border.lineBetween(ACTION_X, UI_Y, ACTION_X, 600);
+    this.uiContainer.add(border);
 
-    this._platformsGfx = this.add.graphics();
-    this._updatePlatforms(null);
+    if (theme && this.textures.exists(theme.base)) {
+      // Platform sprites — bottom-aligned to match the previous ellipse
+      // baselines.  Back platform gets a perspective downscale so it reads
+      // as being farther away than the player's front platform.
+      this._frontBase = this.add.image(190, UI_Y + 42,  theme.base).setOrigin(0.5, 1);
+      this._backBase  = this.add.image(610, UI_Y - 152, theme.base).setOrigin(0.5, 1).setScale(0.7);
+      this.field.add([this._frontBase, this._backBase]);
+    } else {
+      this._platformsGfx = this.add.graphics();
+      this.field.add(this._platformsGfx);
+      this._updatePlatforms(null);
+    }
   }
 
   _updateBackground(weatherType) {
+    if (!this._skyGfx) return;   // theme backdrop handles rendering
+
     const pal = BattleScene2.BG_PALETTES[weatherType] ?? BattleScene2.BG_PALETTES[null];
 
     this._skyGfx.clear();
@@ -242,12 +412,14 @@ export default class BattleScene2 extends Phaser.Scene {
   }
 
   _updatePlatforms(weatherType) {
+    if (!this._platformsGfx) return;   // theme platform sprites handle rendering
+
     const color = weatherType === 'sandstorm' ? 0xb89060
                 : weatherType === 'hail'      ? 0x70a888
                 : 0x80b848;
     this._platformsGfx.clear();
     this._platformsGfx.fillStyle(color, 0.5);
-    this._platformsGfx.fillEllipse(190, UI_Y - 28,  210, 40);
+    this._platformsGfx.fillEllipse(190, UI_Y + 22,  210, 40);
     this._platformsGfx.fillEllipse(610, UI_Y - 168, 170, 32);
   }
 
@@ -292,7 +464,8 @@ export default class BattleScene2 extends Phaser.Scene {
     const isPlayer = mon === this.config?.player?.team?.getActivePokemon();
     const x = isPlayer ? 190 : 610;
     const y = isPlayer ? UI_Y - 150 : UI_Y - 196;
-    new AbilityToast(this, x, y, abilityName);
+    const toast = new AbilityToast(this, x, y, abilityName);
+    this.fieldUI.add(toast);
   }
 
   /**
@@ -364,23 +537,25 @@ export default class BattleScene2 extends Phaser.Scene {
         shiny:          player.isShiny ?? false,
         gender:         player.gender  ?? null,
         isBack:         true,
-        size:           192,
+        size:           240,
         tilesetBaseUrl,
         tint:           player.volatileStatus?.transformed ? 0xaaddff : null,
       });
+      this.field.add(this._playerSprite);
     }
 
     if (enemy) {
       const enemySpecies = enemy.volatileStatus?.transformed || (enemy.pokemon?.nat_dex_id ?? enemy.species);
-      this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 184, {
+      this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 195, {
         species:        enemySpecies,
         shiny:          enemy.isShiny ?? false,
         gender:         enemy.gender  ?? null,
         isBack:         false,
-        size:           128,
+        size:           192,
         tilesetBaseUrl,
         tint:           enemy.volatileStatus?.transformed ? 0xaaddff : null,
       });
+      this.field.add(this._enemySprite);
     }
   }
 
@@ -393,13 +568,11 @@ export default class BattleScene2 extends Phaser.Scene {
     const enemy          = this.config?.enemy;
     const tilesetBaseUrl = this.data?.tilesetBaseUrl ?? null;
 
-    // Use the explicit sprite name, or derive one from the trainer's subclass title
-    // (e.g. 'Ace Trainer' → 'ace_trainer') so BattleTrainerSprite can attempt both
-    // the dedicated battle-art path and the overworld-sprite fallback path.
-    const name = enemy?.trainerBattleSprite
-      ?? (enemy?.trainerSubclass
-          ? enemy.trainerSubclass.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-          : null);
+    // Pick the first preloaded candidate portrait that made it into the texture cache.
+    // Candidates were queued in preload() in priority order, so the first cache-hit
+    // is also the highest-priority one.
+    const candidates = _trainerPortraitCandidates(enemy);
+    const name = candidates.find(n => this.textures.exists(`trainer-battle-${n}`)) ?? null;
 
     if (!name || !tilesetBaseUrl) {
       callback?.();
@@ -416,6 +589,7 @@ export default class BattleScene2 extends Phaser.Scene {
       tilesetBaseUrl,
       isEnemy: true,
     });
+    this.field.add(this._trainerSprite);
     this._trainerSprite.slideIn(callback);
   }
 
@@ -446,14 +620,15 @@ export default class BattleScene2 extends Phaser.Scene {
 
     if (this._enemySprite) { this._enemySprite.destroy(); this._enemySprite = null; }
 
-    this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 184, {
+    this._enemySprite = new BattlePokemonSprite(this, 610, UI_Y - 195, {
       species:        enemy.pokemon?.nat_dex_id ?? enemy.species,
       shiny:          enemy.isShiny  ?? false,
       gender:         enemy.gender   ?? null,
       isBack:         false,
-      size:           128,
+      size:           192,
       tilesetBaseUrl,
     });
+    this.field.add(this._enemySprite);
     this._enemySprite.slideIn(callback);
   }
 
@@ -474,9 +649,10 @@ export default class BattleScene2 extends Phaser.Scene {
       shiny:          player.isShiny  ?? false,
       gender:         player.gender   ?? null,
       isBack:         true,
-      size:           192,
+      size:           240,
       tilesetBaseUrl,
     });
+    this.field.add(this._playerSprite);
     this._playerSprite.slideIn(callback);
   }
 
@@ -592,9 +768,10 @@ export default class BattleScene2 extends Phaser.Scene {
       shiny:          enemy.isShiny ?? false,
       gender:         enemy.gender  ?? null,
       isBack:         false,
-      size:           128,
+      size:           192,
       tilesetBaseUrl,
     });
+    this.field.add(this._enemySprite);
   }
 
   checkForEndOfBattle() {
@@ -636,7 +813,8 @@ export default class BattleScene2 extends Phaser.Scene {
       const midX   = (startX + endX) / 2;
       const midY   = Math.min(startY, endY) - 70;
 
-      const ball = this.add.image(startX, startY, ballKey).setDisplaySize(20, 20).setDepth(10);
+      const ball = this.add.image(startX, startY, ballKey).setDisplaySize(20, 20);
+      this.uiContainer.add(ball);
 
       // Phase 1 — arc throw (two-segment parabola)
       this.tweens.add({

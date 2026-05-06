@@ -5,6 +5,8 @@
  * The random deviation means trainers occasionally make suboptimal choices,
  * keeping battles from feeling deterministic.
  */
+import { shouldSwitch } from './switchStrategy.js';
+
 export default class TrainerAI {
   /**
    * Select and execute a move for the trainer's Pokémon.
@@ -18,5 +20,9 @@ export default class TrainerAI {
    */
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0.3);
+  }
+
+  shouldSwitch(active, opponent, benched, generation) {
+    return shouldSwitch(active, opponent, benched, generation, 0.3);
   }
 }

@@ -40,6 +40,7 @@ export default class LearnMove {
           ...p.moves.map(m => `${m.name}  (${m.pp.current}/${m.pp.max} PP)`),
           `Don't learn ${pending.name}`,
         ];
+        this.AttackMenu.useListMode();
         this.AttackMenu.remap(items);
         this.activateMenu(this.AttackMenu);
 

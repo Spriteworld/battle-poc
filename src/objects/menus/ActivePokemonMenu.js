@@ -76,6 +76,38 @@ export default class ActivePokemonMenu extends Phaser.GameObjects.Container {
     this._playerBox.waitForExpAnimation(callback);
   }
 
+  /**
+   * Hides the enemy status card ahead of the battle-start intro so it can
+   * be animated in via {@link slideInEnemyBox}.
+   */
+  hideEnemyBoxForIntro() {
+    this._enemyBox.hideForIntro();
+  }
+
+  /**
+   * Slides the enemy status card in from off-screen left with a Back.easeOut pop.
+   * @param {Function} [callback]
+   */
+  slideInEnemyBox(callback) {
+    this._enemyBox.slideIn(callback);
+  }
+
+  /**
+   * Hides the player status card ahead of the battle-start intro so it can
+   * be animated in via {@link slideInPlayerBox}.
+   */
+  hidePlayerBoxForIntro() {
+    this._playerBox.hideForIntro();
+  }
+
+  /**
+   * Slides the player status card in from off-screen right with a Back.easeOut pop.
+   * @param {Function} [callback]
+   */
+  slideInPlayerBox(callback) {
+    this._playerBox.slideIn(callback);
+  }
+
   /** Visual turn indicator — no-op for now, boxes are always visible. */
   select(_index) {}
   deselect() {}

@@ -12,6 +12,7 @@ export default class PlayerAttack {
       this.AttackMenu.deselect();
       this.AttackMenu.clear();
       this.AttackMenu.setVisible(false);
+      this.MoveInfoOverlay?.setVisible(false);
 
       this.actions.player = new Action({
         type: ActionTypes.ATTACK,
@@ -37,18 +38,17 @@ export default class PlayerAttack {
 
     // Populate the pre-created AttackMenu and show it
     const moves = activeMon.getMoves();
-    this.AttackMenu.clear();
+    const moveList = Object.values(moves);
+    this.AttackMenu.useGridMode();
 
-    Object.values(moves).forEach((move, idx) => {
+    moveList.forEach((move, idx) => {
       const prefix = move.implemented === false ? '[N] ' : move.implemented === 'partial' ? '[P] ' : '';
       const hpType = move.name?.toLowerCase() === 'hidden power' && activeMon.hiddenPowerType
         ? activeMon.hiddenPowerType[0] + activeMon.hiddenPowerType.slice(1).toLowerCase()
         : null;
       const moveName = hpType ? `Hidden Power [${hpType}]` : move.name;
 
-      this.AttackMenu.addMenuItem(
-        `${prefix}${moveName} (${move.pp.current}/${move.pp.max}pp)`
-      );
+      this.AttackMenu.addMenuItem(`${prefix}${moveName}`);
       this.events.once('attackmenu-select-option-' + idx, () => {
         this._lastMoveIndex = idx;
         this._lastMovePokemon = activeMon.id;
@@ -56,11 +56,31 @@ export default class PlayerAttack {
       });
     });
 
-    this.AttackMenu.addMenuItem('Cancel');
-    this.events.once('attackmenu-select-option-' + moves.length, () => {
+    // Move-info overlay — shown over the textbox while the picker is open.
+    // Updates on every selection change so hover reveals move details.
+    const showMoveInfo = (idx) => {
+      const move = moveList[idx];
+      if (!move || !this.MoveInfoOverlay) return;
+      const hpType = move.name?.toLowerCase() === 'hidden power' && activeMon.hiddenPowerType
+        ? activeMon.hiddenPowerType[0] + activeMon.hiddenPowerType.slice(1).toLowerCase()
+        : null;
+      this.MoveInfoOverlay.setMove({
+        name:        hpType ? `Hidden Power [${hpType}]` : move.name,
+        type:        (hpType ?? move.type ?? 'normal').toLowerCase(),
+        category:    move.category ?? 'status',
+        ppCurrent:   move.pp.current,
+        ppMax:       move.pp.max,
+        description: move.description ?? '',
+      });
+    };
+    this.MoveInfoOverlay?.setVisible(true);
+    this.events.on('attackmenu-selection-changed', showMoveInfo);
+
+    this.events.once('attackmenu-cancel', () => {
       this.AttackMenu.deselect();
       this.AttackMenu.clear();
       this.AttackMenu.setVisible(false);
+      this.MoveInfoOverlay?.setVisible(false);
       this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
     });
 

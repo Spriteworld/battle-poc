@@ -234,6 +234,39 @@ export default class PokemonStatusBox extends Phaser.GameObjects.Container {
     });
   }
 
+  // ─── Intro animation ───────────────────────────────────────────────────────
+
+  /**
+   * Hides the card ahead of the battle-start intro so it can be animated in
+   * later via {@link slideIn}.
+   */
+  hideForIntro() {
+    this.setVisible(false);
+  }
+
+  /**
+   * Slides the card in from off-screen with a Back.easeOut pop — player side
+   * enters from the right to mirror the enemy card's left-side entrance.
+   * @param {Function} [callback]
+   */
+  slideIn(callback) {
+    const finalX = this.x;
+    this.setX(finalX + 240);
+    this.setScale(0.7);
+    this.setAlpha(0);
+    this.setVisible(true);
+    this.scene.tweens.add({
+      targets:  this,
+      x:        finalX,
+      scaleX:   1,
+      scaleY:   1,
+      alpha:    1,
+      duration: 450,
+      ease:     'Back.easeOut',
+      onComplete: () => callback?.(),
+    });
+  }
+
   /**
    * Refreshes all displayed values.
    * @param {object} data

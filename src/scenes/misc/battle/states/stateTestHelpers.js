@@ -41,6 +41,9 @@ export function makeMenu(name) {
     setVisible:   jest.fn(),
     setActiveTab: jest.fn(),
     addMenuItem:  jest.fn(label => items.push({ text: () => label })),
+    useGridMode:  jest.fn(),
+    useListMode:  jest.fn(),
+    setMoveMeta:  jest.fn(),
   };
 }
 
@@ -119,6 +122,7 @@ export function makeContext(overrides = {}) {
       setActivePokemon: jest.fn(),
       hasLivingPokemon: jest.fn(() => true),
     },
+    ai: { selectMove: jest.fn(), shouldSwitch: jest.fn(() => null) },
   };
 
   const enemy = {
@@ -131,6 +135,7 @@ export function makeContext(overrides = {}) {
       setActivePokemon: jest.fn(),
       hasLivingPokemon: jest.fn(() => true),
     },
+    ai: { selectMove: jest.fn(), shouldSwitch: jest.fn(() => null) },
   };
 
   const ctx = {

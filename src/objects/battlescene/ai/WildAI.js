@@ -19,4 +19,9 @@ export default class WildAI {
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackRandomMove(target, generation, fieldState, weather);
   }
+
+  // Wild Pokémon are alone on their side — never any teammate to switch to.
+  shouldSwitch() {
+    return null;
+  }
 }

@@ -109,39 +109,43 @@ export default class ApplyActions {
       return;
     }
 
-    const playerActivePokemon = this.config.player.team.getActivePokemon();
-    if (playerActivePokemon?.volatileStatus?.ingrained) {
-      this.logger.addItem(`${playerActivePokemon.getName()} is rooted by Ingrain and can't switch out!`);
-      this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+    const isPlayerSwitch = player === this.config.player;
+    const switcherActive = player.team.getActivePokemon();
+    const opponentSide   = isPlayerSwitch ? this.config.enemy : this.config.player;
+    const opponentActive = opponentSide.team.getActivePokemon();
+    const blockedState   = isPlayerSwitch ? this.stateDef.PLAYER_ACTION : this.stateDef.BEFORE_ACTION;
+
+    if (switcherActive?.volatileStatus?.ingrained) {
+      this.logger.addItem(`${switcherActive.getName()} is rooted by Ingrain and can't switch out!`);
+      this.stateMachine.setState(blockedState);
       return;
     }
-    const trapData = playerActivePokemon?.volatileStatus?.trapped;
+    const trapData = switcherActive?.volatileStatus?.trapped;
     if (trapData) {
-      this.logger.addItem(`${playerActivePokemon.getName()} is trapped by ${trapData.sourceName} and can't switch!`);
-      this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+      this.logger.addItem(`${switcherActive.getName()} is trapped by ${trapData.sourceName} and can't switch!`);
+      this.stateMachine.setState(blockedState);
       return;
     }
 
-    const enemyActivePokemon = this.config.enemy.team.getActivePokemon();
-    const playerTypes = playerActivePokemon?.types ?? [];
-    const playerFlying = playerTypes.includes(TYPES.FLYING);
-    const playerLevitate = typeof playerActivePokemon?.hasAbility === 'function' &&
-      playerActivePokemon.hasAbility(Abilities.LEVITATE);
+    const switcherTypes    = switcherActive?.types ?? [];
+    const switcherFlying   = switcherTypes.includes(TYPES.FLYING);
+    const switcherLevitate = typeof switcherActive?.hasAbility === 'function' &&
+      switcherActive.hasAbility(Abilities.LEVITATE);
 
     let trapAbility = null;
-    if (enemyActivePokemon.hasAbility(Abilities.ARENA_TRAP) && !playerFlying && !playerLevitate) {
+    if (opponentActive?.hasAbility?.(Abilities.ARENA_TRAP) && !switcherFlying && !switcherLevitate) {
       trapAbility = 'Arena Trap';
-    } else if (enemyActivePokemon.hasAbility(Abilities.SHADOW_TAG) &&
-               !playerActivePokemon?.hasAbility?.(Abilities.SHADOW_TAG)) {
+    } else if (opponentActive?.hasAbility?.(Abilities.SHADOW_TAG) &&
+               !switcherActive?.hasAbility?.(Abilities.SHADOW_TAG)) {
       trapAbility = 'Shadow Tag';
-    } else if (enemyActivePokemon.hasAbility(Abilities.MAGNET_PULL) &&
-               playerTypes.some(t => t === TYPES.STEEL)) {
+    } else if (opponentActive?.hasAbility?.(Abilities.MAGNET_PULL) &&
+               switcherTypes.some(t => t === TYPES.STEEL)) {
       trapAbility = 'Magnet Pull';
     }
 
     if (trapAbility) {
-      this.logger.addItem(`${playerActivePokemon.getName()} can't switch out! ${enemyActivePokemon.getName()}'s ${trapAbility} prevents it!`);
-      this.stateMachine.setState(this.stateDef.PLAYER_ACTION);
+      this.logger.addItem(`${switcherActive.getName()} can't switch out! ${opponentActive.getName()}'s ${trapAbility} prevents it!`);
+      this.stateMachine.setState(blockedState);
       return;
     }
 
@@ -195,7 +199,7 @@ export default class ApplyActions {
     pokemon.isFirstTurn = true;
 
     // Apply entry hazards to the incoming Pokémon.
-    const switchingSideKey = player.getName().toLowerCase() === 'player' ? 'player' : 'enemy';
+    const switchingSideKey = isPlayerSwitch ? 'player' : 'enemy';
     const hazards = this.screens?.[switchingSideKey];
     if (hazards) {
       const monTypes    = pokemon.types ?? [];
@@ -240,11 +244,10 @@ export default class ApplyActions {
       }
     }
 
-    const enemy = player.getName().toLowerCase() === 'player' ? 'enemy' : 'player';
-    if (this.actions[enemy]) this.actions[enemy].target = pokemon;
+    const opponentKey = isPlayerSwitch ? 'enemy' : 'player';
+    if (this.actions[opponentKey]) this.actions[opponentKey].target = pokemon;
 
-    const switchOppSide = switchingSideKey === 'player' ? 'enemy' : 'player';
-    const switchOpponent = this.config[switchOppSide].team.getActivePokemon();
+    const switchOpponent = opponentSide.team.getActivePokemon();
     applySwitchInAbilities(pokemon, switchOpponent, this.weather, this.logger, this.generation, this.showAbilityToast?.bind(this));
 
     this.logger.addItem(`${player.getName()} sent out ${pokemon.getName()}!`);

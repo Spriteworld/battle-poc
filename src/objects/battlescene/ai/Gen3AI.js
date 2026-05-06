@@ -10,6 +10,8 @@
  * This is identical to TrainerAI and is provided as a named alias so code
  * can be explicit about which generation's behaviour it targets.
  */
+import { shouldSwitch } from './switchStrategy.js';
+
 export default class Gen3AI {
   /**
    * @param {object} attacker  - The active BattlePokemon using the move.
@@ -21,5 +23,9 @@ export default class Gen3AI {
    */
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0.3);
+  }
+
+  shouldSwitch(active, opponent, benched, generation) {
+    return shouldSwitch(active, opponent, benched, generation, 0.3);
   }
 }

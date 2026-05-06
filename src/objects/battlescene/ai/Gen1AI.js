@@ -25,4 +25,9 @@ export default class Gen1AI {
   selectMove(attacker, target, generation, fieldState = null, weather = null) {
     return attacker.attackWithAI(target, generation, fieldState, weather, 0.5, { useAttackerType: true });
   }
+
+  // Gen 1 trainers never switch mid-battle; the in-battle switch AI didn't exist yet.
+  shouldSwitch() {
+    return null;
+  }
 }

@@ -75,7 +75,13 @@ function makeContext(dataOverrides = {}) {
     generation:        null,
     escapeAttempts:    0,
     // UI components set up by BattleStart — mocked as no-ops.
-    ActivePokemonMenu: { remap: jest.fn() },
+    ActivePokemonMenu: {
+      remap:                 jest.fn(),
+      hideEnemyBoxForIntro:  jest.fn(),
+      slideInEnemyBox:       jest.fn(cb => cb?.()),
+      hidePlayerBoxForIntro: jest.fn(),
+      slideInPlayerBox:      jest.fn(cb => cb?.()),
+    },
     FieldScreens:      { update: jest.fn() },
     WeatherDisplay:    { setWeather: jest.fn() },
     _updateBackground: jest.fn(),
